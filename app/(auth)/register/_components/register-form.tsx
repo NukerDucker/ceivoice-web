@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RegisterSchema } from "@/lib/validations/auth";
+import { registerUser } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,6 +19,9 @@ import { Input } from "@/components/ui/input";
 
 export function RegisterForm() {
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const router = useRouter();
 
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
@@ -35,14 +40,28 @@ export function RegisterForm() {
     confirmPassword: string;
   }) => {
     setLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
-      // TODO: Replace with actual register API call
-      console.log("Registering user:", formData);
-      await new Promise((res) => setTimeout(res, 1500));
-      // TODO: Show success toast or redirect to login
-      // router.push('/login')
+      const data = await registerUser({
+        fullName: formData.name,
+        email: formData.email,
+        password: formData.password,
+        confirmPassword: formData.confirmPassword,
+      });
+
+      if (data?.token) {
+        localStorage.setItem("auth_token", data.token);
+      }
+      if (data?.user) {
+        localStorage.setItem("auth_user", JSON.stringify(data.user));
+      }
+
+      setSuccess("Account created successfully.");
+      router.push("/dashboard");
     } catch (err: Error | unknown) {
-      // TODO: Show error toast
+      const message = err instanceof Error ? err.message : "Register failed";
+      setError(message);
       console.error(err);
     } finally {
       setLoading(false);
@@ -52,6 +71,16 @@ export function RegisterForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {error && (
+          <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="rounded-md border border-green-200 bg-green-50 p-4 text-sm text-green-700">
+            {success}
+          </div>
+        )}
         <FormField
           control={form.control}
           name="name"
