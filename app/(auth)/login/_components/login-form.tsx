@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/lib/validations/auth";
-import { mockLogin } from "@/services/auth-services";
+import { mockLogin } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
