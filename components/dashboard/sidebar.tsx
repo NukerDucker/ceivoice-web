@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className={`relative h-screen bg-linear-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300 ${
-      isMinimized ? 'w-20' : 'w-72'
+      isMinimized ? 'w-17' : 'w-72'
     }`}>
       {/* Gradient overlay background */}
       <div className="absolute inset-0 h-52 bg-linear-to-b from-orange-500/8 via-orange-500/4 to-transparent pointer-events-none" />
@@ -53,7 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
         <button
           onClick={() => setIsMinimized(!isMinimized)}
-          className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 shrink-0"
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 shrink-0 "
           title={isMinimized ? 'Expand' : 'Minimize'}
         >
           {isMinimized ? (
@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="relative z-10 flex items-center gap-3">
                   <Icon size={20} className="shrink-0" />
                   {!isMinimized && (
-                    <span className="text-sm font-medium">{item.label}</span>
+                    <span className="text-sm font-medium truncate max-w-[140px] overflow-hidden whitespace-nowrap block">{item.label}</span>
                   )}
                 </div>
 
