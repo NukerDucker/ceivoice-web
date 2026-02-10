@@ -24,18 +24,23 @@ const DashboardPage = () => {
       const ticketsData: TicketResponse[] = await getTickets();
 
       // Transform backend data to match frontend format
-      const transformedTickets = ticketsData.map((ticket) => ({
-        ticketId: ticket.id,
-        title: ticket.title,
-        category: ticket.category || null,
-        date: new Date(ticket.createdAt),
-        status: ticket.status.toLowerCase().replace('_', '-') as 'submitted' | 'in-progress' | 'resolved' | 'critical',
-        assignee: ticket.assignee ? {
-          name: ticket.assignee.name,
-          avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${ticket.assignee.name}`,
-          fallback: ticket.assignee.name.split(' ').map(n => n[0]).join('').toUpperCase(),
-        } : undefined,
-      }));
+      const transformedTickets = ticketsData.map((ticket) => {
+        // Get the first active assignment if exists
+        const activeAssignment = ticket.assignments?.find(a => a.is_active);
+
+        return {
+          ticketId: `TD-${String(ticket.ticket_id).padStart(6, '0')}`,
+          title: ticket.title,
+          category: ticket.category?.name || null,
+          date: new Date(ticket.created_at),
+          status: ticket.status.toLowerCase().replace('_', '-') as 'submitted' | 'in-progress' | 'resolved' | 'critical',
+          assignee: activeAssignment ? {
+            name: activeAssignment.assignee.name,
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeAssignment.assignee.name}`,
+            fallback: activeAssignment.assignee.name.split(' ').map(n => n[0]).join('').toUpperCase(),
+          } : undefined,
+        };
+      });
 
       setTickets(transformedTickets);
     } catch (err) {
@@ -109,10 +114,26 @@ const DashboardPage = () => {
 
         {/* Main Content Area */}
         <div className="flex-1 overflow-y-auto px-10 py-6">
-          <div className="space-y-1">
+          <div className="space-y-6">
             <Header />
-            <div className="rounded-xl overflow-hidden">
+
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <h3 className="font-semibold text-gray-900">Recent Activity</h3>
+                  <button
+                    onClick={fetchTickets}
+                    disabled={ticketsLoading}
+                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <RefreshCw className={`size-4 ${ticketsLoading ? 'animate-spin' : ''}`} />
+                    {ticketsLoading ? 'Loading...' : 'Refresh'}
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <Badge variant="submitted" className="text-[10px] py-0 px-2 h-5">Legend: Submitted</Badge>
+                  <Badge variant="in-progress" className="text-[10px] py-0 px-2 h-5">In Progress</Badge>
+                </div>
               </div>
               <div className="p-0">
                 <TicketList data={tickets} />

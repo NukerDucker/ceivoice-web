@@ -1,18 +1,25 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export interface TicketResponse {
-  id: string;
+  ticket_id: number;
   title: string;
-  description?: string;
-  category?: string;
-  status: 'SUBMITTED' | 'IN_PROGRESS' | 'RESOLVED' | 'CRITICAL';
-  createdAt: string;
-  updatedAt: string;
-  assignee?: {
-    id: string;
+  summary?: string;
+  category?: {
+    category_id: number;
     name: string;
-    email: string;
   };
+  status: string;
+  created_at: string;
+  updated_at: string;
+  deadline?: string;
+  assignments?: Array<{
+    assignee: {
+      user_id: number;
+      name: string;
+      email: string;
+    };
+    is_active: boolean;
+  }>;
 }
 
 export const getTickets = async () => {
