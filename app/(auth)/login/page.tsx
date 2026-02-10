@@ -23,14 +23,16 @@ export default function LoginPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        <Button variant="outline" className="flex items-center justify-center gap-2">
+        <Button
+          variant="outline"
+          className="flex items-center justify-center gap-2"
+          onClick={() => {
+            window.location.href = `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"}/auth/google`;
+          }}
+        >
           <SiGoogle size={20} />
           Google
         </Button>
-        {/* <Button variant="outline" className="flex items-center justify-center gap-2">
-          <SiGithub size={20} />
-          GitHub
-        </Button> */}
       </div>
 
       <p className="mt-6 text-center text-sm text-gray-600">

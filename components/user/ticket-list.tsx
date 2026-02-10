@@ -226,10 +226,6 @@ export function TicketList({ data }: TicketListProps) {
 
   return (
     <div className="space-y-3">
-      <div className="text-sm text-gray-600">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
-      </div>
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <Table>
           <TableHeader className="bg-gray-50">
@@ -276,6 +272,10 @@ export function TicketList({ data }: TicketListProps) {
             ))}
           </TableBody>
         </Table>
+      </div>
+      <div className="text-sm text-gray-600 px-2">
+        {table.getFilteredSelectedRowModel().rows.length} of{" "}
+        {table.getFilteredRowModel().rows.length} row(s) selected.
       </div>
     </div>
   );

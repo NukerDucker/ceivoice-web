@@ -93,7 +93,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="relative z-10 flex items-center gap-3">
                   <Icon size={20} className="shrink-0" />
                   {!isMinimized && (
-                    <span className="text-sm font-medium truncate max-w-[140px] overflow-hidden whitespace-nowrap block">{item.label}</span>
+                    <span className="text-sm font-medium truncate max-w-35 overflow-hidden whitespace-nowrap block">{item.label}</span>
                   )}
                 </div>
 

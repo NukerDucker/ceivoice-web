@@ -3,8 +3,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { LoginSchema } from "@/lib/validations/auth";
-import { mockLogin } from "@/services/auth";
+import { login } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -18,6 +19,7 @@ import { Input } from "@/components/ui/input";
 
 export function LoginForm() {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm({
     resolver: zodResolver(LoginSchema),
@@ -33,11 +35,11 @@ export function LoginForm() {
   }) => {
     setLoading(true);
     try {
-      await mockLogin(formData);
-      // TODO: Show success toast and redirect to dashboard
-      // router.push('/dashboard')
+      await login(formData);
+      router.push("/dashboard");
     } catch (err: Error | unknown) {
-      // TODO: Show error toast
+      const message = err instanceof Error ? err.message : "An error occurred";
+      form.setError("root", { message });
       console.error(err);
     } finally {
       setLoading(false);
@@ -47,6 +49,11 @@ export function LoginForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {form.formState.errors.root && (
+          <p className="text-sm font-medium text-red-500">
+            {form.formState.errors.root.message}
+          </p>
+        )}
         <FormField
           control={form.control}
           name="email"

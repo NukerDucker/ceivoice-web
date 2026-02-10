@@ -2,7 +2,7 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-orange-50 to-orange-100">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-orange-50 to-orange-100">
       <div className="flex flex-col items-center justify-center gap-6">
         <Image
           src="/ceivoice-logo.png"

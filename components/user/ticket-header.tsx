@@ -32,7 +32,7 @@ export function Header() {
                     <InputGroupAddon>
                         <Search size={18} />
                     </InputGroupAddon>
-                    <InputGroupAddon align="inline-end">12 results</InputGroupAddon>
+                    {/* <InputGroupAddon align="inline-end">12 results</InputGroupAddon> */}
                 </InputGroup>
                 <Button className="gap-2" size="sm">
                     <Plus size={18} />

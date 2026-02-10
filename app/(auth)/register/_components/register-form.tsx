@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { RegisterSchema } from "@/lib/validations/auth";
+import { register } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,6 +19,7 @@ import { Input } from "@/components/ui/input";
 
 export function RegisterForm() {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
@@ -36,13 +39,11 @@ export function RegisterForm() {
   }) => {
     setLoading(true);
     try {
-      // TODO: Replace with actual register API call
-      console.log("Registering user:", formData);
-      await new Promise((res) => setTimeout(res, 1500));
-      // TODO: Show success toast or redirect to login
-      // router.push('/login')
+      await register(formData);
+      router.push("/dashboard");
     } catch (err: Error | unknown) {
-      // TODO: Show error toast
+      const message = err instanceof Error ? err.message : "An error occurred";
+      form.setError("root", { message });
       console.error(err);
     } finally {
       setLoading(false);
@@ -52,6 +53,11 @@ export function RegisterForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {form.formState.errors.root && (
+          <p className="text-sm font-medium text-red-500">
+            {form.formState.errors.root.message}
+          </p>
+        )}
         <FormField
           control={form.control}
           name="name"
