@@ -99,5 +99,29 @@ export const mockTickets: UserTicket[] = [
         date: new Date('2024-01-25T11:30:00'),
         status: "submitted",
         assignee: mockUsers[0]
+    },
+    {
+        ticketId: "TD-001244",
+        title: "API Gateway Timeout Error",
+        category: "Network",
+        date: new Date('2024-01-24T15:45:00'),
+        status: "critical",
+        assignee: mockUsers[2]
+    },
+    {
+        ticketId: "TD-001245",
+        title: "File Upload Size Limit Issue",
+        category: "Storage",
+        date: new Date('2024-01-23T13:20:00'),
+        status: "in-progress",
+        assignee: mockUsers[3]
+    },
+    {
+        ticketId: "TD-001246",
+        title: "Mobile App Crash on Startup",
+        category: "Mobile",
+        date: new Date('2024-01-22T08:00:00'),
+        status: "submitted",
+        assignee: mockUsers[1]
     }
 ];

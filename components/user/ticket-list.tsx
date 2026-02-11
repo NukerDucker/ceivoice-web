@@ -38,10 +38,113 @@ export interface Ticket {
 }
 
 interface TicketListProps {
-  data: Ticket[];
+  data?: Ticket[];
 }
 
-export function TicketList({ data }: TicketListProps) {
+// Mock data with 9 tickets
+const defaultTickets: Ticket[] = [
+  {
+    ticketId: 'TD-001238',
+    title: 'VPN Connection Timeout',
+    category: 'Network',
+    date: new Date('2025-01-30T08:15:00'),
+    status: 'submitted',
+    assignee: {
+      name: 'shadcn',
+      fallback: 'SC'
+    }
+  },
+  {
+    ticketId: 'TD-001239',
+    title: 'Email Server Configuration',
+    category: 'Email',
+    date: new Date('2025-01-29T14:30:00'),
+    status: 'in-progress',
+    assignee: {
+      name: 'Palm Pollapat',
+      fallback: 'PP'
+    }
+  },
+  {
+    ticketId: 'TD-001240',
+    title: 'Database Connection Pool Issue',
+    category: 'Database',
+    date: new Date('2025-01-28T10:45:00'),
+    status: 'resolved',
+    assignee: {
+      name: 'John Doe',
+      fallback: 'JD'
+    }
+  },
+  {
+    ticketId: 'TD-001241',
+    title: 'Critical Security Vulnerability',
+    category: 'Security',
+    date: new Date('2025-01-27T16:20:00'),
+    status: 'critical',
+    assignee: {
+      name: 'Sarah Smith',
+      fallback: 'SS'
+    }
+  },
+  {
+    ticketId: 'TD-001242',
+    title: 'Application Performance Slow',
+    category: 'Performance',
+    date: new Date('2025-01-26T09:00:00'),
+    status: 'in-progress',
+    assignee: {
+      name: 'Palm Pollapat',
+      fallback: 'PP'
+    }
+  },
+  {
+    ticketId: 'TD-001243',
+    title: 'User Authentication Failed',
+    category: 'Authentication',
+    date: new Date('2025-01-25T11:30:00'),
+    status: 'submitted',
+    assignee: {
+      name: 'shadcn',
+      fallback: 'SC'
+    }
+  },
+  {
+    ticketId: 'TD-001244',
+    title: 'API Gateway Timeout Error',
+    category: 'Network',
+    date: new Date('2025-01-24T15:45:00'),
+    status: 'critical',
+    assignee: {
+      name: 'John Doe',
+      fallback: 'JD'
+    }
+  },
+  {
+    ticketId: 'TD-001245',
+    title: 'File Upload Size Limit Issue',
+    category: 'Storage',
+    date: new Date('2025-01-23T13:20:00'),
+    status: 'in-progress',
+    assignee: {
+      name: 'Sarah Smith',
+      fallback: 'SS'
+    }
+  },
+  {
+    ticketId: 'TD-001246',
+    title: 'Mobile App Crash on Startup',
+    category: 'Mobile',
+    date: new Date('2025-01-22T08:00:00'),
+    status: 'submitted',
+    assignee: {
+      name: 'Palm Pollapat',
+      fallback: 'PP'
+    }
+  }
+];
+
+export function TicketList({ data = defaultTickets }: TicketListProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
 
@@ -224,12 +327,10 @@ export function TicketList({ data }: TicketListProps) {
     getSortedRowModel: getSortedRowModel(),
   });
 
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+
   return (
-    <div className="space-y-3">
-      <div className="text-sm text-gray-600">
-        {table.getFilteredSelectedRowModel().rows.length} of{" "}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
-      </div>
+    <div className="relative">
       <div className="border border-gray-200 rounded-lg overflow-hidden">
         <Table>
           <TableHeader className="bg-gray-50">
@@ -277,6 +378,13 @@ export function TicketList({ data }: TicketListProps) {
           </TableBody>
         </Table>
       </div>
+      
+      {/* Popup badge that appears only when rows are selected */}
+      {selectedCount > 0 && (
+        <div className="absolute -bottom-14 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white px-4 py-2 rounded-full shadow-lg text-sm font-medium animate-in fade-in slide-in-from-bottom-2 z-50">
+          {selectedCount} of {table.getFilteredRowModel().rows.length} row(s) selected
+        </div>
+      )}
     </div>
   );
 }
