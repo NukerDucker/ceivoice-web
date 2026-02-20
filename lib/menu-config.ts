@@ -7,6 +7,7 @@ import {
   Users,
   FileText,
   BarChart3,
+  MessageSquare,
   LucideIcon,
 } from 'lucide-react';
 
@@ -110,77 +111,92 @@ export const menuConfig: Record<UserRole, MenuItem[]> = {
     {
       id: 'tickets',
       label: 'Tickets',
-      icon: Ticket,
+      icon: MessageSquare,
       path: '/admin/tickets',
       hasSubmenu: true,
       submenu: [
         {
           id: 'all-tickets',
           label: 'All Tickets',
-          icon: Ticket,
+          icon: MessageSquare,
           path: '/admin/tickets',
         },
         {
           id: 'assigned',
           label: 'Assigned',
-          icon: Ticket,
+          icon: MessageSquare,
           path: '/admin/tickets/assigned',
         },
         {
           id: 'pending',
           label: 'Pending',
-          icon: Ticket,
+          icon: MessageSquare,
           path: '/admin/tickets/pending',
-        },
-      ],
-    },
-    {
-      id: 'users',
-      label: 'Users',
-      icon: Users,
-      path: '/admin/users',
-      hasSubmenu: true,
-      submenu: [
-        {
-          id: 'all-users',
-          label: 'All Users',
-          icon: Users,
-          path: '/admin/users',
-        },
-        {
-          id: 'roles',
-          label: 'Manage Roles',
-          icon: Users,
-          path: '/admin/users/roles',
         },
       ],
     },
     {
       id: 'reports',
       label: 'Reports',
-      icon: FileText,
+      icon: BarChart3,
       path: '/admin/reports',
       hasSubmenu: true,
       submenu: [
         {
           id: 'activity',
           label: 'Activity Report',
-          icon: FileText,
+          icon: BarChart3,
           path: '/admin/reports/activity',
         },
         {
           id: 'usage',
           label: 'Usage Report',
-          icon: FileText,
+          icon: BarChart3,
           path: '/admin/reports/usage',
         },
       ],
     },
     {
-      id: 'analytics',
-      label: 'Analytics',
-      icon: BarChart3,
-      path: '/admin/analytics',
+      id: 'profile',
+      label: 'Profile',
+      icon: User,
+      path: '/admin/profile',
+      hasSubmenu: true,
+      submenu: [
+        {
+          id: 'my-profile',
+          label: 'My Profile',
+          icon: User,
+          path: '/admin/profile',
+        },
+        {
+          id: 'preferences',
+          label: 'Preferences',
+          icon: Settings,
+          path: '/admin/profile/preferences',
+        },
+      ],
+    },
+    {
+      id: 'notifications',
+      label: 'Notifications',
+      icon: Bell,
+      path: '/admin/notifications',
+      hasSubmenu: true,
+      submenu: [
+        {
+          id: 'all-notifications',
+          label: 'All',
+          icon: Bell,
+          path: '/admin/notifications',
+        },
+        {
+          id: 'unread',
+          label: 'Unread',
+          icon: Bell,
+          path: '/admin/notifications/unread',
+        },
+      ],
     },
     {
       id: 'settings',
