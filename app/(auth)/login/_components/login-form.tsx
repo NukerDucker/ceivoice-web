@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/lib/validations/auth";
-import { mockLogin } from "@/services/auth";
+import { login } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -17,7 +18,9 @@ import {
 import { Input } from "@/components/ui/input";
 
 export function LoginForm() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
     resolver: zodResolver(LoginSchema),
@@ -32,13 +35,16 @@ export function LoginForm() {
     password: string;
   }) => {
     setLoading(true);
+    setError(null);
     try {
-      await mockLogin(formData);
-      // TODO: Show success toast and redirect to dashboard
-      // router.push('/dashboard')
-    } catch (err: Error | unknown) {
-      // TODO: Show error toast
-      console.error(err);
+      const user = await login(formData.email, formData.password);
+      if (user.role === "admin") {
+        router.push("/admin/dashboard");
+      } else {
+        router.push("/user");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Login failed");
     } finally {
       setLoading(false);
     }
@@ -74,6 +80,10 @@ export function LoginForm() {
             </FormItem>
           )}
         />
+
+        {error && (
+          <p className="text-sm text-red-600 text-center">{error}</p>
+        )}
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Checking credentials..." : "Login"}
