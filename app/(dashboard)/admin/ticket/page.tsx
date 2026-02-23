@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { Sidebar } from '@/components/dashboard/sidebar';
 import { TicketList } from "@/components/admin/ticket-list"
 import { mockTickets } from '@/lib/constants';
-import { Header } from "@/components/user/ticket-header"
+import { Header } from "@/components/tickets/TicketListHeader"
 
 export default function Page() {
   const [currentRole, setCurrentRole] = useState<'user' | 'admin' | 'assignee'>('admin'); // Changed from 'user' to 'admin'
