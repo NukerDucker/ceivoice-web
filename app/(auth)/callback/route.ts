@@ -1,7 +1,7 @@
 /**
  * OAuth callback route — token exchange to httpOnly cookies
  *
- * The backend's Passport.js Google OAuth handler redirects here with:
+ * The backend's Google OAuth handler (via Supabase PKCE) redirects here with:
  *   /callback?access_token=<jwt>&refresh_token=<jwt>
  *
  * This route handler:
