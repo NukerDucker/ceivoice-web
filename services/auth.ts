@@ -1,15 +1,16 @@
 /**
  * Authentication service
  *
- * Tokens are stored exclusively in httpOnly cookies set by the backend.
- * The browser sends them automatically on every same-origin / credentialed
- * request — frontend JavaScript never reads or writes them directly.
+ * All auth calls go through the Next.js API proxy routes at /api/auth/*.
+ * Those routes talk to the backend and store the JWT tokens as httpOnly
+ * cookies on the Next.js origin — browser JavaScript never sees a raw token.
  *
- * All fetch calls use `credentials: "include"` so that the
- * browser attaches the cookies on cross-origin requests to the API.
+ * Same-origin requests to /api/* automatically include cookies, so no
+ * `credentials: "include"` is required here.
  */
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000/api";
+// Next.js proxy prefix — same origin, no CORS
+const AUTH_PROXY = '/api/auth';
 
 // ===== TYPES =====
 
@@ -20,30 +21,27 @@ export interface UserProfile {
   role: string;
 }
 
-// ===== SHARED FETCH OPTIONS =====
-
-const CREDENTIALS_OPTS: RequestInit = {
-  credentials: "include",   // Always send the httpOnly cookie cross-origin
-  headers: { "Content-Type": "application/json" }
-};
-
 // ===== AUTH API CALLS =====
 
 /**
  * Login with email + password.
- * The backend sets access_token / refresh_token httpOnly cookies in the response.
+ * The /api/auth/login proxy sets access_token / refresh_token httpOnly cookies.
  * Returns the user profile; tokens are never exposed to JavaScript.
  */
 export const login = async (email: string, password: string): Promise<UserProfile> => {
-  const res = await fetch(`${API_URL}/auth/login`, {
-    ...CREDENTIALS_OPTS,
-    method: "POST",
-    body: JSON.stringify({ email, password })
+  const res = await fetch(`${AUTH_PROXY}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
   });
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error((data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? "Login failed");
+    throw new Error(
+      (data as { message?: string; error?: string }).message ??
+      (data as { error?: string }).error ??
+      'Login failed'
+    );
   }
 
   const data = await res.json();
@@ -60,15 +58,19 @@ export const register = async (
   password: string,
   confirmPassword: string
 ): Promise<UserProfile> => {
-  const res = await fetch(`${API_URL}/auth/register`, {
-    ...CREDENTIALS_OPTS,
-    method: "POST",
-    body: JSON.stringify({ fullName: name, email, password, confirmPassword })
+  const res = await fetch(`${AUTH_PROXY}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ fullName: name, email, password, confirmPassword }),
   });
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
-    throw new Error((data as { message?: string; error?: string }).message ?? (data as { error?: string }).error ?? "Registration failed");
+    throw new Error(
+      (data as { message?: string; error?: string }).message ??
+      (data as { error?: string }).error ??
+      'Registration failed'
+    );
   }
 
   const data = await res.json();
@@ -77,32 +79,22 @@ export const register = async (
 
 /**
  * Fetch the current user's profile.
- * The browser attaches the access_token cookie automatically.
+ * The access_token cookie is sent automatically (same-origin).
  * Throws if the user is not authenticated.
  */
 export const getMe = async (): Promise<UserProfile> => {
-  const res = await fetch(`${API_URL}/auth/me`, {
-    credentials: "include"
-  });
+  const res = await fetch(`${AUTH_PROXY}/me`);
 
-  if (!res.ok) throw new Error("Unauthorized");
+  if (!res.ok) throw new Error('Unauthorized');
 
-  const data = await res.json();
-  // /auth/me returns { user_id, email, name, role, ... } directly
-  return data as UserProfile;
+  return res.json() as Promise<UserProfile>;
 };
 
 /**
- * Logout — asks the backend to clear the httpOnly cookies.
- * Because httpOnly cookies cannot be deleted by JavaScript, a server-side
- * call is the only reliable way to invalidate the session.
+ * Logout — calls the proxy which clears the httpOnly cookies server-side.
  */
 export const logout = async (): Promise<void> => {
-  await fetch(`${API_URL}/auth/logout`, {
-    ...CREDENTIALS_OPTS,
-    method: "POST"
-  });
-  // No local state to clear — cookies are gone after the response
+  await fetch(`${AUTH_PROXY}/logout`, { method: 'POST' });
 };
 
 /**
@@ -110,20 +102,16 @@ export const logout = async (): Promise<void> => {
  * Call this when a protected fetch returns 401.
  */
 export const refreshAccessToken = async (): Promise<void> => {
-  const res = await fetch(`${API_URL}/auth/refresh`, {
-    ...CREDENTIALS_OPTS,
-    method: "POST",
-    body: JSON.stringify({}) // refresh_token is read from cookie server-side
-  });
-
-  if (!res.ok) throw new Error("Session expired");
+  const res = await fetch(`${AUTH_PROXY}/refresh`, { method: 'POST' });
+  if (!res.ok) throw new Error('Session expired');
 };
 
 /**
- * Convenience: redirect to Google OAuth.
- * The full-page navigation carries the cookies correctly and the
- * backend sets new ones after the OAuth handshake completes.
+ * Redirect the browser to the backend Google OAuth entry point.
+ * Passport.js handles the Google handshake; after success the backend
+ * redirects to /callback which sets httpOnly cookies and goes to /auth-success.
  */
 export const loginWithGoogle = (): void => {
-  globalThis.location.href = `${API_URL}/auth/google`;
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
+  globalThis.location.href = `${apiUrl}/auth/google`;
 };
