@@ -49,7 +49,7 @@ export async function enforceRoleAccess(
 
   const userRole = await getRoleFromRequest(request);
   if (!userRole) {
-    return NextResponse.redirect(new URL('/auth/login', request.url));
+    return NextResponse.redirect(new URL('/login', request.url));
   }
   if (userRole !== requiredRole) {
     return NextResponse.redirect(new URL(`/${userRole}/dashboard`, request.url));

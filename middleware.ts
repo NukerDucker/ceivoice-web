@@ -31,8 +31,8 @@ export const config = {
      *  - _next/image  (image optimisation)
      *  - favicon.ico
      *  - public folder assets
-     *  - /auth/* (login, register, callback — publicly accessible)
+     *  - /login, /register, /auth-success, /callback (publicly accessible)
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$|auth).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\.(?:svg|png|jpg|jpeg|gif|webp)$|login|register|auth-success|callback).*)',
   ],
 };

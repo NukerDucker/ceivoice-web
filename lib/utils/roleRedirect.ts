@@ -14,9 +14,9 @@ const ROLE_HOME: Record<Role, string> = {
 
 /**
  * Returns the home URL for the given role.
- * Falls back to /auth/login if the role is unrecognised.
+ * Falls back to /login if the role is unrecognised.
  */
 export function getRoleHome(role: string | null | undefined): string {
-  if (!role) return '/auth/login';
-  return ROLE_HOME[role as Role] ?? '/auth/login';
+  if (!role) return '/login';
+  return ROLE_HOME[role as Role] ?? '/login';
 }

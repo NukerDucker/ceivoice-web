@@ -17,5 +17,5 @@ export async function GET(request: NextRequest) {
   }
 
   // If no code, redirect to error page
-  return NextResponse.redirect(`${origin}/auth/login?error=auth_failed`);
+  return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }

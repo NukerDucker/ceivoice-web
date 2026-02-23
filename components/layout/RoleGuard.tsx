@@ -19,7 +19,7 @@ export function RoleGuard({
   allowedRoles,
   currentRole,
   children,
-  redirectTo = '/auth/login',
+  redirectTo = '/login',
 }: RoleGuardProps) {
   const router = useRouter();
 
