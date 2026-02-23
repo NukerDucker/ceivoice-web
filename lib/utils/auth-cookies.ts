@@ -93,7 +93,7 @@ export function decodeJwtPayload(token: string): JwtPayload | null {
     if (!base64Payload) return null;
 
     // Convert base64url → base64 then decode
-    const padded = base64Payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = base64Payload.replaceAll('-', '+').replaceAll('_', '/');
     const jsonStr = atob(padded);
     return JSON.parse(jsonStr) as JwtPayload;
   } catch {

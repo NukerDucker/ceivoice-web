@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { bearerHeader } from '@/lib/utils/auth-cookies';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
 
@@ -13,7 +14,7 @@ export async function GET(
 ) {
   const { ticketId } = await params;
   const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
-    headers: { Cookie: request.headers.get('cookie') ?? '' },
+    headers: { ...bearerHeader(request) },
   });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
@@ -29,7 +30,7 @@ export async function PATCH(
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      Cookie: request.headers.get('cookie') ?? '',
+      ...bearerHeader(request),
     },
     body: JSON.stringify(body),
   });
@@ -44,7 +45,7 @@ export async function DELETE(
   const { ticketId } = await params;
   const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
     method: 'DELETE',
-    headers: { Cookie: request.headers.get('cookie') ?? '' },
+    headers: { ...bearerHeader(request) },
   });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });

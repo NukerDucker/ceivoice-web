@@ -7,7 +7,7 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { getRefreshToken, setTokenCookies, ACCESS_TOKEN_MAX_AGE } from '@/lib/utils/auth-cookies';
+import { getRefreshToken, ACCESS_TOKEN_MAX_AGE } from '@/lib/utils/auth-cookies';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
 
