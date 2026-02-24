@@ -21,6 +21,19 @@ export interface DashboardTicket {
   assignee: DashboardAssignee;
 }
 
+export interface AISuggestion {
+  summary: string;
+  suggestedSolution: string;
+  category: string;
+  deadline: string;
+  deadlineTime: string;
+}
+
+export interface OriginalMessage {
+  from: string;
+  body: string;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // ASSIGNEES
 // ─────────────────────────────────────────────────────────────────────────────
@@ -142,3 +155,85 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     assignee: DASHBOARD_ASSIGNEES[1],
   },
 ];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI SUGGESTIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const AI_SUGGESTIONS: Record<string, AISuggestion> = {
+  "TD-001238": {
+    summary:
+      "User reports VPN connection timeouts after ~2 minutes, preventing access to internal resources. Issue persists after reinstalling VPN client. Work is blocked due to an important deadline.",
+    suggestedSolution:
+      "1. Check VPN server load and session limits\n2. Review VPN client logs for timeout error codes\n3. Verify firewall rules allow persistent VPN sessions\n4. Test alternate VPN gateway endpoints",
+    category: "Network / VPN",
+    deadline: "2026-02-26",
+    deadlineTime: "17:00",
+  },
+  "TD-001239": {
+    summary:
+      "Email server misconfiguration is causing delivery failures across the organisation. Multiple users affected. SMTP relay settings appear to be the root cause.",
+    suggestedSolution:
+      "1. Audit current SMTP relay configuration\n2. Compare with last known-good config snapshot\n3. Restart mail transfer agent service\n4. Test with internal and external addresses",
+    category: "Email / SMTP",
+    deadline: "2026-02-25",
+    deadlineTime: "12:00",
+  },
+  "TD-001240": {
+    summary:
+      "A critical security vulnerability has been detected in the production environment. Immediate triage and patching are required to prevent potential data breach.",
+    suggestedSolution:
+      "1. Isolate affected systems immediately\n2. Identify CVE and patch version\n3. Apply emergency patch in staging first\n4. Deploy fix to production and validate",
+    category: "Security / Vulnerability",
+    deadline: "2026-02-24",
+    deadlineTime: "23:59",
+  },
+  "TD-001241": {
+    summary:
+      "Database connection pool has been exhausted, causing application-level errors. Peak query load is suspected. Connection leak or misconfigured pool size may be involved.",
+    suggestedSolution:
+      "1. Increase connection pool max size temporarily\n2. Identify long-running or leaked connections\n3. Optimise slow queries contributing to pool pressure\n4. Schedule pool tuning during maintenance window",
+    category: "Database / Performance",
+    deadline: "2026-02-27",
+    deadlineTime: "09:00",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORIGINAL MESSAGES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const ORIGINAL_MESSAGES: Record<string, OriginalMessage> = {
+  "TD-001238": {
+    from: "James Harrington",
+    body: "Hi Support Team,\n\nI'm experiencing issues connecting to the company VPN. The connection keeps timing out after about 2 minutes, and I'm unable to access internal resources. I've tried restarting my computer and reinstalling the VPN client, but the problem persists.\n\nThis is blocking my work as I need to access the file server for an important project deadline today.\n\nCould you please help me resolve this urgently?\n\nThanks,\nJames",
+  },
+  "TD-001239": {
+    from: "Laura Benson",
+    body: "Hi Support,\n\nSince this morning our email service seems to be misconfigured. Outgoing messages to external recipients are bouncing back. Our SMTP relay might be the culprit.\n\nSeveral colleagues are affected and we have time-sensitive client communications pending.\n\nPlease assist as soon as possible.\n\nBest,\nLaura",
+  },
+  "TD-001240": {
+    from: "Security Scanner",
+    body: "AUTOMATED ALERT — CRITICAL\n\nA high-severity vulnerability has been detected in the production environment:\n\n  CVE ID: CVE-2025-XXXX\n  Severity: CRITICAL (CVSS 9.8)\n  Component: Authentication middleware\n  Affected hosts: prod-api-01, prod-api-02\n\nImmediate remediation is required. Please escalate to the security team.\n\n— Automated Security Platform",
+  },
+  "TD-001241": {
+    from: "AppMonitor",
+    body: "Hi DBA Team,\n\nOur monitoring system has flagged that the database connection pool is now at 100% utilisation. Application errors related to connection acquisition timeouts are appearing in the logs.\n\nThis is causing failures for end-users across multiple services.\n\nKindly investigate and resolve.\n\nRegards,\nApp Monitoring Bot",
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STATUS STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const STATUS_STYLES: Record<
+  TicketStatus,
+  { bg: string; text: string; dot: string }
+> = {
+  submitted: { bg: "#EFF6FF", text: "#2563EB", dot: "#3B82F6" },
+  "in-progress": { bg: "#FFFBEB", text: "#D97706", dot: "#F59E0B" },
+  resolved: { bg: "#F0FDF4", text: "#16A34A", dot: "#22C55E" },
+  critical: { bg: "#FFF1F2", text: "#E11D48", dot: "#F43F5E" },
+};
+
+export const DRAFT_STATUSES: TicketStatus[] = ["submitted", "in-progress", "critical"];

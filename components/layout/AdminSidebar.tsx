@@ -8,7 +8,7 @@ import { menuConfig } from '@/lib/menu-config';
 interface SidebarProps {
   userRole?: 'user' | 'admin' | 'assignee';
   userName?: string;
-  userAvatar?: string | null;
+  userAvatar?: string | null; 
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
