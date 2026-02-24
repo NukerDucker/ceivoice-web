@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { Sidebar } from "@/components/layout/AdminSidebar";
 import { Header as AdminDashboardHeader } from "@/components/layout/Navbar";
 import { DASHBOARD_ASSIGNEES, DASHBOARD_TICKETS } from "@/lib/admin-dashboard-data";
 import type { DashboardAssignee, DashboardTicket } from "@/lib/admin-dashboard-data";
@@ -118,13 +119,24 @@ export default function AdminDashboardPage() {
   const [range, setRange] = useState<"7D" | "30D" | "90D">("30D");
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex h-screen overflow-hidden">
 
-      {/* Scrollable area — header is now INSIDE here */}
-      <div className="flex-1 overflow-y-auto bg-slate-50">
+      {/* ── Sidebar ── */}
+      <div className="flex flex-col h-screen shrink-0">
+        <Sidebar
+          userRole="admin"
+          userName="Palm Pollapat"
+        />
+      </div>
 
-        {/* Header scrolls with content */}
-        <AdminDashboardHeader />
+      {/* ── Main Content ── */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+
+        {/* Scrollable area */}
+        <div className="flex-1 overflow-y-auto bg-slate-50">
+
+          {/* Header scrolls with content */}
+          <AdminDashboardHeader />
 
           <div className="px-8 py-6 space-y-5">
 
@@ -331,6 +343,7 @@ export default function AdminDashboardPage() {
               </div>
 
             </div>
+          </div>
         </div>
       </div>
     </div>
