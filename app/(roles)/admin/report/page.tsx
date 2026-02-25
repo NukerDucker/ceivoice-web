@@ -10,7 +10,7 @@ import {
   type TicketStatus,
   type DashboardAssignee,
 } from '@/lib/admin-dashboard-data';
-import { TicketVolumeModal } from '@/app/(roles)/admin/report/TicketVolumeModal';
+import { TicketVolumeModal } from './TicketVolumeModal';
 import {
   BarChart3,
   TrendingUp,
