@@ -10,9 +10,10 @@ import {
   type TicketStatus,
   type DashboardAssignee,
 } from '@/lib/admin-dashboard-data';
-import { TicketVolumeModal } from './TicketVolumeModal';
-import { BacklogSummaryModal } from './BacklogSummaryModal';
+import { TicketVolumeModal }       from './TicketVolumeModal';
+import { BacklogSummaryModal }     from './BacklogSummaryModal';
 import { PerformanceMetricsModal } from './PerformanceMetricsModal';
+import { CategoryBreakdownModal }  from './CategoryBreakdownModal';
 import {
   BarChart3,
   TrendingUp,
@@ -125,7 +126,7 @@ export default function ReportsPage() {
     return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
   }, [period]);
 
-  // ── KPI stats — all derived from filteredTickets ───────────────────────────
+  // ── KPI stats ─────────────────────────────────────────────────────────────
   const totalTickets    = filteredTickets.length;
   const resolvedTickets = filteredTickets.filter((t) => t.status === 'resolved').length;
   const criticalTickets = filteredTickets.filter((t) => t.status === 'critical').length;
@@ -133,7 +134,7 @@ export default function ReportsPage() {
     (t) => t.status === 'submitted' || t.status === 'in-progress',
   ).length;
 
-  // ── Category breakdown — filtered ─────────────────────────────────────────
+  // ── Category breakdown ────────────────────────────────────────────────────
   const categoryBreakdown = useMemo(() => {
     const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
       acc[t.category] = (acc[t.category] ?? 0) + 1;
@@ -148,7 +149,7 @@ export default function ReportsPage() {
       }));
   }, [filteredTickets, totalTickets]);
 
-  // ── Assignee workload — filtered ───────────────────────────────────────────
+  // ── Assignee workload ─────────────────────────────────────────────────────
   const assigneeWorkload = useMemo(() => {
     const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
       acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
@@ -191,51 +192,27 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* KPI Cards — filtered */}
+          {/* KPI Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              {
-                label: 'Total Tickets',
-                value: totalTickets,
-                sub: period.toLowerCase(),
-                color: '#3B82F6',
-              },
-              {
-                label: 'Resolved',
-                value: resolvedTickets,
-                sub: totalTickets > 0
-                  ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate`
-                  : '0% resolution rate',
-                color: '#10B981',
-              },
-              {
-                label: 'Average Resolution',
-                value: '3.2 hrs',
-                sub: 'Per ticket',
-                color: '#8B5CF6',
-              },
-              {
-                label: 'Backlog',
-                value: backlogTickets,
-                sub: `${criticalTickets} critical`,
-                color: '#F43F5E',
-              },
+              { label: 'Total Tickets',       value: totalTickets,    sub: period.toLowerCase(),                                                                                    color: '#3B82F6' },
+              { label: 'Resolved',            value: resolvedTickets, sub: totalTickets > 0 ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
+              { label: 'Average Resolution',  value: '3.2 hrs',       sub: 'Per ticket',                                                                                           color: '#8B5CF6' },
+              { label: 'Backlog',             value: backlogTickets,  sub: `${criticalTickets} critical`,                                                                          color: '#F43F5E' },
             ].map((kpi) => (
               <div
                 key={kpi.label}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1"
               >
                 <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
-                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">
-                  {kpi.value}
-                </span>
+                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
                 <span className="text-sm font-semibold text-gray-700">{kpi.label}</span>
                 <span className="text-xs text-gray-400">{kpi.sub}</span>
               </div>
             ))}
           </div>
 
-          {/* Insight panels — filtered */}
+          {/* Insight panels */}
           <div className="grid grid-cols-3 gap-4 mb-6">
 
             {/* Status distribution */}
@@ -380,6 +357,11 @@ export default function ReportsPage() {
       />
       <PerformanceMetricsModal
         open={activeModal === 'performance-metrics'}
+        onClose={closeModal}
+        period={period}
+      />
+      <CategoryBreakdownModal
+        open={activeModal === 'category-breakdown'}
         onClose={closeModal}
         period={period}
       />
