@@ -1,293 +1,366 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { Search, Check, Pencil, ChevronDown, User, Merge, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
-import { Header } from '@/components/layout/ReportTB';
+import { Header } from '@/components/layout/TicketTB';
 import {
   DASHBOARD_TICKETS,
-  DASHBOARD_ASSIGNEES,
-  STATUS_STYLES,
+  type DashboardTicket,
   type TicketStatus,
-  type DashboardAssignee,
 } from '@/lib/admin-dashboard-data';
-import { TicketVolumeModal } from '@/app/(roles)/admin/report/TicketVolumeModal';
-import { BacklogSummaryModal } from '@/app/(roles)/admin/report/BacklogSummaryModal';
-import { PerformanceMetricsModal } from '@/app/(roles)/admin/report/PerformanceMetricsModal';
-import { CategoryBreakdownModal } from '@/app/(roles)/admin/report/CategoryBreakdownModal';
-import { AssigneePerformanceModal } from '@/app/(roles)/admin/report/AssigneePerformanceModal';
-import { AIAccuracyModal} from '@/app/(roles)/admin/report/AIAccuracyModal';
-import {
-  BarChart3, TrendingUp, Users, Bot,
-  Layers, ChevronRight, AlertCircle, CheckCircle2, Timer, Flame,
-} from 'lucide-react';
 
-// ─── Period filter helper ─────────────────────────────────────────────────────
+// ─── Status config ────────────────────────────────────────────────────────────
 
-function periodToCutoff(p: string): number {
-  const now = Date.now();
-  switch (p) {
-    case 'Last 7 days':  return now - 7  * 24 * 60 * 60 * 1000;
-    case 'Last 30 days': return now - 30 * 24 * 60 * 60 * 1000;
-    case 'Last 90 days': return now - 90 * 24 * 60 * 60 * 1000;
-    case 'This year':    return new Date(new Date().getFullYear(), 0, 1).getTime();
-    default:             return 0;
-  }
-}
+const STATUS_CONFIG: Record<
+  TicketStatus,
+  { label: string; borderColor: string; badgeBorder: string; badgeText: string }
+> = {
+  critical:      { label: 'CRITICAL',    borderColor: 'border-l-red-500',    badgeBorder: 'border-red-500',    badgeText: 'text-red-500'    },
+  'in-progress': { label: 'IN PROGRESS', borderColor: 'border-l-yellow-400', badgeBorder: 'border-yellow-500', badgeText: 'text-yellow-600' },
+  resolved:      { label: 'RESOLVE',     borderColor: 'border-l-green-500',  badgeBorder: 'border-green-600',  badgeText: 'text-green-600'  },
+  submitted:     { label: 'SUBMITTED',   borderColor: 'border-l-blue-400',   badgeBorder: 'border-blue-500',   badgeText: 'text-blue-600'   },
+};
 
-const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
+const ALL_STATUSES: TicketStatus[] = ['submitted', 'in-progress', 'resolved', 'critical'];
 
-const STATUS_LABELS: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
-  { status: 'submitted',   label: 'Submitted',   icon: <AlertCircle size={14} /> },
-  { status: 'in-progress', label: 'In Progress', icon: <Timer size={14} /> },
-  { status: 'resolved',    label: 'Resolved',    icon: <CheckCircle2 size={14} /> },
-  { status: 'critical',    label: 'Critical',    icon: <Flame size={14} /> },
+const STATUS_TABS: { label: string; value: TicketStatus | 'all' }[] = [
+  { label: 'All',         value: 'all'         },
+  { label: 'Critical',    value: 'critical'     },
+  { label: 'In Progress', value: 'in-progress'  },
+  { label: 'Submitted',   value: 'submitted'    },
+  { label: 'Resolved',    value: 'resolved'     },
 ];
 
-const REPORT_CARDS = [
-  { id: 'ticket-volume',        title: 'Ticket Volume Report',  description: 'View ticket volume trends over time with daily, weekly, and monthly breakdowns.',           icon: <BarChart3 size={22} />,  accent: '#3B82F6', accentBg: '#EFF6FF' },
-  { id: 'performance-metrics',  title: 'Performance Metrics',   description: 'Analyze resolution times, response rates, and team performance indicators.',                icon: <TrendingUp size={22} />, accent: '#8B5CF6', accentBg: '#F5F3FF' },
-  { id: 'category-breakdown',   title: 'Category Breakdown',    description: 'Detailed breakdown of tickets by category, priority, and status distribution.',            icon: <Layers size={22} />,     accent: '#06B6D4', accentBg: '#ECFEFF' },
-  { id: 'assignee-performance', title: 'Assignee Performance',  description: 'Compare team member performance, workload distribution, and efficiency metrics.',           icon: <Users size={22} />,      accent: '#F59E0B', accentBg: '#FFFBEB' },
-  { id: 'backlog-summary',      title: 'Backlog Summary',       description: 'Monitor open ticket backlog by status and category.',                                       icon: <Layers size={22} />,     accent: '#6366F1', accentBg: '#EEF2FF' },
-  { id: 'ai-accuracy',          title: 'AI Accuracy Report',    description: 'Monitor AI processing SLA compliance, suggestion acceptance, and category match accuracy.', icon: <Bot size={22} />,        accent: '#6366F1', accentBg: '#EEF2FF' },
-];
+// ─── Status Badge ─────────────────────────────────────────────────────────────
 
-// ─── Page component ───────────────────────────────────────────────────────────
-
-export default function ReportsPage() {
-  const [period, setPeriod]           = useState('Last 30 days');
-  const [activeModal, setActiveModal] = useState<string | null>(null);
-
-  const openModal  = (id: string) => setActiveModal(id);
-  const closeModal = ()           => setActiveModal(null);
-
-  const filteredTickets = useMemo(() => {
-    const cutoff = periodToCutoff(period);
-    return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
-  }, [period]);
-
-  const totalTickets    = filteredTickets.length;
-  const resolvedTickets = filteredTickets.filter((t) => t.status === 'resolved').length;
-  const criticalTickets = filteredTickets.filter((t) => t.status === 'critical').length;
-  const backlogTickets  = filteredTickets.filter(
-    (t) => t.status === 'submitted' || t.status === 'in-progress',
-  ).length;
-
-  const categoryBreakdown = useMemo(() => {
-    const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
-      acc[t.category] = (acc[t.category] ?? 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({
-        name, count,
-        pct: totalTickets > 0 ? Math.round((count / totalTickets) * 100) : 0,
-      }));
-  }, [filteredTickets, totalTickets]);
-
-  const assigneeWorkload = useMemo(() => {
-    const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
-      acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
-      return acc;
-    }, {});
-    return DASHBOARD_ASSIGNEES.map((a: DashboardAssignee) => ({
-      ...a, count: map[a.name] ?? 0,
-    })).sort((a, b) => b.count - a.count);
-  }, [filteredTickets]);
+function StatusBadge({
+  status,
+  onChange,
+}: {
+  status: TicketStatus;
+  onChange: (s: TicketStatus) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const cfg = STATUS_CONFIG[status];
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
+    <div className="relative">
+      <div className={`flex items-center rounded-full border ${cfg.badgeBorder} overflow-hidden select-none`}>
+        <span className={`text-[11px] font-bold px-3 py-1.5 ${cfg.badgeText} whitespace-nowrap`}>
+          {cfg.label}
+        </span>
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className={`px-2 py-1.5 border-l ${cfg.badgeBorder} ${cfg.badgeText} hover:opacity-70 transition-opacity`}
+        >
+          <ChevronDown size={12} />
+        </button>
+      </div>
+
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-full mt-1 z-20 bg-white rounded-lg shadow-lg border border-gray-100 overflow-hidden min-w-[140px]">
+            {ALL_STATUSES.map((s) => {
+              const c = STATUS_CONFIG[s];
+              return (
+                <button
+                  key={s}
+                  onClick={() => { onChange(s); setOpen(false); }}
+                  className={`w-full text-left px-4 py-2 text-[11px] font-bold ${c.badgeText} hover:bg-gray-50 transition-colors ${s === status ? 'bg-gray-50' : ''}`}
+                >
+                  {c.label}
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ─── Ticket Row ───────────────────────────────────────────────────────────────
+
+function TicketRow({
+  ticket,
+  checked,
+  onCheck,
+}: {
+  ticket: DashboardTicket;
+  checked: boolean;
+  onCheck: (id: string, val: boolean) => void;
+}) {
+  const router = useRouter();
+  const [status, setStatus] = useState<TicketStatus>(ticket.status);
+  const cfg = STATUS_CONFIG[status];
+
+  const formattedDate = ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  const formattedTime = ticket.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+  // ── Navigates to app/(roles)/admin/reviewticket/page.tsx ──────────────────
+  // (roles) is a route group — Next.js strips it from the URL,
+  // so the actual path is /admin/reviewticket
+  const handleTitleClick = () => {
+    router.push(`/admin/reviewticket?id=${ticket.ticketId}`);
+  };
+
+  return (
+    <div className={`border-l-4 ${cfg.borderColor} bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100`}>
+      <div className="flex items-center gap-6 px-6 py-4">
+
+        {/* ID + checkbox + time */}
+        <div className="flex flex-col gap-0.5 w-[120px] shrink-0">
+          <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onCheck(ticket.ticketId, e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 accent-gray-900 my-1"
+          />
+          <span className="text-xs text-gray-500">{formattedTime}</span>
+          <span className="text-xs text-gray-400">{formattedDate}</span>
+        </div>
+
+        {/* Title + details */}
+        <div className="flex-1 min-w-0">
+          <button
+            onClick={handleTitleClick}
+            className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
+          >
+            {ticket.title}
+          </button>
+
+          <div className="grid grid-cols-4 gap-4">
+            {[
+              { label: 'Category',  value: ticket.category },
+              { label: 'Priority',  value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) },
+              { label: 'Assignee',  value: ticket.assignee.name },
+              { label: 'Ticket-Id', value: `#${ticket.ticketId}` },
+            ].map(({ label, value }) => (
+              <div key={label} className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
+                <span className="text-xs text-gray-600 font-medium">{value}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-3 shrink-0">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors">
+            <User size={13} className="text-gray-400" />
+            Client note
+          </button>
+          <StatusBadge status={status} onChange={setStatus} />
+          <div className="flex flex-col gap-1">
+            <button
+              onClick={() => setStatus('resolved')}
+              className="text-gray-300 hover:text-gray-900 transition-colors"
+              title="Mark as resolved"
+            >
+              <Check size={14} />
+            </button>
+            <button
+              onClick={handleTitleClick}
+              className="text-gray-300 hover:text-gray-900 transition-colors"
+              title="Review ticket"
+            >
+              <Pencil size={13} />
+            </button>
+            <button className="text-gray-300 hover:text-gray-600 transition-colors">
+              <ChevronDown size={14} />
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+// ─── Merge Popup ──────────────────────────────────────────────────────────────
+
+function MergePopup({
+  selectedIds,
+  onClear,
+  onMerge,
+}: {
+  selectedIds: string[];
+  onClear: () => void;
+  onMerge: () => void;
+}) {
+  if (selectedIds.length < 2) return null;
+
+  return (
+    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
+      <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100">
+        <div className="flex items-center gap-2">
+          <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+            {selectedIds.length}
+          </span>
+          <span className="text-sm font-medium text-gray-700">tickets selected</span>
+        </div>
+        <div className="w-px h-5 bg-gray-200" />
+        <div className="flex items-center gap-1.5">
+          {selectedIds.slice(0, 3).map((id) => (
+            <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
+              #{id}
+            </span>
+          ))}
+          {selectedIds.length > 3 && (
+            <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
+          )}
+        </div>
+        <div className="w-px h-5 bg-gray-200" />
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onMerge}
+            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+          >
+            <Merge size={15} />
+            Merge Tickets
+          </button>
+          <button
+            onClick={onClear}
+            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-xs px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
+          >
+            <X size={14} />
+            Clear
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function AdminTicketsPage() {
+  const [activeTab,       setActiveTab]       = useState<TicketStatus | 'all'>('all');
+  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
+  const [showMergeConfirm, setShowMergeConfirm] = useState(false);
+
+  const filtered = useMemo<DashboardTicket[]>(() => {
+    return DASHBOARD_TICKETS.filter((t) => activeTab === 'all' || t.status === activeTab);
+  }, [activeTab]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: DASHBOARD_TICKETS.length };
+    DASHBOARD_TICKETS.forEach((t) => { map[t.status] = (map[t.status] ?? 0) + 1; });
+    return map;
+  }, []);
+
+  const handleCheck = (id: string, val: boolean) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      val ? next.add(id) : next.delete(id);
+      return next;
+    });
+  };
+
+  const handleMerge = () => setShowMergeConfirm(true);
+  const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); };
+
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
       <Sidebar userRole="admin" userName="Palm Pollapat" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto px-6 pb-8">
-
-          {/* Period selector */}
-          <div className="flex items-center justify-between mt-6 mb-5">
-            <div>
-              <h2 className="text-xl font-bold text-gray-900">Reports Overview</h2>
-              <p className="text-sm text-gray-500 mt-0.5">
-                Showing {totalTickets} ticket{totalTickets !== 1 ? 's' : ''} for {period.toLowerCase()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
-              <span className="text-xs text-gray-500 font-medium">Period</span>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer"
+        {/* Filter tabs */}
+        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
+          {STATUS_TABS.map((tab) => {
+            const isActive = activeTab === tab.value;
+            const count    = counts[tab.value] ?? 0;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => setActiveTab(tab.value)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                  isActive ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                }`}
               >
-                {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-          </div>
+                {tab.label}
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                }`}>
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {[
-              { label: 'Total Tickets',      value: totalTickets,    sub: period.toLowerCase(),                                                                                                color: '#3B82F6' },
-              { label: 'Resolved',           value: resolvedTickets, sub: totalTickets > 0 ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
-              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                                                                       color: '#8B5CF6' },
-              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                                                                      color: '#F43F5E' },
-            ].map((kpi) => (
-              <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
-                <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
-                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
-                <span className="text-sm font-semibold text-gray-700">{kpi.label}</span>
-                <span className="text-xs text-gray-400">{kpi.sub}</span>
+        {/* Ticket list */}
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          <div className="flex flex-col gap-2">
+            {filtered.length > 0 ? (
+              filtered.map((ticket) => (
+                <TicketRow
+                  key={ticket.ticketId}
+                  ticket={ticket}
+                  checked={selectedIds.has(ticket.ticketId)}
+                  onCheck={handleCheck}
+                />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                <Search size={32} className="mb-3 opacity-30" />
+                <p className="text-sm font-medium">No tickets found</p>
+                <p className="text-xs mt-1 opacity-60">Try adjusting your filter</p>
               </div>
-            ))}
+            )}
           </div>
-
-          {/* Insight panels */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="text-sm font-bold text-gray-800 mb-4">Status Distribution</h4>
-              {totalTickets === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No tickets in this period.</p>
-              ) : (
-                <div className="space-y-3">
-                  {STATUS_LABELS.map(({ status, label, icon }) => {
-                    const count = filteredTickets.filter((t) => t.status === status).length;
-                    const pct   = Math.round((count / totalTickets) * 100);
-                    const style = STATUS_STYLES[status];
-                    return (
-                      <div key={status}>
-                        <div className="flex items-center justify-between mb-1">
-                          <div className="flex items-center gap-1.5">
-                            <span style={{ color: style.text }}>{icon}</span>
-                            <span className="text-xs font-medium text-gray-700">{label}</span>
-                          </div>
-                          <span className="text-xs font-bold text-gray-800">{count}</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: style.dot }} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="text-sm font-bold text-gray-800 mb-4">Top Categories</h4>
-              {categoryBreakdown.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No tickets in this period.</p>
-              ) : (
-                <div className="space-y-2.5">
-                  {categoryBreakdown.slice(0, 5).map((cat, i) => (
-                    <div key={cat.name} className="flex items-center gap-3">
-                      <span className="text-xs text-gray-400 w-4">{i + 1}</span>
-                      <div className="flex-1">
-                        <div className="flex justify-between mb-1">
-                          <span className="text-xs font-medium text-gray-700">{cat.name}</span>
-                          <span className="text-xs text-gray-400">{cat.pct}%</span>
-                        </div>
-                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full bg-orange-400 transition-all duration-500" style={{ width: `${cat.pct}%` }} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="text-sm font-bold text-gray-800 mb-4">Assignee Workload</h4>
-              {totalTickets === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-4">No tickets in this period.</p>
-              ) : (
-                <div className="space-y-3">
-                  {assigneeWorkload.map((a) => (
-                    <div key={a.name} className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
-                        <span className="text-white text-[10px] font-bold">{a.fallback}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between">
-                          <span className="text-xs font-medium text-gray-800 truncate">{a.name}</span>
-                          <span className="text-xs font-bold text-gray-600 ml-2">{a.count}</span>
-                        </div>
-                        <span className="text-[10px] text-gray-400">{a.role}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Report Cards */}
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">Available Reports</h3>
-          <div className="grid grid-cols-3 gap-4 items-stretch">
-            {REPORT_CARDS.map((card) => (
-              <div
-                key={card.id}
-                className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: card.accentBg, color: card.accent }}>
-                    {card.icon}
-                  </div>
-                  <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-200 mt-1" />
-                </div>
-                <div className="flex-1">
-                  <h4 className="text-sm font-bold text-gray-900">{card.title}</h4>
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{card.description}</p>
-                </div>
-                <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400 font-medium">Updated · Today</span>
-                  <button
-                    onClick={() => openModal(card.id)}
-                    className="text-xs font-semibold px-3 py-1 rounded-lg border transition-all duration-150 hover:opacity-80 active:scale-95"
-                    style={{ color: card.accent, borderColor: `${card.accent}40`, background: card.accentBg }}
-                  >
-                    View Report
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </main>
+        </div>
       </div>
 
-      {/* ── Modals ── */}
-      <TicketVolumeModal
-        open={activeModal === 'ticket-volume'}
-        onClose={closeModal}
-        period={period}
+      <MergePopup
+        selectedIds={Array.from(selectedIds)}
+        onClear={handleClear}
+        onMerge={handleMerge}
       />
-      <PerformanceMetricsModal
-        open={activeModal === 'performance-metrics'}
-        onClose={closeModal}
-        period={period}
-      />
-      <CategoryBreakdownModal
-        open={activeModal === 'category-breakdown'}
-        onClose={closeModal}
-        period={period}
-      />
-      <AssigneePerformanceModal
-        open={activeModal === 'assignee-performance'}
-        onClose={closeModal}
-        period={period}
-      />
-      <BacklogSummaryModal
-        open={activeModal === 'backlog-summary'}
-        onClose={closeModal}
-        period={period}
-      />
-      <AIAccuracyModal
-        open={activeModal === 'ai-accuracy'}
-        onClose={closeModal}
-        period={period}
-      />
+
+      {/* Merge confirm modal */}
+      {showMergeConfirm && (
+        <>
+          <div className="fixed inset-0 bg-black/20 z-50" onClick={() => setShowMergeConfirm(false)} />
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[440px]">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Merge {selectedIds.size} Tickets</h2>
+            <p className="text-sm text-gray-400 mb-6">
+              This will combine the selected tickets into one. The oldest ticket will be kept as the primary.
+            </p>
+            <div className="flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
+              {Array.from(selectedIds).map((id) => {
+                const ticket = DASHBOARD_TICKETS.find((t) => t.ticketId === id);
+                return (
+                  <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                    <span className="text-xs font-mono text-gray-400">#{id}</span>
+                    <span className="text-sm text-gray-700 truncate">{ticket?.title}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={handleClear}
+                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+              >
+                Confirm Merge
+              </button>
+              <button
+                onClick={() => setShowMergeConfirm(false)}
+                className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
