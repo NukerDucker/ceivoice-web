@@ -224,11 +224,11 @@ export default function ReportsPage() {
 
           {/* Report Cards */}
           <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">Available Reports</h3>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-3 gap-4 items-stretch">
             {REPORT_CARDS.map((card) => (
               <div
                 key={card.id}
-                className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
+                className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer h-full"
               >
                 <div className="flex items-start justify-between">
                   <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: card.accentBg, color: card.accent }}>
@@ -236,7 +236,7 @@ export default function ReportsPage() {
                   </div>
                   <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-200 mt-1" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <h4 className="text-sm font-bold text-gray-900">{card.title}</h4>
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">{card.description}</p>
                 </div>
