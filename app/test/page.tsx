@@ -11,13 +11,13 @@ import {
   type DashboardAssignee,
 } from '@/lib/admin-dashboard-data';
 import { TicketVolumeModal } from '@/app/(roles)/admin/report/TicketVolumeModal';
+import { BacklogSummaryModal } from '@/app/(roles)/admin/report/BacklogSummaryModal';
 import {
   BarChart3,
   TrendingUp,
   Clock,
   Users,
-  Shield,
-  Download, 
+  Download,
   Bot,
   Layers,
   ChevronRight,
@@ -27,13 +27,13 @@ import {
   Flame,
 } from 'lucide-react';
 
-// ─── Derived stats from data ────────────────────────────────────────────────
+// ─── Derived stats ────────────────────────────────────────────────────────────
 
-const totalTickets = DASHBOARD_TICKETS.length;
+const totalTickets    = DASHBOARD_TICKETS.length;
 const resolvedTickets = DASHBOARD_TICKETS.filter((t) => t.status === 'resolved').length;
 const criticalTickets = DASHBOARD_TICKETS.filter((t) => t.status === 'critical').length;
-const backlogTickets = DASHBOARD_TICKETS.filter(
-  (t) => t.status === 'submitted' || t.status === 'in-progress'
+const backlogTickets  = DASHBOARD_TICKETS.filter(
+  (t) => t.status === 'submitted' || t.status === 'in-progress',
 ).length;
 
 const categoryMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
@@ -41,11 +41,11 @@ const categoryMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
     acc[t.category] = (acc[t.category] ?? 0) + 1;
     return acc;
   },
-  {}
+  {},
 );
 
 const categoryBreakdown: { name: string; count: number; pct: number }[] = Object.entries(
-  categoryMap
+  categoryMap,
 )
   .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
   .map(([name, count]: [string, number]) => ({
@@ -59,48 +59,110 @@ const assigneeMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
     acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
     return acc;
   },
-  {}
+  {},
 );
 
 const assigneeWorkload: (DashboardAssignee & { count: number })[] = DASHBOARD_ASSIGNEES.map(
-  (a: DashboardAssignee) => ({ ...a, count: assigneeMap[a.name] ?? 0 })
+  (a: DashboardAssignee) => ({ ...a, count: assigneeMap[a.name] ?? 0 }),
 ).sort(
   (a: DashboardAssignee & { count: number }, b: DashboardAssignee & { count: number }) =>
-    b.count - a.count
+    b.count - a.count,
 );
 
 const statusLabels: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
-  { status: 'submitted',   label: 'Submitted',   icon: <AlertCircle size={14} /> },
-  { status: 'in-progress', label: 'In Progress',  icon: <Timer size={14} /> },
-  { status: 'resolved',    label: 'Resolved',     icon: <CheckCircle2 size={14} /> },
-  { status: 'critical',    label: 'Critical',     icon: <Flame size={14} /> },
+  { status: 'submitted',   label: 'Submitted',  icon: <AlertCircle size={14} /> },
+  { status: 'in-progress', label: 'In Progress', icon: <Timer size={14} /> },
+  { status: 'resolved',    label: 'Resolved',    icon: <CheckCircle2 size={14} /> },
+  { status: 'critical',    label: 'Critical',    icon: <Flame size={14} /> },
 ];
 
 // ─── Report cards ─────────────────────────────────────────────────────────────
-// id is used to identify which modal to open
 
 const REPORT_CARDS = [
-  { id: 'ticket-volume',        title: 'Ticket Volume Report',    description: 'View ticket volume trends over time with daily, weekly, and monthly breakdowns.',      icon: <BarChart3 size={22} />,  accent: '#3B82F6', accentBg: '#EFF6FF' },
-  { id: 'performance-metrics',  title: 'Performance Metrics',     description: 'Analyze resolution times, response rates, and team performance indicators.',           icon: <TrendingUp size={22} />, accent: '#8B5CF6', accentBg: '#F5F3FF' },
-  { id: 'category-breakdown',   title: 'Category Breakdown',      description: 'Detailed breakdown of tickets by category, priority, and status distribution.',        icon: <Layers size={22} />,     accent: '#06B6D4', accentBg: '#ECFEFF' },
-  { id: 'assignee-performance', title: 'Assignee Performance',    description: 'Compare team member performance, workload distribution, and efficiency metrics.',      icon: <Users size={22} />,      accent: '#F59E0B', accentBg: '#FFFBEB' },
-  { id: 'response-time',        title: 'Response Time Analysis',  description: 'Track first response times, average handling times, and SLA compliance.',             icon: <Clock size={22} />,      accent: '#10B981', accentBg: '#ECFDF5' },
-  { id: 'user-satisfaction',    title: 'User Satisfaction',       description: 'Track satisfaction scores, feedback trends, and improvement areas.',                  icon: <Shield size={22} />,     accent: '#EC4899', accentBg: '#FDF2F8' },
-  { id: 'trend-analysis',       title: 'Trend Analysis',          description: 'Identify patterns, recurring issues, and seasonal trends in ticket data.',            icon: <TrendingUp size={22} />, accent: '#F97316', accentBg: '#FFF7ED' },
-  { id: 'ai-accuracy',          title: 'AI Accuracy Report',      description: 'Measure AI suggestion accuracy, acceptance rates, and improvement areas.',            icon: <Bot size={22} />,        accent: '#6366F1', accentBg: '#EEF2FF' },
-  { id: 'export-data',          title: 'Export Data',             description: 'Export ticket data and reports in various formats (CSV, Excel, PDF).',                icon: <Download size={22} />,   accent: '#64748B', accentBg: '#F8FAFC' },
+  {
+    id: 'ticket-volume',
+    title: 'Ticket Volume Report',
+    description: 'View ticket volume trends over time with daily, weekly, and monthly breakdowns.',
+    icon: <BarChart3 size={22} />,
+    accent: '#3B82F6',
+    accentBg: '#EFF6FF',
+  },
+  {
+    id: 'performance-metrics',
+    title: 'Performance Metrics',
+    description: 'Analyze resolution times, response rates, and team performance indicators.',
+    icon: <TrendingUp size={22} />,
+    accent: '#8B5CF6',
+    accentBg: '#F5F3FF',
+  },
+  {
+    id: 'category-breakdown',
+    title: 'Category Breakdown',
+    description: 'Detailed breakdown of tickets by category, priority, and status distribution.',
+    icon: <Layers size={22} />,
+    accent: '#06B6D4',
+    accentBg: '#ECFEFF',
+  },
+  {
+    id: 'assignee-performance',
+    title: 'Assignee Performance',
+    description: 'Compare team member performance, workload distribution, and efficiency metrics.',
+    icon: <Users size={22} />,
+    accent: '#F59E0B',
+    accentBg: '#FFFBEB',
+  },
+  {
+    id: 'response-time',
+    title: 'Response Time Analysis',
+    description: 'Track first response times, average handling times, and SLA compliance.',
+    icon: <Clock size={22} />,
+    accent: '#10B981',
+    accentBg: '#ECFDF5',
+  },
+  {
+    id: 'backlog-summary',
+    title: 'Backlog Summary',
+    description: 'Monitor open ticket backlog, overdue items, aging buckets, and assignee load.',
+    icon: <Layers size={22} />,
+    accent: '#6366F1',
+    accentBg: '#EEF2FF',
+  },
+  {
+    id: 'trend-analysis',
+    title: 'Trend Analysis',
+    description: 'Identify patterns, recurring issues, and seasonal trends in ticket data.',
+    icon: <TrendingUp size={22} />,
+    accent: '#F97316',
+    accentBg: '#FFF7ED',
+  },
+  {
+    id: 'ai-accuracy',
+    title: 'AI Accuracy Report',
+    description: 'Measure AI suggestion accuracy, acceptance rates, and improvement areas.',
+    icon: <Bot size={22} />,
+    accent: '#6366F1',
+    accentBg: '#EEF2FF',
+  },
+  {
+    id: 'export-data',
+    title: 'Export Data',
+    description: 'Export ticket data and reports in various formats (CSV, Excel, PDF).',
+    icon: <Download size={22} />,
+    accent: '#64748B',
+    accentBg: '#F8FAFC',
+  },
 ];
 
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
 
-// ─── Component ───────────────────────────────────────────────────────────────
+// ─── Page component ───────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const [period, setPeriod] = useState('Last 30 days');
+  const [period, setPeriod]           = useState('Last 30 days');
   const [activeModal, setActiveModal] = useState<string | null>(null);
 
-  const openModal = (id: string) => setActiveModal(id);
-  const closeModal = () => setActiveModal(null);
+  const openModal  = (id: string) => setActiveModal(id);
+  const closeModal = ()           => setActiveModal(null);
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
@@ -124,7 +186,11 @@ export default function ReportsPage() {
                 onChange={(e) => setPeriod(e.target.value)}
                 className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer"
               >
-                {PERIODS.map((p) => <option key={p}>{p}</option>)}
+                {PERIODS.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -132,14 +198,19 @@ export default function ReportsPage() {
           {/* KPI Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Tickets',      value: totalTickets,    sub: 'All time',                                                              color: '#3B82F6' },
+              { label: 'Total Tickets',      value: totalTickets,    sub: 'All time',                                                               color: '#3B82F6' },
               { label: 'Resolved',           value: resolvedTickets, sub: `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate`, color: '#10B981' },
-              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                            color: '#8B5CF6' },
-              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                           color: '#F43F5E' },
+              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                             color: '#8B5CF6' },
+              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                            color: '#F43F5E' },
             ].map((kpi) => (
-              <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
+              <div
+                key={kpi.label}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1"
+              >
                 <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
-                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
+                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">
+                  {kpi.value}
+                </span>
                 <span className="text-sm font-semibold text-gray-700">{kpi.label}</span>
                 <span className="text-xs text-gray-400">{kpi.sub}</span>
               </div>
@@ -148,13 +219,14 @@ export default function ReportsPage() {
 
           {/* Insight panels */}
           <div className="grid grid-cols-3 gap-4 mb-6">
+
             {/* Status distribution */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Status Distribution</h4>
               <div className="space-y-3">
                 {statusLabels.map(({ status, label, icon }) => {
                   const count = DASHBOARD_TICKETS.filter((t) => t.status === status).length;
-                  const pct = Math.round((count / totalTickets) * 100);
+                  const pct   = Math.round((count / totalTickets) * 100);
                   const style = STATUS_STYLES[status];
                   return (
                     <div key={status}>
@@ -166,7 +238,10 @@ export default function ReportsPage() {
                         <span className="text-xs font-bold text-gray-800">{count}</span>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: style.dot }} />
+                        <div
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{ width: `${pct}%`, background: style.dot }}
+                        />
                       </div>
                     </div>
                   );
@@ -187,7 +262,10 @@ export default function ReportsPage() {
                         <span className="text-xs text-gray-400">{cat.pct}%</span>
                       </div>
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-orange-400 transition-all duration-500" style={{ width: `${cat.pct}%` }} />
+                        <div
+                          className="h-full rounded-full bg-orange-400 transition-all duration-500"
+                          style={{ width: `${cat.pct}%` }}
+                        />
                       </div>
                     </div>
                   </div>
@@ -201,7 +279,7 @@ export default function ReportsPage() {
               <div className="space-y-3">
                 {assigneeWorkload.map((a) => (
                   <div key={a.name} className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
                       <span className="text-white text-[10px] font-bold">{a.fallback}</span>
                     </div>
                     <div className="flex-1 min-w-0">
@@ -224,7 +302,7 @@ export default function ReportsPage() {
           <div className="grid grid-cols-3 gap-4">
             {REPORT_CARDS.map((card) => (
               <div
-                key={card.title}
+                key={card.id}
                 className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
               >
                 <div className="flex items-start justify-between">
@@ -250,7 +328,7 @@ export default function ReportsPage() {
                     className="text-xs font-semibold px-3 py-1 rounded-lg border transition-all duration-150 hover:opacity-80 active:scale-95"
                     style={{
                       color: card.accent,
-                      borderColor: card.accent + '40',
+                      borderColor: `${card.accent}40`,
                       background: card.accentBg,
                     }}
                   >
@@ -264,9 +342,14 @@ export default function ReportsPage() {
         </main>
       </div>
 
-      {/* ── Modals ── only Ticket Volume is implemented so far */}
+      {/* Modals */}
       <TicketVolumeModal
         open={activeModal === 'ticket-volume'}
+        onClose={closeModal}
+        period={period}
+      />
+      <BacklogSummaryModal
+        open={activeModal === 'backlog-summary'}
         onClose={closeModal}
         period={period}
       />

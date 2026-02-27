@@ -230,10 +230,33 @@ export const STATUS_STYLES: Record<
   TicketStatus,
   { bg: string; text: string; dot: string }
 > = {
-  submitted: { bg: "#EFF6FF", text: "#2563EB", dot: "#3B82F6" },
+  submitted:     { bg: "#EFF6FF", text: "#2563EB", dot: "#3B82F6" },
   "in-progress": { bg: "#FFFBEB", text: "#D97706", dot: "#F59E0B" },
-  resolved: { bg: "#F0FDF4", text: "#16A34A", dot: "#22C55E" },
-  critical: { bg: "#FFF1F2", text: "#E11D48", dot: "#F43F5E" },
+  resolved:      { bg: "#F0FDF4", text: "#16A34A", dot: "#22C55E" },
+  critical:      { bg: "#FFF1F2", text: "#E11D48", dot: "#F43F5E" },
 };
 
 export const DRAFT_STATUSES: TicketStatus[] = ["submitted", "in-progress", "critical"];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKLOG SUMMARY DATA  (used by BacklogSummaryModal)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface BacklogStatusMeta {
+  label: string;
+  target: string;
+}
+
+export const BACKLOG_STATUS_META: Record<TicketStatus, BacklogStatusMeta> = {
+  critical:      { label: "Critical",    target: "< 4h" },
+  "in-progress": { label: "In Progress", target: "< 1d" },
+  submitted:     { label: "Submitted",   target: "< 3d" },
+  resolved:      { label: "Resolved",    target: "done" },
+};
+
+export const BACKLOG_PERIODS: string[] = [
+  "Last 7 days",
+  "Last 30 days",
+  "Last 90 days",
+  "This year",
+];
