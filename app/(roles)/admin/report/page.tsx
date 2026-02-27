@@ -18,7 +18,8 @@ import { AssigneePerformanceModal } from './AssigneePerformanceModal';
 import { AIAccuracyModal }          from './AIAccuracyModal';
 import {
   BarChart3, TrendingUp, Users, Bot,
-  Layers, ChevronRight, AlertCircle, CheckCircle2, Timer, Flame,
+  Layers, ChevronRight, FileEdit, Sparkles, UserCheck,
+  Wrench, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
 
 // ─── Period filter helper ─────────────────────────────────────────────────────
@@ -37,10 +38,13 @@ function periodToCutoff(p: string): number {
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
 
 const STATUS_LABELS: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
-  { status: 'submitted',   label: 'Submitted',   icon: <AlertCircle size={14} /> },
-  { status: 'in-progress', label: 'In Progress', icon: <Timer size={14} /> },
-  { status: 'resolved',    label: 'Resolved',    icon: <CheckCircle2 size={14} /> },
-  { status: 'critical',    label: 'Critical',    icon: <Flame size={14} /> },
+  { status: 'draft',    label: 'Draft',    icon: <FileEdit size={14} />    },
+  { status: 'new',      label: 'New',      icon: <Sparkles size={14} />    },
+  { status: 'assigned', label: 'Assigned', icon: <UserCheck size={14} />   },
+  { status: 'solving',  label: 'Solving',  icon: <Wrench size={14} />      },
+  { status: 'solved',   label: 'Solved',   icon: <CheckCircle2 size={14} /> },
+  { status: 'failed',   label: 'Failed',   icon: <XCircle size={14} />     },
+  { status: 'renew',    label: 'Renew',    icon: <RefreshCw size={14} />   },
 ];
 
 const REPORT_CARDS = [
@@ -66,11 +70,12 @@ export default function ReportsPage() {
     return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
   }, [period]);
 
-  const totalTickets    = filteredTickets.length;
-  const resolvedTickets = filteredTickets.filter((t) => t.status === 'resolved').length;
-  const criticalTickets = filteredTickets.filter((t) => t.status === 'critical').length;
-  const backlogTickets  = filteredTickets.filter(
-    (t) => t.status === 'submitted' || t.status === 'in-progress',
+  const totalTickets   = filteredTickets.length;
+  const solvedTickets  = filteredTickets.filter((t) => t.status === 'solved').length;
+  const failedTickets  = filteredTickets.filter((t) => t.status === 'failed').length;
+  // Backlog = tickets not yet resolved (everything except solved/failed)
+  const backlogTickets = filteredTickets.filter(
+    (t) => t.status === 'draft' || t.status === 'new' || t.status === 'assigned' || t.status === 'solving' || t.status === 'renew',
   ).length;
 
   const categoryBreakdown = useMemo(() => {
@@ -128,10 +133,10 @@ export default function ReportsPage() {
           {/* KPI Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Tickets',      value: totalTickets,    sub: period.toLowerCase(),                                                                                                color: '#3B82F6' },
-              { label: 'Resolved',           value: resolvedTickets, sub: totalTickets > 0 ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
-              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                                                                       color: '#8B5CF6' },
-              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                                                                      color: '#F43F5E' },
+              { label: 'Total Tickets',      value: totalTickets,   sub: period.toLowerCase(),                                                                                              color: '#3B82F6' },
+              { label: 'Solved',             value: solvedTickets,  sub: totalTickets > 0 ? `${Math.round((solvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
+              { label: 'Average Resolution', value: '3.2 hrs',      sub: 'Per ticket',                                                                                                     color: '#8B5CF6' },
+              { label: 'Backlog',            value: backlogTickets, sub: `${failedTickets} failed`,                                                                                        color: '#F43F5E' },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
                 <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />

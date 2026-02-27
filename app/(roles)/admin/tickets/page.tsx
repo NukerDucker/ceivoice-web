@@ -17,20 +17,26 @@ const STATUS_CONFIG: Record<
   TicketStatus,
   { label: string; borderColor: string; badgeBorder: string; badgeText: string }
 > = {
-  critical:      { label: 'CRITICAL',    borderColor: 'border-l-red-500',    badgeBorder: 'border-red-500',    badgeText: 'text-red-500'    },
-  'in-progress': { label: 'IN PROGRESS', borderColor: 'border-l-yellow-400', badgeBorder: 'border-yellow-500', badgeText: 'text-yellow-600' },
-  resolved:      { label: 'RESOLVE',     borderColor: 'border-l-green-500',  badgeBorder: 'border-green-600',  badgeText: 'text-green-600'  },
-  submitted:     { label: 'SUBMITTED',   borderColor: 'border-l-blue-400',   badgeBorder: 'border-blue-500',   badgeText: 'text-blue-600'   },
+  draft:    { label: 'DRAFT',    borderColor: 'border-l-gray-400',   badgeBorder: 'border-gray-400',   badgeText: 'text-gray-500'   },
+  new:      { label: 'NEW',      borderColor: 'border-l-blue-400',   badgeBorder: 'border-blue-500',   badgeText: 'text-blue-600'   },
+  assigned: { label: 'ASSIGNED', borderColor: 'border-l-indigo-400', badgeBorder: 'border-indigo-500', badgeText: 'text-indigo-600' },
+  solving:  { label: 'SOLVING',  borderColor: 'border-l-yellow-400', badgeBorder: 'border-yellow-500', badgeText: 'text-yellow-600' },
+  solved:   { label: 'SOLVED',   borderColor: 'border-l-green-500',  badgeBorder: 'border-green-600',  badgeText: 'text-green-600'  },
+  failed:   { label: 'FAILED',   borderColor: 'border-l-red-500',    badgeBorder: 'border-red-500',    badgeText: 'text-red-500'    },
+  renew:    { label: 'RENEW',    borderColor: 'border-l-orange-400', badgeBorder: 'border-orange-500', badgeText: 'text-orange-600' },
 };
 
-const ALL_STATUSES: TicketStatus[] = ['submitted', 'in-progress', 'resolved', 'critical'];
+const ALL_STATUSES: TicketStatus[] = ['draft', 'new', 'assigned', 'solving', 'solved', 'failed', 'renew'];
 
 const STATUS_TABS: { label: string; value: TicketStatus | 'all' }[] = [
-  { label: 'All',         value: 'all'         },
-  { label: 'Critical',    value: 'critical'     },
-  { label: 'In Progress', value: 'in-progress'  },
-  { label: 'Submitted',   value: 'submitted'    },
-  { label: 'Resolved',    value: 'resolved'     },
+  { label: 'All',      value: 'all'      },
+  { label: 'Draft',    value: 'draft'    },
+  { label: 'New',      value: 'new'      },
+  { label: 'Assigned', value: 'assigned' },
+  { label: 'Solving',  value: 'solving'  },
+  { label: 'Solved',   value: 'solved'   },
+  { label: 'Failed',   value: 'failed'   },
+  { label: 'Renew',    value: 'renew'    },
 ];
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
@@ -100,9 +106,6 @@ function TicketRow({
   const formattedDate = ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   const formattedTime = ticket.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
 
-  // ── Navigates to app/(roles)/admin/reviewticket/page.tsx ──────────────────
-  // (roles) is a route group — Next.js strips it from the URL,
-  // so the actual path is /admin/reviewticket
   const handleTitleClick = () => {
     router.push(`/admin/reviewticket?id=${ticket.ticketId}`);
   };
@@ -157,9 +160,9 @@ function TicketRow({
           <StatusBadge status={status} onChange={setStatus} />
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => setStatus('resolved')}
+              onClick={() => setStatus('solved')}
               className="text-gray-300 hover:text-gray-900 transition-colors"
-              title="Mark as resolved"
+              title="Mark as solved"
             >
               <Check size={14} />
             </button>
@@ -239,8 +242,8 @@ function MergePopup({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminTicketsPage() {
-  const [activeTab,       setActiveTab]       = useState<TicketStatus | 'all'>('all');
-  const [selectedIds,     setSelectedIds]     = useState<Set<string>>(new Set());
+  const [activeTab,        setActiveTab]        = useState<TicketStatus | 'all'>('all');
+  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
 
   const filtered = useMemo<DashboardTicket[]>(() => {
