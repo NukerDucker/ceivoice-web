@@ -17,7 +17,7 @@ import { CategoryBreakdownModal } from '@/app/(roles)/admin/report/CategoryBreak
 import { AssigneePerformanceModal } from '@/app/(roles)/admin/report/AssigneePerformanceModal';
 import { AIAccuracyModal} from '@/app/(roles)/admin/report/AIAccuracyModal';
 import {
-  BarChart3, TrendingUp, Users, Download, Bot,
+  BarChart3, TrendingUp, Users, Bot,
   Layers, ChevronRight, AlertCircle, CheckCircle2, Timer, Flame,
 } from 'lucide-react';
 
@@ -44,13 +44,12 @@ const STATUS_LABELS: { status: TicketStatus; label: string; icon: React.ReactNod
 ];
 
 const REPORT_CARDS = [
-  { id: 'ticket-volume',       title: 'Ticket Volume Report',    description: 'View ticket volume trends over time with daily, weekly, and monthly breakdowns.',            icon: <BarChart3 size={22} />, accent: '#3B82F6', accentBg: '#EFF6FF' },
-  { id: 'performance-metrics', title: 'Performance Metrics',     description: 'Analyze resolution times, response rates, and team performance indicators.',                 icon: <TrendingUp size={22} />, accent: '#8B5CF6', accentBg: '#F5F3FF' },
-  { id: 'category-breakdown',  title: 'Category Breakdown',      description: 'Detailed breakdown of tickets by category, priority, and status distribution.',             icon: <Layers size={22} />, accent: '#06B6D4', accentBg: '#ECFEFF' },
-  { id: 'assignee-performance',title: 'Assignee Performance',    description: 'Compare team member performance, workload distribution, and efficiency metrics.',            icon: <Users size={22} />, accent: '#F59E0B', accentBg: '#FFFBEB' },
-  { id: 'backlog-summary',     title: 'Backlog Summary',         description: 'Monitor open ticket backlog by status and category.',                                        icon: <Layers size={22} />, accent: '#6366F1', accentBg: '#EEF2FF' },
-  { id: 'ai-accuracy',         title: 'AI Accuracy Report',      description: 'Monitor AI processing SLA compliance, suggestion acceptance, and category match accuracy.',  icon: <Bot size={22} />, accent: '#6366F1', accentBg: '#EEF2FF' },
-  { id: 'export-data',         title: 'Export Data',             description: 'Export ticket data and reports in various formats (CSV, Excel, PDF).',                       icon: <Download size={22} />, accent: '#64748B', accentBg: '#F8FAFC' },
+  { id: 'ticket-volume',        title: 'Ticket Volume Report',  description: 'View ticket volume trends over time with daily, weekly, and monthly breakdowns.',           icon: <BarChart3 size={22} />,  accent: '#3B82F6', accentBg: '#EFF6FF' },
+  { id: 'performance-metrics',  title: 'Performance Metrics',   description: 'Analyze resolution times, response rates, and team performance indicators.',                icon: <TrendingUp size={22} />, accent: '#8B5CF6', accentBg: '#F5F3FF' },
+  { id: 'category-breakdown',   title: 'Category Breakdown',    description: 'Detailed breakdown of tickets by category, priority, and status distribution.',            icon: <Layers size={22} />,     accent: '#06B6D4', accentBg: '#ECFEFF' },
+  { id: 'assignee-performance', title: 'Assignee Performance',  description: 'Compare team member performance, workload distribution, and efficiency metrics.',           icon: <Users size={22} />,      accent: '#F59E0B', accentBg: '#FFFBEB' },
+  { id: 'backlog-summary',      title: 'Backlog Summary',       description: 'Monitor open ticket backlog by status and category.',                                       icon: <Layers size={22} />,     accent: '#6366F1', accentBg: '#EEF2FF' },
+  { id: 'ai-accuracy',          title: 'AI Accuracy Report',    description: 'Monitor AI processing SLA compliance, suggestion acceptance, and category match accuracy.', icon: <Bot size={22} />,        accent: '#6366F1', accentBg: '#EEF2FF' },
 ];
 
 // ─── Page component ───────────────────────────────────────────────────────────
