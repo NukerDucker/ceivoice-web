@@ -23,8 +23,12 @@ export interface DashboardTicket {
   // ── Performance fields ────────────────────────────────────────────────────
   priority: TicketPriority;
   firstResponseHours: number;  // hours from created → first agent response
-  resolutionHours?: number;    // hours from created → resolved (resolved tickets only)
+  resolutionHours?: number;    // hours from created → resolved (resolved only)
   slaBreached: boolean;        // true if resolution/response exceeded SLA target
+  // ── AI Accuracy fields ────────────────────────────────────────────────────
+  aiProcessingSeconds: number;    // seconds from submission → AI draft created
+  aiSuggestionAccepted: boolean;  // agent used AI suggestion without major edits
+  aiCategoryMatch: boolean;       // AI-suggested category matched the final category
 }
 
 export interface AISuggestion {
@@ -91,6 +95,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "high",
     firstResponseHours: 0.5,
     slaBreached: false,
+    aiProcessingSeconds: 8,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001239",
@@ -102,6 +109,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "medium",
     firstResponseHours: 1.2,
     slaBreached: false,
+    aiProcessingSeconds: 12,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001240",
@@ -113,6 +123,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "critical",
     firstResponseHours: 0.1,
     slaBreached: false,
+    aiProcessingSeconds: 6,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001241",
@@ -124,6 +137,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "high",
     firstResponseHours: 1.0,
     slaBreached: false,
+    aiProcessingSeconds: 14,
+    aiSuggestionAccepted: false,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001242",
@@ -135,6 +151,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "medium",
     firstResponseHours: 2.5,
     slaBreached: false,
+    aiProcessingSeconds: 22,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: false,
   },
   {
     ticketId: "TD-001243",
@@ -146,6 +165,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "high",
     firstResponseHours: 1.8,
     slaBreached: true,
+    aiProcessingSeconds: 19,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001244",
@@ -157,6 +179,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "critical",
     firstResponseHours: 0.3,
     slaBreached: true,
+    aiProcessingSeconds: 34,   // ← breaches 30s SLA
+    aiSuggestionAccepted: false,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001245",
@@ -169,6 +194,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 3.5,
     resolutionHours: 18.0,
     slaBreached: false,
+    aiProcessingSeconds: 9,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001246",
@@ -181,6 +209,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 2.0,
     resolutionHours: 8.5,
     slaBreached: false,
+    aiProcessingSeconds: 17,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001247",
@@ -193,9 +224,12 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.5,
     resolutionHours: 5.5,
     slaBreached: false,
+    aiProcessingSeconds: 11,
+    aiSuggestionAccepted: false,
+    aiCategoryMatch: true,
   },
 
-  // ── Additional tickets for richer assignee performance stats ──────────────
+  // ── Additional tickets ─────────────────────────────────────────────────────
 
   // Palm Pollapat
   {
@@ -209,6 +243,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.2,
     resolutionHours: 6.0,
     slaBreached: false,
+    aiProcessingSeconds: 15,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001249",
@@ -221,6 +258,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.8,
     resolutionHours: 3.5,
     slaBreached: false,
+    aiProcessingSeconds: 7,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001250",
@@ -233,6 +273,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.6,
     resolutionHours: 4.0,
     slaBreached: false,
+    aiProcessingSeconds: 10,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: false,
   },
   {
     ticketId: "TD-001260",
@@ -245,6 +288,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.3,
     resolutionHours: 7.5,
     slaBreached: false,
+    aiProcessingSeconds: 28,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
 
   // John Doe
@@ -259,6 +305,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.1,
     resolutionHours: 7.0,
     slaBreached: false,
+    aiProcessingSeconds: 13,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001252",
@@ -271,6 +320,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.4,
     resolutionHours: 2.5,
     slaBreached: false,
+    aiProcessingSeconds: 5,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001253",
@@ -283,6 +335,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.8,
     resolutionHours: 9.0,
     slaBreached: false,
+    aiProcessingSeconds: 20,
+    aiSuggestionAccepted: false,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001261",
@@ -295,6 +350,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.6,
     resolutionHours: 8.0,
     slaBreached: true,
+    aiProcessingSeconds: 38,   // ← breaches 30s SLA
+    aiSuggestionAccepted: false,
+    aiCategoryMatch: false,
   },
 
   // Sarah Smith
@@ -309,6 +367,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.2,
     resolutionHours: 3.0,
     slaBreached: false,
+    aiProcessingSeconds: 4,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001255",
@@ -321,6 +382,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.5,
     resolutionHours: 5.0,
     slaBreached: false,
+    aiProcessingSeconds: 9,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001256",
@@ -333,6 +397,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 1.0,
     resolutionHours: 6.5,
     slaBreached: true,
+    aiProcessingSeconds: 24,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001262",
@@ -345,6 +412,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.7,
     resolutionHours: 4.0,
     slaBreached: false,
+    aiProcessingSeconds: 16,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
 
   // Mark Chen
@@ -359,6 +429,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 0.3,
     resolutionHours: 4.5,
     slaBreached: false,
+    aiProcessingSeconds: 18,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001258",
@@ -371,6 +444,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 2.0,
     resolutionHours: 12.0,
     slaBreached: false,
+    aiProcessingSeconds: 21,
+    aiSuggestionAccepted: false,
+    aiCategoryMatch: true,
   },
   {
     ticketId: "TD-001259",
@@ -383,6 +459,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 2.5,
     resolutionHours: 10.0,
     slaBreached: false,
+    aiProcessingSeconds: 27,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: false,
   },
   {
     ticketId: "TD-001263",
@@ -395,6 +474,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     firstResponseHours: 2.2,
     resolutionHours: 11.0,
     slaBreached: false,
+    aiProcessingSeconds: 11,
+    aiSuggestionAccepted: true,
+    aiCategoryMatch: true,
   },
 ];
 
@@ -481,7 +563,7 @@ export const STATUS_STYLES: Record<
 export const DRAFT_STATUSES: TicketStatus[] = ["submitted", "in-progress", "critical"];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BACKLOG SUMMARY DATA  (used by BacklogSummaryModal)
+// BACKLOG SUMMARY DATA
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface BacklogStatusMeta {
