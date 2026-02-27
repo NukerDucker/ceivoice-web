@@ -1,37 +1,25 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Search, Merge, X, Bot, Eye } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/layout/AdminSidebar';
-import { Header } from '@/components/layout/DraftTB';
 import {
-  DASHBOARD_TICKETS,
-  ORIGINAL_MESSAGES,
-  AI_SUGGESTIONS,
-  type DashboardTicket,
+  Search, ChevronDown, ChevronUp,
+  Shield, User, Briefcase, X, TicketCheck, Tag,
+} from 'lucide-react';
+import { Sidebar } from '@/components/layout/AdminSidebar';
+import { Header }  from '@/components/layout/UserManagementTB';
+import {
+  MANAGED_USERS,
+  type ManagedUser,
+  type UserRole,
 } from '@/lib/admin-dashboard-data';
 
-// ─── Draft tickets are "draft" status tickets ─────────────────────────────────
+// ─── Scope dropdown options (EP06-ST002) ──────────────────────────────────────
 
-const DRAFT_TICKETS = DASHBOARD_TICKETS.filter((t) => t.status === 'draft');
-
-// ─── Category badge color map ─────────────────────────────────────────────────
-
-const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  Network:        { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-200'   },
-  Security:       { bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200'    },
-  Database:       { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-200' },
-  Email:          { bg: 'bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-200'  },
-  Performance:    { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200' },
-  Authentication: { bg: 'bg-teal-50',   text: 'text-teal-600',   border: 'border-teal-200'   },
-  Storage:        { bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-200'  },
-  Mobile:         { bg: 'bg-pink-50',   text: 'text-pink-600',   border: 'border-pink-200'   },
-};
-
-function getCategoryStyle(category: string) {
-  return CATEGORY_COLORS[category] ?? { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200' };
-}
+const SCOPE_OPTIONS = [
+  'Network', 'Security', 'Database', 'Email', 'Performance',
+  'Authentication', 'Storage', 'Mobile', 'Facilities',
+  'HR', 'Finance', 'IT Ops', 'Compliance', 'Infrastructure',
+];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -45,138 +33,177 @@ function timeAgo(date: Date): string {
   return `${days}d ago`;
 }
 
-function timeAgoFull(date: Date): string {
-  const diff  = Date.now() - date.getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
-  if (mins  < 60) return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
-  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
-  return `${days} day${days !== 1 ? 's' : ''} ago`;
+const ROLE_CONFIG: Record<UserRole, {
+  label: string; icon: React.ReactNode;
+  bg: string; text: string; border: string;
+}> = {
+  admin:    { label: 'Admin',    icon: <Shield size={11} />,    bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
+  assignee: { label: 'Assignee', icon: <Briefcase size={11} />, bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200'   },
+  user:     { label: 'User',     icon: <User size={11} />,      bg: 'bg-gray-50',   text: 'text-gray-600',   border: 'border-gray-200'   },
+};
+
+const AVATAR_COLORS = [
+  'from-violet-400 to-violet-600',
+  'from-blue-400 to-blue-600',
+  'from-teal-400 to-teal-600',
+  'from-orange-400 to-orange-500',
+  'from-pink-400 to-pink-600',
+  'from-indigo-400 to-indigo-600',
+];
+
+function avatarColor(id: string): string {
+  return AVATAR_COLORS[id.charCodeAt(id.length - 1) % AVATAR_COLORS.length];
 }
 
-// AI confidence based on whether AI suggestion exists and category matched
-function getAiConfidence(ticket: DashboardTicket): number {
-  if (!AI_SUGGESTIONS[ticket.ticketId]) return 62;
-  if (ticket.aiCategoryMatch && ticket.aiSuggestionAccepted) return 94;
-  if (ticket.aiCategoryMatch) return 81;
-  return 67;
-}
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
-function ConfidencePill({ value }: { value: number }) {
-  const color =
-    value >= 90 ? 'bg-green-50 text-green-700 border-green-200' :
-    value >= 75 ? 'bg-amber-50 text-amber-600 border-amber-200' :
-                  'bg-red-50   text-red-600   border-red-200';
+function RoleBadge({ role }: { role: UserRole }) {
+  const c = ROLE_CONFIG[role];
   return (
-    <span className={`inline-flex items-center gap-1 text-[10.5px] font-bold px-2 py-0.5 rounded-full border ${color}`}>
-      <Bot size={10} />
-      {value}%
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${c.bg} ${c.text} ${c.border}`}>
+      {c.icon}{c.label}
     </span>
   );
 }
 
-// ─── Draft Row ────────────────────────────────────────────────────────────────
+function ScopeTag({ label, onRemove }: { label: string; onRemove?: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100">
+      {label}
+      {onRemove && (
+        <button onClick={(e) => { e.stopPropagation(); onRemove(); }} className="hover:text-blue-900 transition-colors">
+          <X size={9} />
+        </button>
+      )}
+    </span>
+  );
+}
 
-function DraftRow({
-  ticket,
-  checked,
-  onCheck,
-}: {
-  ticket: DashboardTicket;
-  checked: boolean;
-  onCheck: (id: string, val: boolean) => void;
+// ─── Expanded panel ───────────────────────────────────────────────────────────
+
+function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
+  user: ManagedUser;
+  onRoleChange:  (id: string, role: UserRole) => void;
+  onScopeAdd:    (id: string, scope: string) => void;
+  onScopeRemove: (id: string, scope: string) => void;
 }) {
-  const router     = useRouter();
-  const original   = ORIGINAL_MESSAGES[ticket.ticketId];
-  const ai         = AI_SUGGESTIONS[ticket.ticketId];
-  const catStyle   = getCategoryStyle(ticket.category);
-  const confidence = getAiConfidence(ticket);
-
-  const formattedDate = ticket.date.toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  });
-  const formattedTime = ticket.date.toLocaleTimeString('en-GB', {
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  });
-
-  const handleReview = () => {
-    router.push(`/admin/reviewticket?id=${ticket.ticketId}`);
-  };
-
-  // AI-suggested category (from AI_SUGGESTIONS if available, else ticket.category)
-  const aiCategory = ai?.category ?? ticket.category;
+  const [scopeOpen, setScopeOpen] = useState(false);
+  const available = SCOPE_OPTIONS.filter((s) => !user.scopes.includes(s));
 
   return (
-    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100">
-      <div className="flex items-center gap-5 px-6 py-4">
+    <div className="px-6 pb-5 pt-2 bg-gray-50/60 border-t border-gray-100">
+      <div className="grid grid-cols-3 gap-6">
 
-        {/* Checkbox + ID + time */}
-        <div className="flex flex-col gap-0.5 w-[110px] shrink-0">
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => onCheck(ticket.ticketId, e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 accent-gray-900 mb-1"
-          />
-          <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
-          <span className="text-xs text-gray-500">{formattedTime}</span>
-          <span className="text-xs text-gray-400">{formattedDate}</span>
+        {/* Col 1 — Role */}
+        <div className="flex flex-col gap-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</p>
+
+          {user.role !== 'admin' && (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] text-gray-400">
+                Role <span className="text-gray-300">(EP06-ST001)</span>
+              </span>
+              <div className="flex gap-1.5">
+                {(['user', 'assignee'] as UserRole[]).map((r) => (
+                  <button
+                    key={r}
+                    onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, r); }}
+                    className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                      user.role === r
+                        ? `${ROLE_CONFIG[r].bg} ${ROLE_CONFIG[r].text} ${ROLE_CONFIG[r].border}`
+                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Suggested title + meta */}
-        <div className="flex-1 min-w-0">
-          {/* AI tag */}
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
-              <Bot size={10} /> AI Draft
-            </span>
-            <span className="text-gray-200">·</span>
-            <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.date)}</span>
-          </div>
+        {/* Col 2 — Scope Tags */}
+        <div className="flex flex-col gap-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Tag size={10} /> Scope Tags <span className="font-normal text-gray-300">(EP06-ST002)</span>
+          </p>
 
-          {/* Title — clickable */}
-          <button
-            onClick={handleReview}
-            className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
-          >
-            {ticket.title}
-          </button>
-
-          {/* Columns: Original Email, Submitted, AI Category, Confidence */}
-          <div className="grid grid-cols-4 gap-4">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Original Email</span>
-              <span className="text-xs text-gray-600 font-medium truncate">
-                {original?.from ?? '—'}
-              </span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Submitted</span>
-              <span className="text-xs text-gray-600 font-medium">{timeAgo(ticket.date)}</span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border w-fit ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}>
-                {aiCategory}
-              </span>
-            </div>
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Confidence</span>
-              <ConfidencePill value={confidence} />
-            </div>
-          </div>
+          {user.role === 'assignee' ? (
+            <>
+              <div className="flex flex-wrap gap-1.5 min-h-6">
+                {user.scopes.length > 0
+                  ? user.scopes.map((s) => <ScopeTag key={s} label={s} onRemove={() => onScopeRemove(user.id, s)} />)
+                  : <span className="text-[10px] text-gray-300 italic">No scopes assigned yet</span>
+                }
+              </div>
+              {available.length > 0 && (
+                <div className="relative w-fit">
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setScopeOpen((o) => !o); }}
+                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors"
+                  >
+                    + Add scope
+                  </button>
+                  {scopeOpen && (
+                    <>
+                      <div className="fixed inset-0 z-10" onClick={() => setScopeOpen(false)} />
+                      <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-40 max-h-48 overflow-y-auto">
+                        {available.map((s) => (
+                          <button
+                            key={s}
+                            onClick={(e) => { e.stopPropagation(); onScopeAdd(user.id, s); setScopeOpen(false); }}
+                            className="w-full text-left px-4 py-2 text-[11px] text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
+                          >
+                            {s}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+            </>
+          ) : (
+            <p className="text-[10px] text-gray-300 italic">
+              {user.role === 'admin' ? 'Admins do not use scopes.' : 'Promote to Assignee to assign scopes.'}
+            </p>
+          )}
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
-          <button
-            onClick={handleReview}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
-          >
-            <Eye size={13} />
-            Review
-          </button>
+        {/* Col 3 — Ticket Activity */}
+        <div className="flex flex-col gap-3">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <TicketCheck size={10} /> Ticket Activity
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            {user.role === 'assignee' ? (
+              <>
+                <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">Assigned</p>
+                  <p className="text-xl font-extrabold text-gray-900">{user.ticketCount}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">Solved</p>
+                  <p className="text-xl font-extrabold text-green-600">{user.resolvedCount}</p>
+                </div>
+              </>
+            ) : (
+              <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5 col-span-2">
+                <p className="text-[9px] text-gray-400 uppercase tracking-wide">Requests Submitted</p>
+                <p className="text-xl font-extrabold text-gray-900">{user.ticketCount}</p>
+              </div>
+            )}
+          </div>
+          <div className="space-y-0.5">
+            <p className="text-[10px] text-gray-400">
+              Last active: <span className="font-semibold text-gray-600">{timeAgo(user.lastActive)}</span>
+            </p>
+            <p className="text-[10px] text-gray-400">
+              Joined: <span className="font-semibold text-gray-600">
+                {user.joinedAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </span>
+            </p>
+          </div>
         </div>
 
       </div>
@@ -184,99 +211,112 @@ function DraftRow({
   );
 }
 
-// ─── Merge Popup ──────────────────────────────────────────────────────────────
+// ─── User row ─────────────────────────────────────────────────────────────────
 
-function MergePopup({
-  selectedIds,
-  onClear,
-  onMerge,
-}: {
-  selectedIds: string[];
-  onClear: () => void;
-  onMerge: () => void;
+function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
+  user: ManagedUser;
+  onRoleChange:  (id: string, role: UserRole) => void;
+  onScopeAdd:    (id: string, scope: string) => void;
+  onScopeRemove: (id: string, scope: string) => void;
 }) {
-  if (selectedIds.length < 2) return null;
+  const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-      <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100">
-        <div className="flex items-center gap-2">
-          <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-            {selectedIds.length}
-          </span>
-          <span className="text-sm font-medium text-gray-700">drafts selected</span>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-gray-200 overflow-hidden transition-all duration-150">
+      <div
+        className="flex items-center gap-5 px-6 py-3.5 cursor-pointer select-none"
+        onClick={() => setExpanded((e) => !e)}
+      >
+        {/* Avatar */}
+        <div className={`w-9 h-9 rounded-full bg-linear-to-br ${avatarColor(user.id)} flex items-center justify-center shrink-0 shadow-sm`}>
+          <span className="text-white text-[11px] font-bold">{user.fallback}</span>
         </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <div className="flex items-center gap-1.5">
-          {selectedIds.slice(0, 3).map((id) => (
-            <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
-              #{id}
+
+        {/* Name + email */}
+        <div className="flex-1 min-w-0">
+          <span className="text-sm font-semibold text-gray-800 truncate block">{user.name}</span>
+          <span className="text-[11px] text-gray-400 truncate block">{user.email}</span>
+        </div>
+
+        {/* Role */}
+        <div className="w-22.5 shrink-0"><RoleBadge role={user.role} /></div>
+
+        {/* Scopes preview */}
+        <div className="flex items-center gap-1 flex-wrap w-50 shrink-0">
+          {user.role === 'assignee' && user.scopes.length > 0 ? (
+            <>
+              {user.scopes.slice(0, 2).map((s) => <ScopeTag key={s} label={s} />)}
+              {user.scopes.length > 2 && (
+                <span className="text-[10px] text-gray-400 font-medium">+{user.scopes.length - 2}</span>
+              )}
+            </>
+          ) : (
+            <span className="text-[10px] text-gray-300 italic">
+              {user.role === 'assignee' ? 'No scopes' : '—'}
             </span>
-          ))}
-          {selectedIds.length > 3 && (
-            <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
           )}
         </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <div className="flex items-center gap-2">
-          <button
-            onClick={onMerge}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-          >
-            <Merge size={15} />
-            Merge into Draft
-          </button>
-          <button
-            onClick={onClear}
-            className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-xs px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
-          >
-            <X size={14} />
-            Clear
-          </button>
+
+        {/* Ticket count */}
+        <div className="w-20 shrink-0 text-center">
+          <span className="text-xs font-bold text-gray-700">{user.ticketCount}</span>
+          <p className="text-[9px] text-gray-400">{user.role === 'assignee' ? 'assigned' : 'submitted'}</p>
+        </div>
+
+        {/* Joined */}
+        <div className="w-22.5 shrink-0 text-right">
+          <span className="text-[11px] text-gray-400">
+            {user.joinedAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </span>
+        </div>
+
+        {/* Chevron */}
+        <div className="w-6 shrink-0 flex justify-center text-gray-300">
+          {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </div>
       </div>
+
+      {expanded && (
+        <ExpandedRow
+          user={user}
+          onRoleChange={onRoleChange}
+          onScopeAdd={onScopeAdd}
+          onScopeRemove={onScopeRemove}
+        />
+      )}
     </div>
   );
 }
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-export default function AdminDraftQueuePage() {
-  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
-  const [showMergeConfirm, setShowMergeConfirm] = useState(false);
-  const [search,           setSearch]           = useState('');
+export default function AdminUserManagementPage() {
+  const [users,      setUsers]      = useState<ManagedUser[]>(MANAGED_USERS);
+  const [search,     setSearch]     = useState('');
+  const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return DRAFT_TICKETS;
-    const q = search.toLowerCase();
-    return DRAFT_TICKETS.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q) ||
-        (ORIGINAL_MESSAGES[t.ticketId]?.from ?? '').toLowerCase().includes(q)
-    );
-  }, [search]);
-
-  const handleCheck = (id: string, val: boolean) => {
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      val ? next.add(id) : next.delete(id);
-      return next;
-    });
-  };
-
-  const handleSelectAll = () => {
-    if (selectedIds.size === filtered.length) {
-      setSelectedIds(new Set());
-    } else {
-      setSelectedIds(new Set(filtered.map((t) => t.ticketId)));
+  const filtered = useMemo(() => users.filter((u) => {
+    if (filterRole !== 'all' && u.role !== filterRole) return false;
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      if (!u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
     }
-  };
+    return true;
+  }), [users, search, filterRole]);
 
-  const handleMerge = () => setShowMergeConfirm(true);
-  const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); };
+  const counts = useMemo(() => ({
+    all:      users.length,
+    admin:    users.filter((u) => u.role === 'admin').length,
+    assignee: users.filter((u) => u.role === 'assignee').length,
+    user:     users.filter((u) => u.role === 'user').length,
+  }), [users]);
 
-  const allChecked = filtered.length > 0 && selectedIds.size === filtered.length;
+  const handleRoleChange  = (id: string, role: UserRole) =>
+    setUsers((p) => p.map((u) => u.id === id ? { ...u, role, scopes: role === 'user' ? [] : u.scopes } : u));
+  const handleScopeAdd    = (id: string, scope: string) =>
+    setUsers((p) => p.map((u) => u.id === id ? { ...u, scopes: [...u.scopes, scope] } : u));
+  const handleScopeRemove = (id: string, scope: string) =>
+    setUsers((p) => p.map((u) => u.id === id ? { ...u, scopes: u.scopes.filter((s) => s !== scope) } : u));
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -285,120 +325,80 @@ export default function AdminDraftQueuePage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            {/* Select all */}
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={allChecked}
-                onChange={handleSelectAll}
-                className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-              />
-              <span className="text-xs text-gray-500 font-medium">Select all</span>
-            </label>
-
-            <div className="w-px h-4 bg-gray-200" />
-
-            {/* Count badge */}
-            <div className="flex items-center gap-1.5">
-              <span className="text-xs font-semibold text-gray-700">
-                {DRAFT_TICKETS.length} draft{DRAFT_TICKETS.length !== 1 ? 's' : ''} waiting
-              </span>
-              <span className="text-[10px] bg-violet-100 text-violet-600 font-bold px-1.5 py-0.5 rounded-full">
-                {DRAFT_TICKETS.length}
-              </span>
-            </div>
+        {/* ── Toolbar ── */}
+        <div className="flex items-center justify-between gap-4 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-1">
+            {([
+              { value: 'all',      label: 'All'       },
+              { value: 'admin',    label: 'Admins'    },
+              { value: 'assignee', label: 'Assignees' },
+              { value: 'user',     label: 'Users'     },
+            ] as { value: UserRole | 'all'; label: string }[]).map((tab) => {
+              const isActive = filterRole === tab.value;
+              const count    = tab.value === 'all' ? counts.all : (counts[tab.value as keyof typeof counts] as number);
+              return (
+                <button
+                  key={tab.value}
+                  onClick={() => setFilterRole(tab.value)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                    isActive ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+                  }`}>{count}</span>
+                </button>
+              );
+            })}
           </div>
 
-          {/* Search */}
           <div className="relative w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search drafts…"
+              placeholder="Search by name or email…"
               className="w-full pl-8 pr-4 py-1.5 text-xs border border-gray-200 rounded-full bg-gray-50 outline-none focus:border-gray-300 transition-colors"
             />
           </div>
         </div>
 
-        {/* Draft list */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        {/* ── Column headers ── */}
+        <div className="flex items-center gap-5 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0">
+          <div className="w-9 shrink-0" />
+          <div className="flex-1     text-[10px] font-bold text-gray-400 uppercase tracking-widest">User</div>
+          <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</div>
+          <div className="w-50   shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scopes</div>
+          <div className="w-20   shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Tickets</div>
+          <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Joined</div>
+          <div className="w-6 shrink-0" />
+        </div>
+
+        {/* ── User list ── */}
+        <div className="flex-1 overflow-y-auto px-8 py-4">
           <div className="flex flex-col gap-2">
             {filtered.length > 0 ? (
-              filtered.map((ticket) => (
-                <DraftRow
-                  key={ticket.ticketId}
-                  ticket={ticket}
-                  checked={selectedIds.has(ticket.ticketId)}
-                  onCheck={handleCheck}
+              filtered.map((user) => (
+                <UserRow
+                  key={user.id}
+                  user={user}
+                  onRoleChange={handleRoleChange}
+                  onScopeAdd={handleScopeAdd}
+                  onScopeRemove={handleScopeRemove}
                 />
               ))
             ) : (
               <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                 <Search size={32} className="mb-3 opacity-30" />
-                <p className="text-sm font-medium">No drafts found</p>
-                <p className="text-xs mt-1 opacity-60">Try adjusting your search</p>
+                <p className="text-sm font-medium">No users found</p>
+                <p className="text-xs mt-1 opacity-60">Try adjusting your search or filter</p>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      <MergePopup
-        selectedIds={Array.from(selectedIds)}
-        onClear={handleClear}
-        onMerge={handleMerge}
-      />
-
-      {/* Merge confirm modal */}
-      {showMergeConfirm && (
-        <>
-          <div className="fixed inset-0 bg-black/20 z-50" onClick={() => setShowMergeConfirm(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[440px]">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">
-              Merge {selectedIds.size} Drafts
-            </h2>
-            <p className="text-sm text-gray-400 mb-6">
-              This will combine the selected drafts into a single draft ticket for review. All original senders will be added as followers.
-            </p>
-            <div className="flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
-              {Array.from(selectedIds).map((id) => {
-                const ticket   = DRAFT_TICKETS.find((t) => t.ticketId === id);
-                const original = ORIGINAL_MESSAGES[id];
-                return (
-                  <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                    <span className="text-xs font-mono text-gray-400">#{id}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-700 truncate">{ticket?.title}</p>
-                      {original && (
-                        <p className="text-[10px] text-gray-400 truncate">from {original.from}</p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleClear}
-                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
-              >
-                Confirm Merge
-              </button>
-              <button
-                onClick={() => setShowMergeConfirm(false)}
-                className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 }

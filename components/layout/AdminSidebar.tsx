@@ -6,12 +6,10 @@ import {
   LayoutDashboard,
   MessageSquare,
   BarChart3,
-  User,
   Bell,
   Settings,
   Inbox,
   Users,
-  UserCog,
 } from 'lucide-react';
 import Image from 'next/image';
 import { menuConfig } from '@/lib/menu-config';
@@ -35,14 +33,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // For admin, replace menuConfig order with a fixed explicit order
   const adminItems = userRole === 'admin' ? [
-    { id: 'dashboard',  label: 'Dashboard',       icon: LayoutDashboard, hasSubmenu: false },
-    { id: 'tickets',    label: 'All Tickets',      icon: MessageSquare,   hasSubmenu: false },
-    { id: 'drafts',     label: 'Draft Tickets',    icon: Inbox,           hasSubmenu: false },
-    { id: 'users',      label: 'User Management',  icon: Users,           hasSubmenu: false },
-    { id: 'assignees',  label: 'Assignee Roles',   icon: UserCog,         hasSubmenu: false },
-    { id: 'reports',    label: 'Reports',          icon: BarChart3,       hasSubmenu: false },
-    { id: 'notifications', label: 'Notifications', icon: Bell,            hasSubmenu: false },
-    { id: 'settings',   label: 'Settings',         icon: Settings,        hasSubmenu: false },
+    { id: 'dashboard',     label: 'Dashboard',       icon: LayoutDashboard, hasSubmenu: false },
+    { id: 'tickets',       label: 'All Tickets',      icon: MessageSquare,   hasSubmenu: false },
+    { id: 'drafts',        label: 'Draft Tickets',    icon: Inbox,           hasSubmenu: false },
+    { id: 'users',         label: 'User Management',  icon: Users,           hasSubmenu: false },
+    { id: 'reports',       label: 'Reports',          icon: BarChart3,       hasSubmenu: false },
+    { id: 'notifications', label: 'Notifications',    icon: Bell,            hasSubmenu: false },
+    { id: 'settings',      label: 'Settings',         icon: Settings,        hasSubmenu: false },
   ] : null;
 
   const allItems = adminItems ?? menuItems;

@@ -13,6 +13,9 @@ export type TicketStatus =
 
 export type TicketPriority = 'critical' | 'high' | 'medium' | 'low';
 
+export type UserRole   = 'admin' | 'assignee' | 'user';
+export type UserStatus = 'active' | 'suspended';
+
 export interface DashboardAssignee {
   name: string;
   avatar?: string;
@@ -50,6 +53,22 @@ export interface AISuggestion {
 export interface OriginalMessage {
   from: string;
   body: string;
+}
+
+// EP06-ST001, EP06-ST002 — User Management
+export interface ManagedUser {
+  id:            string;
+  name:          string;
+  email:         string;
+  fallback:      string;
+  role:          UserRole;
+  status:        UserStatus;
+  scopes:        string[];        // EP06-ST002 — scope tags used by AI for assignee routing
+  joinedAt:      Date;
+  ticketCount:   number;          // assigned (assignee) or submitted (user)
+  resolvedCount: number;          // solved tickets (assignee only)
+  lastActive:    Date;
+  assigneeIndex?: number;         // links to DASHBOARD_ASSIGNEES[i] for staff
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -182,4 +201,89 @@ export const BACKLOG_PERIODS: string[] = [
   'Last 30 days',
   'Last 90 days',
   'This year',
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MANAGED USERS  (EP06-ST001 · EP06-ST002)
+// Single source of truth for the User Management page.
+// ticketCount / resolvedCount are pre-computed from DASHBOARD_TICKETS above
+// so the page never needs to re-derive them.
+// assigneeIndex links back to DASHBOARD_ASSIGNEES[i] for staff members.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const MANAGED_USERS: ManagedUser[] = [
+
+  // ── Admin ─────────────────────────────────────────────────────────────────
+  {
+    id: 'admin-0', name: 'Palm Pollapat', email: 'palm.pollapat@ceivo.io',
+    fallback: 'PP', role: 'admin', status: 'active',
+    scopes:        ['Database'],
+    joinedAt:      new Date('2024-01-10'),
+    ticketCount:   DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'Palm Pollapat').length,
+    resolvedCount: DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'Palm Pollapat' && t.status === 'solved').length,
+    lastActive:    new Date(Date.now() - 5 * 60000),
+    assigneeIndex: 0,
+  },
+
+  // ── Assignees ─────────────────────────────────────────────────────────────
+  {
+    id: 'assignee-1', name: 'John Doe', email: 'john.doe@ceivo.io',
+    fallback: 'JD', role: 'assignee', status: 'active',
+    scopes:        ['Network', 'IT Ops'],
+    joinedAt:      new Date('2024-02-14'),
+    ticketCount:   DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'John Doe').length,
+    resolvedCount: DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'John Doe' && t.status === 'solved').length,
+    lastActive:    new Date(Date.now() - 2 * 3600000),
+    assigneeIndex: 1,
+  },
+  {
+    id: 'assignee-2', name: 'Sarah Smith', email: 'sarah.smith@ceivo.io',
+    fallback: 'SS', role: 'assignee', status: 'active',
+    scopes:        ['Security', 'Authentication', 'Compliance'],
+    joinedAt:      new Date('2024-02-20'),
+    ticketCount:   DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'Sarah Smith').length,
+    resolvedCount: DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'Sarah Smith' && t.status === 'solved').length,
+    lastActive:    new Date(Date.now() - 1 * 3600000),
+    assigneeIndex: 2,
+  },
+  {
+    id: 'assignee-3', name: 'Mark Chen', email: 'mark.chen@ceivo.io',
+    fallback: 'MC', role: 'assignee', status: 'active',
+    scopes:        ['Network', 'Infrastructure', 'Storage'],
+    joinedAt:      new Date('2024-03-05'),
+    ticketCount:   DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'Mark Chen').length,
+    resolvedCount: DASHBOARD_TICKETS.filter((t) => t.assignee.name === 'Mark Chen' && t.status === 'solved').length,
+    lastActive:    new Date(Date.now() - 30 * 60000),
+    assigneeIndex: 3,
+  },
+
+  // ── End-users (registered via Google OAuth — EP01-ST004) ──────────────────
+  {
+    id: 'user-0', name: 'James Harrington', email: 'james.h@gmail.com',
+    fallback: 'JH', role: 'user', status: 'active', scopes: [],
+    joinedAt:      new Date('2024-05-12'),
+    ticketCount:   1, resolvedCount: 0,
+    lastActive:    new Date(Date.now() -  3 * 86400000),
+  },
+  {
+    id: 'user-1', name: 'Laura Benson', email: 'laura.b@gmail.com',
+    fallback: 'LB', role: 'user', status: 'active', scopes: [],
+    joinedAt:      new Date('2024-06-01'),
+    ticketCount:   1, resolvedCount: 0,
+    lastActive:    new Date(Date.now() -  7 * 86400000),
+  },
+  {
+    id: 'user-2', name: 'Priya Nair', email: 'priya.nair@gmail.com',
+    fallback: 'PN', role: 'user', status: 'active', scopes: [],
+    joinedAt:      new Date('2024-06-18'),
+    ticketCount:   2, resolvedCount: 0,
+    lastActive:    new Date(Date.now() -  1 * 86400000),
+  },
+  {
+    id: 'user-3', name: 'Mike Torres', email: 'mike.t@gmail.com',
+    fallback: 'MT', role: 'user', status: 'suspended', scopes: [],
+    joinedAt:      new Date('2024-07-04'),
+    ticketCount:   1, resolvedCount: 0,
+    lastActive:    new Date(Date.now() - 14 * 86400000),
+  },
 ];
