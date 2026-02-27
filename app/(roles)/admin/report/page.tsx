@@ -10,10 +10,11 @@ import {
   type TicketStatus,
   type DashboardAssignee,
 } from '@/lib/admin-dashboard-data';
-import { TicketVolumeModal }       from './TicketVolumeModal';
-import { BacklogSummaryModal }     from './BacklogSummaryModal';
-import { PerformanceMetricsModal } from './PerformanceMetricsModal';
-import { CategoryBreakdownModal }  from './CategoryBreakdownModal';
+import { TicketVolumeModal }          from './TicketVolumeModal';
+import { BacklogSummaryModal }        from './BacklogSummaryModal';
+import { PerformanceMetricsModal }    from './PerformanceMetricsModal';
+import { CategoryBreakdownModal }     from './CategoryBreakdownModal';
+import { AssigneePerformanceModal }   from './AssigneePerformanceModal';
 import {
   BarChart3,
   TrendingUp,
@@ -120,13 +121,11 @@ export default function ReportsPage() {
   const openModal  = (id: string) => setActiveModal(id);
   const closeModal = ()           => setActiveModal(null);
 
-  // ── Filter tickets by selected period ──────────────────────────────────────
   const filteredTickets = useMemo(() => {
     const cutoff = periodToCutoff(period);
     return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
   }, [period]);
 
-  // ── KPI stats ─────────────────────────────────────────────────────────────
   const totalTickets    = filteredTickets.length;
   const resolvedTickets = filteredTickets.filter((t) => t.status === 'resolved').length;
   const criticalTickets = filteredTickets.filter((t) => t.status === 'critical').length;
@@ -134,7 +133,6 @@ export default function ReportsPage() {
     (t) => t.status === 'submitted' || t.status === 'in-progress',
   ).length;
 
-  // ── Category breakdown ────────────────────────────────────────────────────
   const categoryBreakdown = useMemo(() => {
     const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
       acc[t.category] = (acc[t.category] ?? 0) + 1;
@@ -149,7 +147,6 @@ export default function ReportsPage() {
       }));
   }, [filteredTickets, totalTickets]);
 
-  // ── Assignee workload ─────────────────────────────────────────────────────
   const assigneeWorkload = useMemo(() => {
     const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
       acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
@@ -185,9 +182,7 @@ export default function ReportsPage() {
                 onChange={(e) => setPeriod(e.target.value)}
                 className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer"
               >
-                {PERIODS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+                {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
           </div>
@@ -195,15 +190,12 @@ export default function ReportsPage() {
           {/* KPI Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Tickets',       value: totalTickets,    sub: period.toLowerCase(),                                                                                    color: '#3B82F6' },
-              { label: 'Resolved',            value: resolvedTickets, sub: totalTickets > 0 ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
-              { label: 'Average Resolution',  value: '3.2 hrs',       sub: 'Per ticket',                                                                                           color: '#8B5CF6' },
-              { label: 'Backlog',             value: backlogTickets,  sub: `${criticalTickets} critical`,                                                                          color: '#F43F5E' },
+              { label: 'Total Tickets',      value: totalTickets,    sub: period.toLowerCase(),                                                                                          color: '#3B82F6' },
+              { label: 'Resolved',           value: resolvedTickets, sub: totalTickets > 0 ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
+              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                                                                 color: '#8B5CF6' },
+              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                                                                color: '#F43F5E' },
             ].map((kpi) => (
-              <div
-                key={kpi.label}
-                className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1"
-              >
+              <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
                 <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
                 <span className="text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
                 <span className="text-sm font-semibold text-gray-700">{kpi.label}</span>
@@ -214,8 +206,6 @@ export default function ReportsPage() {
 
           {/* Insight panels */}
           <div className="grid grid-cols-3 gap-4 mb-6">
-
-            {/* Status distribution */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Status Distribution</h4>
               {totalTickets === 0 ? (
@@ -236,10 +226,7 @@ export default function ReportsPage() {
                           <span className="text-xs font-bold text-gray-800">{count}</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%`, background: style.dot }}
-                          />
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: style.dot }} />
                         </div>
                       </div>
                     );
@@ -248,7 +235,6 @@ export default function ReportsPage() {
               )}
             </div>
 
-            {/* Category breakdown */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Top Categories</h4>
               {categoryBreakdown.length === 0 ? (
@@ -264,10 +250,7 @@ export default function ReportsPage() {
                           <span className="text-xs text-gray-400">{cat.pct}%</span>
                         </div>
                         <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full bg-orange-400 transition-all duration-500"
-                            style={{ width: `${cat.pct}%` }}
-                          />
+                          <div className="h-full rounded-full bg-orange-400 transition-all duration-500" style={{ width: `${cat.pct}%` }} />
                         </div>
                       </div>
                     </div>
@@ -276,7 +259,6 @@ export default function ReportsPage() {
               )}
             </div>
 
-            {/* Assignee workload */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Assignee Workload</h4>
               {totalTickets === 0 ? (
@@ -303,9 +285,7 @@ export default function ReportsPage() {
           </div>
 
           {/* Report Cards */}
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">
-            Available Reports
-          </h3>
+          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">Available Reports</h3>
           <div className="grid grid-cols-3 gap-4">
             {REPORT_CARDS.map((card) => (
               <div
@@ -313,16 +293,10 @@ export default function ReportsPage() {
                 className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
               >
                 <div className="flex items-start justify-between">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: card.accentBg, color: card.accent }}
-                  >
+                  <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: card.accentBg, color: card.accent }}>
                     {card.icon}
                   </div>
-                  <ChevronRight
-                    size={16}
-                    className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-200 mt-1"
-                  />
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-200 mt-1" />
                 </div>
                 <div>
                   <h4 className="text-sm font-bold text-gray-900">{card.title}</h4>
@@ -333,11 +307,7 @@ export default function ReportsPage() {
                   <button
                     onClick={() => openModal(card.id)}
                     className="text-xs font-semibold px-3 py-1 rounded-lg border transition-all duration-150 hover:opacity-80 active:scale-95"
-                    style={{
-                      color: card.accent,
-                      borderColor: `${card.accent}40`,
-                      background: card.accentBg,
-                    }}
+                    style={{ color: card.accent, borderColor: `${card.accent}40`, background: card.accentBg }}
                   >
                     View Report
                   </button>
@@ -362,6 +332,11 @@ export default function ReportsPage() {
       />
       <CategoryBreakdownModal
         open={activeModal === 'category-breakdown'}
+        onClose={closeModal}
+        period={period}
+      />
+      <AssigneePerformanceModal
+        open={activeModal === 'assignee-performance'}
         onClose={closeModal}
         period={period}
       />

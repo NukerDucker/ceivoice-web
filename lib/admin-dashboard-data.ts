@@ -2,7 +2,7 @@
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type TicketStatus = "submitted" | "in-progress" | "resolved" | "critical";
+export type TicketStatus   = "submitted" | "in-progress" | "resolved" | "critical";
 export type TicketPriority = "critical" | "high" | "medium" | "low";
 
 export interface DashboardAssignee {
@@ -20,11 +20,11 @@ export interface DashboardTicket {
   date: Date;
   status: TicketStatus;
   assignee: DashboardAssignee;
-  // ── Performance fields ──────────────────────────────────────────────────────
+  // ── Performance fields ────────────────────────────────────────────────────
   priority: TicketPriority;
-  firstResponseHours: number;   // hours from created → first agent response
-  resolutionHours?: number;     // hours from created → resolved (only on resolved tickets)
-  slaBreached: boolean;         // true if resolution/response exceeded SLA target
+  firstResponseHours: number;  // hours from created → first agent response
+  resolutionHours?: number;    // hours from created → resolved (resolved tickets only)
+  slaBreached: boolean;        // true if resolution/response exceeded SLA target
 }
 
 export interface AISuggestion {
@@ -80,6 +80,7 @@ export const DASHBOARD_ASSIGNEES: DashboardAssignee[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const DASHBOARD_TICKETS: DashboardTicket[] = [
+  // ── Original tickets ──────────────────────────────────────────────────────
   {
     ticketId: "TD-001238",
     title: "VPN Connection Timeout – London Office",
@@ -191,6 +192,208 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     priority: "high",
     firstResponseHours: 1.5,
     resolutionHours: 5.5,
+    slaBreached: false,
+  },
+
+  // ── Additional tickets for richer assignee performance stats ──────────────
+
+  // Palm Pollapat
+  {
+    ticketId: "TD-001248",
+    title: "Slow Query Performance on Reports Table",
+    category: "Database",
+    date: new Date(Date.now() - 5 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "medium",
+    firstResponseHours: 1.2,
+    resolutionHours: 6.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001249",
+    title: "SSL Certificate Expiry Warning",
+    category: "Security",
+    date: new Date(Date.now() - 6 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "high",
+    firstResponseHours: 0.8,
+    resolutionHours: 3.5,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001250",
+    title: "Disk Space Alert – Production Server",
+    category: "Storage",
+    date: new Date(Date.now() - 7 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "high",
+    firstResponseHours: 0.6,
+    resolutionHours: 4.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001260",
+    title: "Memory Leak in Reporting Microservice",
+    category: "Performance",
+    date: new Date(Date.now() - 21 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "high",
+    firstResponseHours: 1.3,
+    resolutionHours: 7.5,
+    slaBreached: false,
+  },
+
+  // John Doe
+  {
+    ticketId: "TD-001251",
+    title: "Network Switch Port Failure",
+    category: "Network",
+    date: new Date(Date.now() - 8 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "high",
+    firstResponseHours: 1.1,
+    resolutionHours: 7.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001252",
+    title: "DNS Resolution Failure – Internal Services",
+    category: "Network",
+    date: new Date(Date.now() - 11 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "critical",
+    firstResponseHours: 0.4,
+    resolutionHours: 2.5,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001253",
+    title: "Load Balancer Health Check Failing",
+    category: "Network",
+    date: new Date(Date.now() - 12 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "medium",
+    firstResponseHours: 1.8,
+    resolutionHours: 9.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001261",
+    title: "Active Directory Sync Failure",
+    category: "Authentication",
+    date: new Date(Date.now() - 22 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "high",
+    firstResponseHours: 1.6,
+    resolutionHours: 8.0,
+    slaBreached: true,
+  },
+
+  // Sarah Smith
+  {
+    ticketId: "TD-001254",
+    title: "Ransomware Attempt Blocked – Endpoint",
+    category: "Security",
+    date: new Date(Date.now() - 13 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[2],
+    priority: "critical",
+    firstResponseHours: 0.2,
+    resolutionHours: 3.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001255",
+    title: "Phishing Email Campaign Detected",
+    category: "Security",
+    date: new Date(Date.now() - 14 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[2],
+    priority: "high",
+    firstResponseHours: 0.5,
+    resolutionHours: 5.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001256",
+    title: "Two-Factor Auth Not Sending SMS",
+    category: "Authentication",
+    date: new Date(Date.now() - 15 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[2],
+    priority: "medium",
+    firstResponseHours: 1.0,
+    resolutionHours: 6.5,
+    slaBreached: true,
+  },
+  {
+    ticketId: "TD-001262",
+    title: "SIEM Alert – Unusual Login Pattern",
+    category: "Security",
+    date: new Date(Date.now() - 23 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[2],
+    priority: "high",
+    firstResponseHours: 0.7,
+    resolutionHours: 4.0,
+    slaBreached: false,
+  },
+
+  // Mark Chen
+  {
+    ticketId: "TD-001257",
+    title: "Kubernetes Pod Crash – Payments Service",
+    category: "Performance",
+    date: new Date(Date.now() - 17 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[3],
+    priority: "critical",
+    firstResponseHours: 0.3,
+    resolutionHours: 4.5,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001258",
+    title: "Backup Job Failing – Nightly Schedule",
+    category: "Storage",
+    date: new Date(Date.now() - 19 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[3],
+    priority: "high",
+    firstResponseHours: 2.0,
+    resolutionHours: 12.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001259",
+    title: "CI/CD Pipeline Build Timeout",
+    category: "Performance",
+    date: new Date(Date.now() - 20 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[3],
+    priority: "medium",
+    firstResponseHours: 2.5,
+    resolutionHours: 10.0,
+    slaBreached: false,
+  },
+  {
+    ticketId: "TD-001263",
+    title: "Container Registry Out of Space",
+    category: "Storage",
+    date: new Date(Date.now() - 24 * 86400000),
+    status: "resolved",
+    assignee: DASHBOARD_ASSIGNEES[3],
+    priority: "medium",
+    firstResponseHours: 2.2,
+    resolutionHours: 11.0,
     slaBreached: false,
   },
 ];
