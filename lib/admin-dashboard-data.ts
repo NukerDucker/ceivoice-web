@@ -3,6 +3,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type TicketStatus = "submitted" | "in-progress" | "resolved" | "critical";
+export type TicketPriority = "critical" | "high" | "medium" | "low";
 
 export interface DashboardAssignee {
   name: string;
@@ -19,6 +20,11 @@ export interface DashboardTicket {
   date: Date;
   status: TicketStatus;
   assignee: DashboardAssignee;
+  // ── Performance fields ──────────────────────────────────────────────────────
+  priority: TicketPriority;
+  firstResponseHours: number;   // hours from created → first agent response
+  resolutionHours?: number;     // hours from created → resolved (only on resolved tickets)
+  slaBreached: boolean;         // true if resolution/response exceeded SLA target
 }
 
 export interface AISuggestion {
@@ -81,6 +87,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 2 * 60000),
     status: "submitted",
     assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "high",
+    firstResponseHours: 0.5,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001239",
@@ -89,6 +98,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 15 * 60000),
     status: "submitted",
     assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "medium",
+    firstResponseHours: 1.2,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001240",
@@ -97,6 +109,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 5 * 60000),
     status: "submitted",
     assignee: DASHBOARD_ASSIGNEES[2],
+    priority: "critical",
+    firstResponseHours: 0.1,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001241",
@@ -105,6 +120,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 2 * 86400000),
     status: "in-progress",
     assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "high",
+    firstResponseHours: 1.0,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001242",
@@ -113,6 +131,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 3 * 86400000),
     status: "in-progress",
     assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "medium",
+    firstResponseHours: 2.5,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001243",
@@ -121,6 +142,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 4 * 86400000),
     status: "in-progress",
     assignee: DASHBOARD_ASSIGNEES[3],
+    priority: "high",
+    firstResponseHours: 1.8,
+    slaBreached: true,
   },
   {
     ticketId: "TD-001244",
@@ -129,6 +153,9 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 9 * 86400000),
     status: "critical",
     assignee: DASHBOARD_ASSIGNEES[2],
+    priority: "critical",
+    firstResponseHours: 0.3,
+    slaBreached: true,
   },
   {
     ticketId: "TD-001245",
@@ -137,6 +164,10 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 10 * 86400000),
     status: "resolved",
     assignee: DASHBOARD_ASSIGNEES[3],
+    priority: "low",
+    firstResponseHours: 3.5,
+    resolutionHours: 18.0,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001246",
@@ -145,6 +176,10 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 16 * 86400000),
     status: "resolved",
     assignee: DASHBOARD_ASSIGNEES[0],
+    priority: "medium",
+    firstResponseHours: 2.0,
+    resolutionHours: 8.5,
+    slaBreached: false,
   },
   {
     ticketId: "TD-001247",
@@ -153,6 +188,10 @@ export const DASHBOARD_TICKETS: DashboardTicket[] = [
     date: new Date(Date.now() - 18 * 86400000),
     status: "resolved",
     assignee: DASHBOARD_ASSIGNEES[1],
+    priority: "high",
+    firstResponseHours: 1.5,
+    resolutionHours: 5.5,
+    slaBreached: false,
   },
 ];
 

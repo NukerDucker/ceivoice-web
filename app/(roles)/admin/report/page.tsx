@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/ReportTB';
 import {
@@ -12,10 +12,10 @@ import {
 } from '@/lib/admin-dashboard-data';
 import { TicketVolumeModal } from './TicketVolumeModal';
 import { BacklogSummaryModal } from './BacklogSummaryModal';
+import { PerformanceMetricsModal } from './PerformanceMetricsModal';
 import {
   BarChart3,
   TrendingUp,
-  Clock,
   Users,
   Download,
   Bot,
@@ -27,56 +27,29 @@ import {
   Flame,
 } from 'lucide-react';
 
-// ─── Derived stats ────────────────────────────────────────────────────────────
+// ─── Period filter helper ─────────────────────────────────────────────────────
 
-const totalTickets    = DASHBOARD_TICKETS.length;
-const resolvedTickets = DASHBOARD_TICKETS.filter((t) => t.status === 'resolved').length;
-const criticalTickets = DASHBOARD_TICKETS.filter((t) => t.status === 'critical').length;
-const backlogTickets  = DASHBOARD_TICKETS.filter(
-  (t) => t.status === 'submitted' || t.status === 'in-progress',
-).length;
+function periodToCutoff(p: string): number {
+  const now = Date.now();
+  switch (p) {
+    case 'Last 7 days':  return now - 7  * 24 * 60 * 60 * 1000;
+    case 'Last 30 days': return now - 30 * 24 * 60 * 60 * 1000;
+    case 'Last 90 days': return now - 90 * 24 * 60 * 60 * 1000;
+    case 'This year':    return new Date(new Date().getFullYear(), 0, 1).getTime();
+    default:             return 0;
+  }
+}
 
-const categoryMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
-  (acc: Record<string, number>, t: { category: string }) => {
-    acc[t.category] = (acc[t.category] ?? 0) + 1;
-    return acc;
-  },
-  {},
-);
+// ─── Static data ──────────────────────────────────────────────────────────────
 
-const categoryBreakdown: { name: string; count: number; pct: number }[] = Object.entries(
-  categoryMap,
-)
-  .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-  .map(([name, count]: [string, number]) => ({
-    name,
-    count,
-    pct: Math.round((count / totalTickets) * 100),
-  }));
+const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
 
-const assigneeMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
-  (acc: Record<string, number>, t: { assignee: DashboardAssignee }) => {
-    acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
-    return acc;
-  },
-  {},
-);
-
-const assigneeWorkload: (DashboardAssignee & { count: number })[] = DASHBOARD_ASSIGNEES.map(
-  (a: DashboardAssignee) => ({ ...a, count: assigneeMap[a.name] ?? 0 }),
-).sort(
-  (a: DashboardAssignee & { count: number }, b: DashboardAssignee & { count: number }) =>
-    b.count - a.count,
-);
-
-const statusLabels: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
+const STATUS_LABELS: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
   { status: 'submitted',   label: 'Submitted',  icon: <AlertCircle size={14} /> },
   { status: 'in-progress', label: 'In Progress', icon: <Timer size={14} /> },
   { status: 'resolved',    label: 'Resolved',    icon: <CheckCircle2 size={14} /> },
   { status: 'critical',    label: 'Critical',    icon: <Flame size={14} /> },
 ];
-
-// ─── Report cards ─────────────────────────────────────────────────────────────
 
 const REPORT_CARDS = [
   {
@@ -112,28 +85,12 @@ const REPORT_CARDS = [
     accentBg: '#FFFBEB',
   },
   {
-    id: 'response-time',
-    title: 'Response Time Analysis',
-    description: 'Track first response times, average handling times, and SLA compliance.',
-    icon: <Clock size={22} />,
-    accent: '#10B981',
-    accentBg: '#ECFDF5',
-  },
-  {
     id: 'backlog-summary',
     title: 'Backlog Summary',
-    description: 'Monitor open ticket backlog, overdue items, aging buckets, and assignee load.',
+    description: 'Monitor open ticket backlog by status and category.',
     icon: <Layers size={22} />,
     accent: '#6366F1',
     accentBg: '#EEF2FF',
-  },
-  {
-    id: 'trend-analysis',
-    title: 'Trend Analysis',
-    description: 'Identify patterns, recurring issues, and seasonal trends in ticket data.',
-    icon: <TrendingUp size={22} />,
-    accent: '#F97316',
-    accentBg: '#FFF7ED',
   },
   {
     id: 'ai-accuracy',
@@ -153,8 +110,6 @@ const REPORT_CARDS = [
   },
 ];
 
-const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
-
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
@@ -163,6 +118,47 @@ export default function ReportsPage() {
 
   const openModal  = (id: string) => setActiveModal(id);
   const closeModal = ()           => setActiveModal(null);
+
+  // ── Filter tickets by selected period ──────────────────────────────────────
+  const filteredTickets = useMemo(() => {
+    const cutoff = periodToCutoff(period);
+    return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
+  }, [period]);
+
+  // ── KPI stats — all derived from filteredTickets ───────────────────────────
+  const totalTickets    = filteredTickets.length;
+  const resolvedTickets = filteredTickets.filter((t) => t.status === 'resolved').length;
+  const criticalTickets = filteredTickets.filter((t) => t.status === 'critical').length;
+  const backlogTickets  = filteredTickets.filter(
+    (t) => t.status === 'submitted' || t.status === 'in-progress',
+  ).length;
+
+  // ── Category breakdown — filtered ─────────────────────────────────────────
+  const categoryBreakdown = useMemo(() => {
+    const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
+      acc[t.category] = (acc[t.category] ?? 0) + 1;
+      return acc;
+    }, {});
+    return Object.entries(map)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => ({
+        name,
+        count,
+        pct: totalTickets > 0 ? Math.round((count / totalTickets) * 100) : 0,
+      }));
+  }, [filteredTickets, totalTickets]);
+
+  // ── Assignee workload — filtered ───────────────────────────────────────────
+  const assigneeWorkload = useMemo(() => {
+    const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
+      acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
+      return acc;
+    }, {});
+    return DASHBOARD_ASSIGNEES.map((a: DashboardAssignee) => ({
+      ...a,
+      count: map[a.name] ?? 0,
+    })).sort((a, b) => b.count - a.count);
+  }, [filteredTickets]);
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
@@ -177,7 +173,9 @@ export default function ReportsPage() {
           <div className="flex items-center justify-between mt-6 mb-5">
             <div>
               <h2 className="text-xl font-bold text-gray-900">Reports Overview</h2>
-              <p className="text-sm text-gray-500 mt-0.5">All metrics are updated in real time</p>
+              <p className="text-sm text-gray-500 mt-0.5">
+                Showing {totalTickets} ticket{totalTickets !== 1 ? 's' : ''} for {period.toLowerCase()}
+              </p>
             </div>
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
               <span className="text-xs text-gray-500 font-medium">Period</span>
@@ -187,21 +185,41 @@ export default function ReportsPage() {
                 className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer"
               >
                 {PERIODS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
+                  <option key={p} value={p}>{p}</option>
                 ))}
               </select>
             </div>
           </div>
 
-          {/* KPI Cards */}
+          {/* KPI Cards — filtered */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Tickets',      value: totalTickets,    sub: 'All time',                                                               color: '#3B82F6' },
-              { label: 'Resolved',           value: resolvedTickets, sub: `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate`, color: '#10B981' },
-              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                             color: '#8B5CF6' },
-              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                            color: '#F43F5E' },
+              {
+                label: 'Total Tickets',
+                value: totalTickets,
+                sub: period.toLowerCase(),
+                color: '#3B82F6',
+              },
+              {
+                label: 'Resolved',
+                value: resolvedTickets,
+                sub: totalTickets > 0
+                  ? `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate`
+                  : '0% resolution rate',
+                color: '#10B981',
+              },
+              {
+                label: 'Average Resolution',
+                value: '3.2 hrs',
+                sub: 'Per ticket',
+                color: '#8B5CF6',
+              },
+              {
+                label: 'Backlog',
+                value: backlogTickets,
+                sub: `${criticalTickets} critical`,
+                color: '#F43F5E',
+              },
             ].map((kpi) => (
               <div
                 key={kpi.label}
@@ -217,81 +235,93 @@ export default function ReportsPage() {
             ))}
           </div>
 
-          {/* Insight panels */}
+          {/* Insight panels — filtered */}
           <div className="grid grid-cols-3 gap-4 mb-6">
 
             {/* Status distribution */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Status Distribution</h4>
-              <div className="space-y-3">
-                {statusLabels.map(({ status, label, icon }) => {
-                  const count = DASHBOARD_TICKETS.filter((t) => t.status === status).length;
-                  const pct   = Math.round((count / totalTickets) * 100);
-                  const style = STATUS_STYLES[status];
-                  return (
-                    <div key={status}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span style={{ color: style.text }}>{icon}</span>
-                          <span className="text-xs font-medium text-gray-700">{label}</span>
+              {totalTickets === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No tickets in this period.</p>
+              ) : (
+                <div className="space-y-3">
+                  {STATUS_LABELS.map(({ status, label, icon }) => {
+                    const count = filteredTickets.filter((t) => t.status === status).length;
+                    const pct   = Math.round((count / totalTickets) * 100);
+                    const style = STATUS_STYLES[status];
+                    return (
+                      <div key={status}>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-1.5">
+                            <span style={{ color: style.text }}>{icon}</span>
+                            <span className="text-xs font-medium text-gray-700">{label}</span>
+                          </div>
+                          <span className="text-xs font-bold text-gray-800">{count}</span>
                         </div>
-                        <span className="text-xs font-bold text-gray-800">{count}</span>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, background: style.dot }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full transition-all duration-500"
-                          style={{ width: `${pct}%`, background: style.dot }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             {/* Category breakdown */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Top Categories</h4>
-              <div className="space-y-2.5">
-                {categoryBreakdown.slice(0, 5).map((cat, i) => (
-                  <div key={cat.name} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400 w-4">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-700">{cat.name}</span>
-                        <span className="text-xs text-gray-400">{cat.pct}%</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full rounded-full bg-orange-400 transition-all duration-500"
-                          style={{ width: `${cat.pct}%` }}
-                        />
+              {categoryBreakdown.length === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No tickets in this period.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {categoryBreakdown.slice(0, 5).map((cat, i) => (
+                    <div key={cat.name} className="flex items-center gap-3">
+                      <span className="text-xs text-gray-400 w-4">{i + 1}</span>
+                      <div className="flex-1">
+                        <div className="flex justify-between mb-1">
+                          <span className="text-xs font-medium text-gray-700">{cat.name}</span>
+                          <span className="text-xs text-gray-400">{cat.pct}%</span>
+                        </div>
+                        <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-orange-400 transition-all duration-500"
+                            style={{ width: `${cat.pct}%` }}
+                          />
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Assignee workload */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Assignee Workload</h4>
-              <div className="space-y-3">
-                {assigneeWorkload.map((a) => (
-                  <div key={a.name} className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
-                      <span className="text-white text-[10px] font-bold">{a.fallback}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between">
-                        <span className="text-xs font-medium text-gray-800 truncate">{a.name}</span>
-                        <span className="text-xs font-bold text-gray-600 ml-2">{a.count}</span>
+              {totalTickets === 0 ? (
+                <p className="text-xs text-gray-400 text-center py-4">No tickets in this period.</p>
+              ) : (
+                <div className="space-y-3">
+                  {assigneeWorkload.map((a) => (
+                    <div key={a.name} className="flex items-center gap-3">
+                      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+                        <span className="text-white text-[10px] font-bold">{a.fallback}</span>
                       </div>
-                      <span className="text-[10px] text-gray-400">{a.role}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between">
+                          <span className="text-xs font-medium text-gray-800 truncate">{a.name}</span>
+                          <span className="text-xs font-bold text-gray-600 ml-2">{a.count}</span>
+                        </div>
+                        <span className="text-[10px] text-gray-400">{a.role}</span>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -342,9 +372,14 @@ export default function ReportsPage() {
         </main>
       </div>
 
-      {/* Modals */}
+      {/* ── Modals ── */}
       <TicketVolumeModal
         open={activeModal === 'ticket-volume'}
+        onClose={closeModal}
+        period={period}
+      />
+      <PerformanceMetricsModal
+        open={activeModal === 'performance-metrics'}
         onClose={closeModal}
         period={period}
       />
