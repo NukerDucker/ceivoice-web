@@ -110,7 +110,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
 
               <div className="border rounded-lg flex flex-col flex-1 min-h-0 overflow-hidden">
                 {/* Subject Line */}
-                <div className="p-3 border-b flex-shrink-0">
+                <div className="p-3 border-b shrink-0">
                   <Input
                     placeholder="Subject"
                     value={subject}
