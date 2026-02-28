@@ -1,3 +1,4 @@
+// ceivoice-web/app/auth/callback/route.ts
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
@@ -18,5 +19,6 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // Middleware will handle onboarding/role redirect from here
   return NextResponse.redirect(new URL('/auth-success', origin));
 }

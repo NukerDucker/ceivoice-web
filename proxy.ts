@@ -1,10 +1,27 @@
+// ceivoice-web/proxy.ts (or middleware.ts)
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 type AppRole = 'user' | 'assignee' | 'admin';
 
-const PUBLIC_PATHS = ['/login', '/register', '/auth-success', '/onboarding', '/auth/confirm', '/test'];
+const PUBLIC_PATHS = [
+  '/login',
+  '/register',
+  '/auth-success',
+  '/onboarding',
+  '/auth/confirm',
+  '/auth/callback',
+  '/test',
+  '/request-submitted',
+  '/track',
+];
+
+const ROLE_HIERARCHY: Record<AppRole, number> = {
+  user: 0,
+  assignee: 1,
+  admin: 2,
+};
 
 const ROLE_ROUTES: Record<string, AppRole> = {
   '/user':     'user',
@@ -17,9 +34,12 @@ function isPublic(pathname: string, search: URLSearchParams): boolean {
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
+function hasAccess(userRole: AppRole, required: AppRole): boolean {
+  return ROLE_HIERARCHY[userRole] >= ROLE_HIERARCHY[required];
+}
+
 export async function proxy(request: NextRequest) {
   const { pathname, searchParams, origin } = request.nextUrl;
-
   if (isPublic(pathname, searchParams)) return NextResponse.next();
 
   let response = NextResponse.next({ request: { headers: request.headers } });
@@ -41,35 +61,39 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // Reads session from cookie — no network call.
-  const { data: { session } } = await supabase.auth.getSession();
+  const { data: { user }, error } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!user || error) {
     const url = new URL('/login', origin);
     url.searchParams.set('next', pathname);
     return NextResponse.redirect(url);
   }
 
-  // Custom claims injected by custom_access_token_hook postgres function.
-  const claims = session.user.user_metadata as Record<string, unknown>;
-  const appRole = (session.access_token
-    ? (JSON.parse(atob(session.access_token.split('.')[1])) as Record<string, unknown>).app_role
-    : claims.app_role) as string | undefined;
-  const onboardingDone = (session.access_token
-    ? (JSON.parse(atob(session.access_token.split('.')[1])) as Record<string, unknown>).onboarding_completed
-    : false) as boolean;
+  const { data: { session } } = await supabase.auth.getSession();
+  const jwt = session?.access_token
+    ? JSON.parse(atob(session.access_token.split('.')[1]))
+    : {};
+  const appRole = (jwt.app_role ?? 'user') as AppRole;
+  const onboardingDone = (jwt.onboarding_completed ?? false) as boolean;
 
+  if (onboardingDone && pathname.startsWith('/onboarding')) {
+    return NextResponse.redirect(new URL('/dashboard', origin));
+  }
+  // Onboarding gate
   if (!onboardingDone && !pathname.startsWith('/onboarding')) {
     return NextResponse.redirect(new URL('/onboarding', origin));
   }
 
+  if (pathname === '/dashboard') {
+  return NextResponse.redirect(new URL(`/${appRole}/dashboard`, origin));
+  }
+  // Role gate
   const requiredRole = Object.entries(ROLE_ROUTES).find(([prefix]) =>
     pathname.startsWith(prefix)
   )?.[1];
 
-  if (requiredRole && appRole !== requiredRole) {
-    const dest = appRole ? `/${appRole}/dashboard` : '/login';
-    return NextResponse.redirect(new URL(dest, origin));
+  if (requiredRole && !hasAccess(appRole, requiredRole)) {
+    return NextResponse.redirect(new URL(`/${appRole}/dashboard`, origin));
   }
 
   return response;

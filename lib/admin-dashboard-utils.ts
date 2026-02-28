@@ -132,7 +132,6 @@ export const priorityBreakdown = [
 // CHART DATA
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Category breakdown for the donut chart */
 export const categoryData = (() => {
   const map: Record<string, number> = {};
   DASHBOARD_TICKETS.forEach((t) => {
@@ -146,7 +145,6 @@ export const categoryData = (() => {
   }));
 })();
 
-/** Weekly ticket counts for the bar chart (last 4 weeks) */
 export const weeklyData = (() => {
   const now   = Date.now();
   const weeks = [0, 0, 0, 0];

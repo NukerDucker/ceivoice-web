@@ -1,39 +1,68 @@
 'use client';
 
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/ReviewTicketTB';
-import {
-  DASHBOARD_ASSIGNEES,
-  DASHBOARD_TICKETS,
-  AI_SUGGESTIONS,
-  ORIGINAL_MESSAGES,
-} from '@/lib/admin-dashboard-data';
+import { apiFetch } from '@/lib/api-client';
 
+// ─── API Types ────────────────────────────────────────────────────────────────
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+interface ApiUser {
+  user_id: string;
+  full_name: string | null;
+  user_name: string | null;
+  email: string;
+}
 
-interface FormValues {
-  title?: string;
-  category?: string;
-  summary?: string;
-  solution?: string;
-  assigneeIdx?: number;
-  deadline?: string;
-  deadlineTime?: string;
+interface ApiTicket {
+  ticket_id: number;
+  title: string | null;
+  summary: string | null;
+  suggested_solution: string | null;
+  deadline: string | null;
+  created_at: string;
+  category: { category_id: number; name: string } | null;
+  status: { name: string } | null;
+  assignee: ApiUser | null;
+  ticket_requests: Array<{
+    request: {
+      email: string;
+      name: string | null;
+      body: string | null;
+      tracking_id: string;
+    } | null;
+  }>;
+}
+
+interface ApiAssignee {
+  user_id: string;
+  full_name: string | null;
+  user_name: string | null;
+  email: string;
+  role: string;
+  assigned_tickets?: unknown[];
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(date: Date): string {
-  const diff  = Date.now() - date.getTime();
+function timeAgo(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
   if (mins  < 60) return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
   if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
   return `${days} day${days !== 1 ? 's' : ''} ago`;
+}
+
+function assigneeName(a: ApiAssignee): string {
+  return a.full_name ?? a.user_name ?? a.email;
+}
+
+function assigneeFallback(a: ApiAssignee): string {
+  const name = assigneeName(a);
+  return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
@@ -58,7 +87,7 @@ function NotFound({ id }: { id: string }) {
     <div className="flex flex-col items-center justify-center flex-1 gap-4 text-gray-400">
       <p className="text-lg font-semibold text-gray-700">Ticket not found</p>
       <p className="text-sm">
-        No ticket with ID <span className="font-mono text-gray-600">#{id}</span> exists in the system.
+        No ticket with ID <span className="font-mono text-gray-600">#{id}</span> exists.
       </p>
       <button
         onClick={() => router.back()}
@@ -70,71 +99,84 @@ function NotFound({ id }: { id: string }) {
   );
 }
 
-// ─── Inner component (needs useSearchParams, so must be inside Suspense) ─────
+// ─── Inner component ──────────────────────────────────────────────────────────
 
 function ReviewTicketInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const selectedId   = searchParams.get('id') ?? '';
 
-  const [form,         setForm]         = useState<Record<string, FormValues>>({});
+  // API state
+  const [ticket,     setTicket]     = useState<ApiTicket | null>(null);
+  const [assignees,  setAssignees]  = useState<ApiAssignee[]>([]);
+  const [loading,    setLoading]    = useState(true);
+  const [notFound,   setNotFound]   = useState(false);
+
+  // Form state
+  const [titleVal,        setTitleVal]        = useState('');
+  const [categoryVal,     setCategoryVal]     = useState('');
+  const [summaryVal,      setSummaryVal]      = useState('');
+  const [solutionVal,     setSolutionVal]     = useState('');
+  const [assigneeId,      setAssigneeId]      = useState<string>('');
+  const [deadlineVal,     setDeadlineVal]     = useState('');
+  const [deadlineTimeVal, setDeadlineTimeVal] = useState('');
+
+  // Action status
   const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving'    | 'saved' | 'error'>('idle');
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'done'  | 'error'>('idle');
 
-  const currentTicket = DASHBOARD_TICKETS.find((t) => t.ticketId === selectedId) ?? null;
-  const ai            = AI_SUGGESTIONS[selectedId]    ?? null;
-  const original      = ORIGINAL_MESSAGES[selectedId] ?? null;
+  useEffect(() => {
+    if (!selectedId) { setLoading(false); setNotFound(true); return; }
 
-  if (!currentTicket) {
-    return (
-      <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
-        <Sidebar userRole="admin" userName="Palm Pollapat" />
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <Header title="Review and Edit Draft Ticket" />
-          <NotFound id={selectedId || '(none)'} />
-        </main>
-      </div>
-    );
-  }
+    let cancelled = false;
+    setLoading(true);
 
-  function getField<K extends keyof FormValues>(key: K, fallback: FormValues[K]): FormValues[K] {
-    const val = form[selectedId]?.[key];
-    return val !== undefined ? val : fallback;
-  }
+    Promise.all([
+      apiFetch<ApiTicket>(`/api/tickets/${selectedId}`),
+      apiFetch<ApiAssignee[]>('/api/admin/assignees'),
+    ])
+      .then(([t, a]) => {
+        if (cancelled) return;
+        setTicket(t);
+        setAssignees(a);
+        // Pre-fill form from API data
+        setTitleVal(t.title ?? '');
+        setCategoryVal(t.category?.name ?? '');
+        setSummaryVal(t.summary ?? '');
+        setSolutionVal(t.suggested_solution ?? '');
+        setAssigneeId(t.assignee?.user_id ?? (a[0]?.user_id ?? ''));
+        if (t.deadline) {
+          const d = new Date(t.deadline);
+          setDeadlineVal(d.toISOString().slice(0, 10));
+          setDeadlineTimeVal(d.toISOString().slice(11, 16));
+        }
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) { setNotFound(true); setLoading(false); }
+      });
 
-  function setField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
-    setForm((f) => ({ ...f, [selectedId]: { ...(f[selectedId] ?? {}), [key]: value } }));
-  }
-
-  const titleVal        = getField('title',        currentTicket.title)                                                  as string;
-  const categoryVal     = getField('category',     ai?.category ?? currentTicket.category)                               as string;
-  const summaryVal      = getField('summary',      ai?.summary ?? '')                                                     as string;
-  const solutionVal     = getField('solution',     ai?.suggestedSolution ?? '')                                           as string;
-  const assigneeIdxVal  = getField('assigneeIdx',  Math.max(0, DASHBOARD_ASSIGNEES.findIndex((a) => a.name === currentTicket.assignee.name))) as number;
-  const deadlineVal     = getField('deadline',     ai?.deadline ?? '')                                                   as string;
-  const deadlineTimeVal = getField('deadlineTime', ai?.deadlineTime ?? '')                                               as string;
-
-  function getPayload() {
-    return {
-      ticketId: selectedId,
-      title:    titleVal,
-      category: categoryVal,
-      summary:  summaryVal,
-      solution: solutionVal,
-      assignee: DASHBOARD_ASSIGNEES[assigneeIdxVal]?.name ?? null,
-      deadline: deadlineVal ? `${deadlineVal}T${deadlineTimeVal || '00:00'}` : null,
-    };
-  }
+    return () => { cancelled = true; };
+  }, [selectedId]);
 
   const handleSaveDraft = async () => {
     setSaveStatus('saving');
     try {
-      console.log('Draft payload:', getPayload());
-      await new Promise((res) => setTimeout(res, 800));
+      const deadline = deadlineVal
+        ? `${deadlineVal}T${deadlineTimeVal || '00:00'}:00.000Z`
+        : null;
+      await apiFetch(`/api/admin/drafts/${selectedId}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: titleVal,
+          summary: summaryVal,
+          suggested_solution: solutionVal,
+          ...(deadline ? { deadline } : {}),
+        }),
+      });
       setSaveStatus('saved');
       setTimeout(() => setSaveStatus('idle'), 2500);
-    } catch (err) {
-      console.error(err);
+    } catch {
       setSaveStatus('error');
       setTimeout(() => setSaveStatus('idle'), 2500);
     }
@@ -143,26 +185,42 @@ function ReviewTicketInner() {
   const handleSubmit = async () => {
     setSubmitStatus('submitting');
     try {
-      const res = await fetch('/api/tickets', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ ...getPayload(), status: 'open' }),
-      });
-      if (!res.ok) throw new Error('Failed to submit');
+      await apiFetch(`/api/admin/drafts/${selectedId}/approve`, { method: 'POST' });
+      setSubmitStatus('done');
       router.push('/admin/tickets');
-    } catch (err) {
-      console.error(err);
+    } catch {
       setSubmitStatus('error');
       setTimeout(() => setSubmitStatus('idle'), 2500);
     }
   };
 
-  const subtitle = `Draft ${currentTicket.ticketId} · created ${timeAgo(currentTicket.date)}`;
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-gray-100 text-gray-400 text-sm">
+        Loading ticket…
+      </div>
+    );
+  }
+
+  if (notFound || !ticket) {
+    return (
+      <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
+        <Sidebar userRole="admin" userName="Admin" />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <Header title="Review and Edit Draft Ticket" />
+          <NotFound id={selectedId || '(none)'} />
+        </main>
+      </div>
+    );
+  }
+
+  const request = ticket.ticket_requests[0]?.request ?? null;
+  const subtitle = `Draft #${ticket.ticket_id} · created ${timeAgo(ticket.created_at)}`;
 
   return (
     <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
       <div className="flex flex-col h-screen shrink-0">
-        <Sidebar userRole="admin" userName="Palm Pollapat" />
+        <Sidebar userRole="admin" userName="Admin" />
       </div>
 
       <main className="flex-1 flex flex-col overflow-hidden">
@@ -177,13 +235,13 @@ function ReviewTicketInner() {
               <span className="text-[13.5px] font-semibold text-gray-700">Original request</span>
             </div>
             <div className="p-5 flex-1 overflow-y-auto">
-              {original ? (
+              {request ? (
                 <>
                   <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide mb-2.5">
-                    From: {original.from}
+                    From: {request.name ?? request.email}
                   </div>
                   <div className="text-[13.5px] leading-7 text-gray-700 whitespace-pre-wrap">
-                    {original.body}
+                    {request.body ?? '(No message body)'}
                   </div>
                 </>
               ) : (
@@ -192,16 +250,13 @@ function ReviewTicketInner() {
                     Ticket details
                   </div>
                   <p className="text-[13.5px] text-gray-700">
-                    <span className="font-semibold">Title:</span> {currentTicket.title}
+                    <span className="font-semibold">Title:</span> {ticket.title}
                   </p>
                   <p className="text-[13.5px] text-gray-700">
-                    <span className="font-semibold">Category:</span> {currentTicket.category}
+                    <span className="font-semibold">Category:</span> {ticket.category?.name ?? '—'}
                   </p>
                   <p className="text-[13.5px] text-gray-700">
-                    <span className="font-semibold">Priority:</span> {currentTicket.priority}
-                  </p>
-                  <p className="text-[13.5px] text-gray-700">
-                    <span className="font-semibold">Assignee:</span> {currentTicket.assignee.name}
+                    <span className="font-semibold">Assignee:</span> {ticket.assignee?.full_name ?? '—'}
                   </p>
                   <p className="text-[13.5px] text-gray-500 italic mt-2">
                     No original message on record for this ticket.
@@ -211,7 +266,7 @@ function ReviewTicketInner() {
             </div>
           </div>
 
-          {/* AI Suggestion */}
+          {/* AI Suggestion / Edit Form */}
           <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
             <div className="px-4 py-3 bg-sky-50 border-b border-sky-200 flex items-center gap-2.5 rounded-t-xl">
               <span className="text-base">🤖</span>
@@ -224,42 +279,78 @@ function ReviewTicketInner() {
             <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-3.5">
 
               <Field label="Title">
-                <input value={titleVal} onChange={(e) => setField('title', e.target.value)} className={inputClass} />
+                <input
+                  value={titleVal}
+                  onChange={(e) => setTitleVal(e.target.value)}
+                  className={inputClass}
+                />
               </Field>
 
               <Field label="Category">
-                <input value={categoryVal} onChange={(e) => setField('category', e.target.value)} className={inputClass} />
+                <input
+                  value={categoryVal}
+                  onChange={(e) => setCategoryVal(e.target.value)}
+                  className={inputClass}
+                />
               </Field>
 
               <Field label="Summary">
-                <textarea value={summaryVal} onChange={(e) => setField('summary', e.target.value)} rows={3} className={textareaClass} />
+                <textarea
+                  value={summaryVal}
+                  onChange={(e) => setSummaryVal(e.target.value)}
+                  rows={3}
+                  className={textareaClass}
+                />
               </Field>
 
               <Field label="Suggested Solution">
-                <textarea value={solutionVal} onChange={(e) => setField('solution', e.target.value)} rows={3} className={textareaClass} />
+                <textarea
+                  value={solutionVal}
+                  onChange={(e) => setSolutionVal(e.target.value)}
+                  rows={3}
+                  className={textareaClass}
+                />
               </Field>
 
               <Field label="Assignee">
                 <div className="flex flex-wrap gap-2 p-2.5 border border-gray-200 rounded-lg bg-gray-50">
-                  {DASHBOARD_ASSIGNEES.map((a, i) => (
-                    <button
-                      key={a.name}
-                      onClick={() => setField('assigneeIdx', i)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-semibold transition-colors ${
-                        assigneeIdxVal === i ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      <img src={a.avatar} alt={a.name} className="w-4 h-4 rounded-full" />
-                      {a.fallback}
-                    </button>
-                  ))}
+                  {assignees.length === 0 ? (
+                    <span className="text-xs text-gray-400 italic">No assignees available</span>
+                  ) : (
+                    assignees.map((a) => (
+                      <button
+                        key={a.user_id}
+                        onClick={() => setAssigneeId(a.user_id)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-semibold transition-colors ${
+                          assigneeId === a.user_id
+                            ? 'bg-blue-100 text-blue-700'
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                        }`}
+                      >
+                        <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 text-[9px] font-bold flex items-center justify-center">
+                          {assigneeFallback(a)}
+                        </span>
+                        {assigneeName(a)}
+                      </button>
+                    ))
+                  )}
                 </div>
               </Field>
 
               <Field label="Deadline">
                 <div className="flex gap-2.5">
-                  <input type="date" value={deadlineVal}     onChange={(e) => setField('deadline',     e.target.value)} className={`${inputClass} flex-1`} />
-                  <input type="time" value={deadlineTimeVal} onChange={(e) => setField('deadlineTime', e.target.value)} className={`${inputClass} w-28 shrink-0`} />
+                  <input
+                    type="date"
+                    value={deadlineVal}
+                    onChange={(e) => setDeadlineVal(e.target.value)}
+                    className={`${inputClass} flex-1`}
+                  />
+                  <input
+                    type="time"
+                    value={deadlineTimeVal}
+                    onChange={(e) => setDeadlineTimeVal(e.target.value)}
+                    className={`${inputClass} w-28 shrink-0`}
+                  />
                 </div>
               </Field>
 
@@ -271,7 +362,7 @@ function ReviewTicketInner() {
                 }`}>
                   {saveStatus   === 'saved' && '✅ Draft saved successfully!'}
                   {saveStatus   === 'error' && '❌ Failed to save draft. Please try again.'}
-                  {submitStatus === 'error' && '❌ Failed to submit ticket. Please try again.'}
+                  {submitStatus === 'error' && '❌ Failed to approve ticket. Please try again.'}
                 </div>
               )}
 
@@ -292,7 +383,7 @@ function ReviewTicketInner() {
                     submitStatus === 'submitting' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-100 cursor-pointer'
                   }`}
                 >
-                  {submitStatus === 'submitting' ? 'Submitting...' : 'Submit as New Ticket'}
+                  {submitStatus === 'submitting' ? 'Approving...' : 'Approve as New Ticket'}
                 </button>
               </div>
 
@@ -305,7 +396,7 @@ function ReviewTicketInner() {
   );
 }
 
-// ─── Default export — wraps inner in Suspense (required for useSearchParams) ──
+// ─── Default export ───────────────────────────────────────────────────────────
 
 export default function ReviewTicketPage() {
   return (

@@ -1,36 +1,76 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
+import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle, // Add this back
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Paperclip, Link2, Smile, Image, Triangle, Clock, Edit3, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Paperclip, Link2, Smile, Image as ImageIcon, Triangle, Clock, Edit3, MoreHorizontal, Trash2 } from 'lucide-react';
+import '@uiw/react-md-editor/markdown-editor.css';
+import '@uiw/react-markdown-preview/markdown.css';
+
+const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false });
 
 interface CreateTicketModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultEmail?: string;
+  defaultUserId?: string;
 }
 
-export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps) {
-  const [email, setEmail] = useState('');
+export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defaultUserId }: CreateTicketModalProps) {
+  const router = useRouter();
+  const [email, setEmail] = useState(defaultEmail);
   const [subject, setSubject] = useState('');
   const [bodyText, setBodyText] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleSubmit = () => {
-    console.log({ email, subject, bodyText });
-    onOpenChange(false);
+  const handleSubmit = async () => {
+    setError(null);
+    const message = subject.trim()
+      ? `**${subject.trim()}**\n\n${bodyText.trim()}`
+      : bodyText.trim();
+
+    if (!email || !message) {
+      setError('Email and message are required.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, message, user_id: defaultUserId ?? null }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error ?? 'Submission failed. Please try again.');
+        return;
+      }
+
+      onOpenChange(false);
+      router.push(`/request-submitted/${data.tracking_id}`);
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[540px] h-[720px] p-0 overflow-hidden !fixed !right-4 !top-1/2 !-translate-y-1/2 !left-auto !translate-x-0 flex flex-col bg-white">
-        
+
         {/* Header */}
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
@@ -40,10 +80,7 @@ export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps
                 <line x1="9" y1="3" x2="9" y2="21"/>
               </svg>
             </div>
-            {/* 1. Added DialogTitle back with 'sr-only' class to fix the error */}
-            {/* This makes it visible to screen readers but invisible on your screen */}
             <DialogTitle className="sr-only">Create New Ticket</DialogTitle>
-            
             <span className="text-xs font-semibold uppercase tracking-wide">
               CREATE NEW TICKET
             </span>
@@ -55,9 +92,7 @@ export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps
           <div className="space-y-4 flex flex-col flex-1 min-h-0">
             {/* Email Field */}
             <div className="flex-shrink-0">
-              <label className="block text-sm font-bold mb-2">
-                Email
-              </label>
+              <label className="block text-sm font-bold mb-2">Email</label>
               <Input
                 type="email"
                 placeholder="example@example.com"
@@ -72,10 +107,10 @@ export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps
               <label className="block text-sm font-bold mb-2">
                 Describe your issues or request
               </label>
-              
+
               <div className="border rounded-lg flex flex-col flex-1 min-h-0 overflow-hidden">
                 {/* Subject Line */}
-                <div className="p-3 border-b flex-shrink-0">
+                <div className="p-3 border-b shrink-0">
                   <Input
                     placeholder="Subject"
                     value={subject}
@@ -84,29 +119,16 @@ export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps
                   />
                 </div>
 
-                {/* Body Textarea */}
-                <div className="flex-1 overflow-hidden">
-                   <Textarea
-                    placeholder="Body Text"
+                {/* Markdown Editor */}
+                <div className="flex-1 overflow-hidden" data-color-mode="light">
+                  <MDEditor
                     value={bodyText}
-                    onChange={(e) => setBodyText(e.target.value)}
-                    className="w-full h-full border-0 resize-none focus-visible:ring-0 text-sm p-3 overflow-y-auto"
+                    onChange={(val) => setBodyText(val ?? '')}
+                    preview="edit"
+                    hideToolbar={false}
+                    height="100%"
+                    style={{ border: 'none', boxShadow: 'none' }}
                   />
-                </div>
-                
-                {/* Formatting Toolbar */}
-                <div className="border-t px-2 py-1.5 flex items-center gap-0.5 bg-gray-50 flex-shrink-0 flex-wrap">
-                  <button className="p-1.5 hover:bg-gray-200 rounded text-sm">↶</button>
-                  <button className="p-1.5 hover:bg-gray-200 rounded text-sm">↷</button>
-                  <div className="h-4 w-px bg-gray-300 mx-0.5" />
-                  <select className="px-2 py-1 hover:bg-gray-200 rounded text-xs border-0 bg-transparent cursor-pointer">
-                    <option>Sans Serif</option>
-                  </select>
-                  <div className="h-4 w-px bg-gray-300 mx-0.5" />
-                  <button className="p-1.5 hover:bg-gray-200 rounded font-bold text-xs">B</button>
-                  <button className="p-1.5 hover:bg-gray-200 rounded italic text-xs">I</button>
-                  <button className="p-1.5 hover:bg-gray-200 rounded underline text-xs">U</button>
-                  <button className="p-1.5 hover:bg-gray-200 rounded text-xs">A</button>
                 </div>
 
                 {/* Bottom Action Bar */}
@@ -114,16 +136,16 @@ export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps
                   <div className="flex items-center gap-1">
                     <Button
                       onClick={handleSubmit}
+                      disabled={isSubmitting}
                       className="bg-[#2b59ff] hover:bg-blue-700 text-white h-9 px-6 text-sm font-semibold rounded-md"
                     >
-                      Send
+                      {isSubmitting ? 'Sending...' : 'Send'}
                     </Button>
-                    <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><span className="text-base font-semibold">A</span></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Paperclip className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Link2 className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Smile className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Triangle className="w-4 h-4" /></button>
-                    <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Image className="w-4 h-4" /></button>
+                    <button aria-label="Attach image" className="p-2 hover:bg-gray-100 rounded text-gray-500"><ImageIcon className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Clock className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Edit3 className="w-4 h-4" /></button>
                   </div>
@@ -133,6 +155,10 @@ export function CreateTicketModal({ open, onOpenChange }: CreateTicketModalProps
                   </div>
                 </div>
               </div>
+
+              {error && (
+                <p className="mt-2 text-sm text-red-600">{error}</p>
+              )}
             </div>
           </div>
         </div>

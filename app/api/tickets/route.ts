@@ -1,30 +1,15 @@
-// GET /api/tickets   — list all tickets
-// POST /api/tickets  — create a new ticket
+// ceivoice-web/app/api/tickets/route.ts
+import { apiFetch } from '@/lib/utils/api';
 
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
-import { bearerHeader } from '@/lib/utils/auth-cookies';
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
-
-export async function GET(request: NextRequest) {
-  const res = await fetch(`${API_URL}/tickets`, {
-    headers: { ...bearerHeader(request) },
-  });
+export async function GET() {
+  const res = await apiFetch('/tickets');
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return Response.json(data, { status: res.status });
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: Request) {
   const body = await request.json();
-  const res = await fetch(`${API_URL}/tickets`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...bearerHeader(request),
-    },
-    body: JSON.stringify(body),
-  });
+  const res = await apiFetch('/tickets', { method: 'POST', body: JSON.stringify(body) });
   const data = await res.json();
-  return NextResponse.json(data, { status: res.status });
+  return Response.json(data, { status: res.status });
 }
