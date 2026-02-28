@@ -71,19 +71,16 @@ export async function proxy(request: NextRequest) {
   const jwt = session?.access_token
     ? JSON.parse(atob(session.access_token.split('.')[1]))
     : {};
-  console.log('Line 74')
   const appRole = (jwt.app_role ?? 'user') as AppRole;
   const onboardingDone = (jwt.onboarding_completed ?? false) as boolean;
 
-  console.log("Line 78", onboardingDone)
   if (onboardingDone && pathname.startsWith('/onboarding')) {
-  return NextResponse.redirect(new URL('/dashboard', origin));
-}
+    return NextResponse.redirect(new URL('/dashboard', origin));
+  }
   // Onboarding gate
   if (!onboardingDone && !pathname.startsWith('/onboarding')) {
     return NextResponse.redirect(new URL('/onboarding', origin));
   }
-   console.log("Line 78", onboardingDone);
 
   if (pathname === '/dashboard') {
     return NextResponse.redirect(new URL(`/auth-test`, origin));
