@@ -1,20 +1,30 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Search, Merge, X, Bot, Eye } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Search, Merge, X, Bot } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/DraftTB';
-import {
-  DASHBOARD_TICKETS,
-  ORIGINAL_MESSAGES,
-  AI_SUGGESTIONS,
-  type DashboardTicket,
-} from '@/lib/admin-dashboard-data';
+import { apiFetch } from '@/lib/api-client';
 
-// ─── Draft tickets are "draft" status tickets ─────────────────────────────────
+// ─── API types ────────────────────────────────────────────────────────────────
 
-const DRAFT_TICKETS = DASHBOARD_TICKETS.filter((t) => t.status === 'draft');
+interface ApiDraft {
+  ticket_id: number;
+  title: string | null;
+  summary: string | null;
+  created_at: string;
+  status: { name: string } | null;
+  category: { category_id: number; name: string } | null;
+  ticket_requests: Array<{
+    request: {
+      email: string;
+      name: string | null;
+      body: string | null;
+      tracking_id: string;
+    } | null;
+  }>;
+}
 
 // ─── Category badge color map ─────────────────────────────────────────────────
 
@@ -35,8 +45,8 @@ function getCategoryStyle(category: string) {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function timeAgo(date: Date): string {
-  const diff  = Date.now() - date.getTime();
+function timeAgo(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
@@ -45,22 +55,14 @@ function timeAgo(date: Date): string {
   return `${days}d ago`;
 }
 
-function timeAgoFull(date: Date): string {
-  const diff  = Date.now() - date.getTime();
+function timeAgoFull(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
   const mins  = Math.floor(diff / 60000);
   const hours = Math.floor(diff / 3600000);
   const days  = Math.floor(diff / 86400000);
   if (mins  < 60) return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
   if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
   return `${days} day${days !== 1 ? 's' : ''} ago`;
-}
-
-// AI confidence based on whether AI suggestion exists and category matched
-function getAiConfidence(ticket: DashboardTicket): number {
-  if (!AI_SUGGESTIONS[ticket.ticketId]) return 62;
-  if (ticket.aiCategoryMatch && ticket.aiSuggestionAccepted) return 94;
-  if (ticket.aiCategoryMatch) return 81;
-  return 67;
 }
 
 function ConfidencePill({ value }: { value: number }) {
@@ -83,29 +85,18 @@ function DraftRow({
   checked,
   onCheck,
 }: {
-  ticket: DashboardTicket;
+  ticket: ApiDraft;
   checked: boolean;
-  onCheck: (id: string, val: boolean) => void;
+  onCheck: (id: number, val: boolean) => void;
 }) {
-  const router     = useRouter();
-  const original   = ORIGINAL_MESSAGES[ticket.ticketId];
-  const ai         = AI_SUGGESTIONS[ticket.ticketId];
-  const catStyle   = getCategoryStyle(ticket.category);
-  const confidence = getAiConfidence(ticket);
-
-  const formattedDate = ticket.date.toLocaleDateString('en-GB', {
-    day: '2-digit', month: 'short', year: 'numeric',
-  });
-  const formattedTime = ticket.date.toLocaleTimeString('en-GB', {
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  });
+  const router   = useRouter();
+  const request  = ticket.ticket_requests[0]?.request ?? null;
+  const catName  = ticket.category?.name ?? 'General';
+  const catStyle = getCategoryStyle(catName);
 
   const handleReview = () => {
-    router.push(`/admin/reviewticket?id=${ticket.ticketId}`);
+    router.push(`/admin/reviewticket?id=${ticket.ticket_id}`);
   };
-
-  // AI-suggested category (from AI_SUGGESTIONS if available, else ticket.category)
-  const aiCategory = ai?.category ?? ticket.category;
 
   return (
     <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100">
@@ -116,54 +107,55 @@ function DraftRow({
           <input
             type="checkbox"
             checked={checked}
-            onChange={(e) => onCheck(ticket.ticketId, e.target.checked)}
+            onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
             className="w-4 h-4 rounded border-gray-300 accent-gray-900 mb-1"
           />
-          <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
-          <span className="text-xs text-gray-500">{formattedTime}</span>
-          <span className="text-xs text-gray-400">{formattedDate}</span>
+          <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
+          <span className="text-xs text-gray-500">
+            {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+          </span>
+          <span className="text-xs text-gray-400">
+            {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </span>
         </div>
 
-        {/* Suggested title + meta */}
+        {/* Title + meta */}
         <div className="flex-1 min-w-0">
-          {/* AI tag */}
           <div className="flex items-center gap-1.5 mb-1.5">
             <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
               <Bot size={10} /> AI Draft
             </span>
             <span className="text-gray-200">·</span>
-            <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.date)}</span>
+            <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
           </div>
 
-          {/* Title — clickable */}
           <button
             onClick={handleReview}
             className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
           >
-            {ticket.title}
+            {ticket.title ?? '(Untitled)'}
           </button>
 
-          {/* Columns: Original Email, Submitted, AI Category, Confidence */}
           <div className="grid grid-cols-4 gap-4">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Original Email</span>
               <span className="text-xs text-gray-600 font-medium truncate">
-                {original?.from ?? '—'}
+                {request?.name ?? request?.email ?? '—'}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Submitted</span>
-              <span className="text-xs text-gray-600 font-medium">{timeAgo(ticket.date)}</span>
+              <span className="text-xs text-gray-600 font-medium">{timeAgo(ticket.created_at)}</span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border w-fit ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}>
-                {aiCategory}
+                {catName}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Confidence</span>
-              <ConfidencePill value={confidence} />
+              <ConfidencePill value={80} />
             </div>
           </div>
         </div>
@@ -174,7 +166,6 @@ function DraftRow({
             onClick={handleReview}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
           >
-            <Eye size={13} />
             Review
           </button>
         </div>
@@ -191,7 +182,7 @@ function MergePopup({
   onClear,
   onMerge,
 }: {
-  selectedIds: string[];
+  selectedIds: number[];
   onClear: () => void;
   onMerge: () => void;
 }) {
@@ -242,22 +233,36 @@ function MergePopup({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminDraftQueuePage() {
-  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
+  const [drafts,           setDrafts]           = useState<ApiDraft[]>([]);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState<string | null>(null);
+  const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set());
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
   const [search,           setSearch]           = useState('');
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return DRAFT_TICKETS;
-    const q = search.toLowerCase();
-    return DRAFT_TICKETS.filter(
-      (t) =>
-        t.title.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q) ||
-        (ORIGINAL_MESSAGES[t.ticketId]?.from ?? '').toLowerCase().includes(q)
-    );
-  }, [search]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+    apiFetch<ApiDraft[]>('/api/admin/drafts')
+      .then((data) => { if (!cancelled) { setDrafts(data); setLoading(false); } })
+      .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
+    return () => { cancelled = true; };
+  }, []);
 
-  const handleCheck = (id: string, val: boolean) => {
+  const filtered = useMemo(() => {
+    if (!search.trim()) return drafts;
+    const q = search.toLowerCase();
+    return drafts.filter(
+      (t) =>
+        (t.title ?? '').toLowerCase().includes(q) ||
+        (t.category?.name ?? '').toLowerCase().includes(q) ||
+        (t.ticket_requests[0]?.request?.name ?? '').toLowerCase().includes(q) ||
+        (t.ticket_requests[0]?.request?.email ?? '').toLowerCase().includes(q)
+    );
+  }, [drafts, search]);
+
+  const handleCheck = (id: number, val: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       val ? next.add(id) : next.delete(id);
@@ -269,7 +274,7 @@ export default function AdminDraftQueuePage() {
     if (selectedIds.size === filtered.length) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(filtered.map((t) => t.ticketId)));
+      setSelectedIds(new Set(filtered.map((t) => t.ticket_id)));
     }
   };
 
@@ -280,7 +285,7 @@ export default function AdminDraftQueuePage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
+      <Sidebar userRole="admin" userName="Admin" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -288,7 +293,6 @@ export default function AdminDraftQueuePage() {
         {/* Toolbar */}
         <div className="flex items-center justify-between gap-4 px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
-            {/* Select all */}
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -301,18 +305,18 @@ export default function AdminDraftQueuePage() {
 
             <div className="w-px h-4 bg-gray-200" />
 
-            {/* Count badge */}
             <div className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-gray-700">
-                {DRAFT_TICKETS.length} draft{DRAFT_TICKETS.length !== 1 ? 's' : ''} waiting
+                {loading ? 'Loading…' : `${drafts.length} draft${drafts.length !== 1 ? 's' : ''} waiting`}
               </span>
-              <span className="text-[10px] bg-violet-100 text-violet-600 font-bold px-1.5 py-0.5 rounded-full">
-                {DRAFT_TICKETS.length}
-              </span>
+              {!loading && (
+                <span className="text-[10px] bg-violet-100 text-violet-600 font-bold px-1.5 py-0.5 rounded-full">
+                  {drafts.length}
+                </span>
+              )}
             </div>
           </div>
 
-          {/* Search */}
           <div className="relative w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -327,24 +331,37 @@ export default function AdminDraftQueuePage() {
 
         {/* Draft list */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="flex flex-col gap-2">
-            {filtered.length > 0 ? (
-              filtered.map((ticket) => (
-                <DraftRow
-                  key={ticket.ticketId}
-                  ticket={ticket}
-                  checked={selectedIds.has(ticket.ticketId)}
-                  onCheck={handleCheck}
-                />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <Search size={32} className="mb-3 opacity-30" />
-                <p className="text-sm font-medium">No drafts found</p>
-                <p className="text-xs mt-1 opacity-60">Try adjusting your search</p>
-              </div>
-            )}
-          </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <p className="text-sm font-medium">Loading drafts…</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-20 text-red-400">
+              <p className="text-sm font-medium">Failed to load drafts</p>
+              <p className="text-xs mt-1 opacity-60">{error}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {filtered.length > 0 ? (
+                filtered.map((ticket) => (
+                  <DraftRow
+                    key={ticket.ticket_id}
+                    ticket={ticket}
+                    checked={selectedIds.has(ticket.ticket_id)}
+                    onCheck={handleCheck}
+                  />
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                  <Search size={32} className="mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No drafts found</p>
+                  <p className="text-xs mt-1 opacity-60">
+                    {drafts.length === 0 ? 'No drafts pending review.' : 'Try adjusting your search.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -367,15 +384,15 @@ export default function AdminDraftQueuePage() {
             </p>
             <div className="flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
               {Array.from(selectedIds).map((id) => {
-                const ticket   = DRAFT_TICKETS.find((t) => t.ticketId === id);
-                const original = ORIGINAL_MESSAGES[id];
+                const ticket = drafts.find((t) => t.ticket_id === id);
+                const req    = ticket?.ticket_requests[0]?.request;
                 return (
                   <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                     <span className="text-xs font-mono text-gray-400">#{id}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-700 truncate">{ticket?.title}</p>
-                      {original && (
-                        <p className="text-[10px] text-gray-400 truncate">from {original.from}</p>
+                      {req?.name && (
+                        <p className="text-[10px] text-gray-400 truncate">from {req.name}</p>
                       )}
                     </div>
                   </div>
