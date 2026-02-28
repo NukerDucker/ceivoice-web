@@ -35,7 +35,7 @@ export default async function Page() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 px-10 pt-6 pb-10 bg-gray-50 overflow-auto">
         <div className="bg-white rounded-lg shadow-sm">
-          <Header userEmail={user?.email} />
+          <Header userEmail={user?.email} userId={user?.id} />
         </div>
 
         <div className="mt-4 bg-white rounded-lg shadow-sm p-6">

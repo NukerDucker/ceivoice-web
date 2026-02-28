@@ -17,9 +17,10 @@ import { CreateTicketModal } from "@/components/tickets/ReplyBox";
 
 interface HeaderProps {
     userEmail?: string;
+    userId?: string;
 }
 
-export function Header({ userEmail }: HeaderProps) {
+export function Header({ userEmail, userId }: HeaderProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     return (
@@ -58,6 +59,7 @@ export function Header({ userEmail }: HeaderProps) {
                 open={isModalOpen}
                 onOpenChange={setIsModalOpen}
                 defaultEmail={userEmail}
+                defaultUserId={userId}
             />
         </>
     );

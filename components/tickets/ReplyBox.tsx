@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Paperclip, Link2, Smile, Image, Triangle, Clock, Edit3, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Paperclip, Link2, Smile, Image as ImageIcon, Triangle, Clock, Edit3, MoreHorizontal, Trash2 } from 'lucide-react';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 
@@ -21,9 +21,10 @@ interface CreateTicketModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   defaultEmail?: string;
+  defaultUserId?: string;
 }
 
-export function CreateTicketModal({ open, onOpenChange, defaultEmail = '' }: CreateTicketModalProps) {
+export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defaultUserId }: CreateTicketModalProps) {
   const router = useRouter();
   const [email, setEmail] = useState(defaultEmail);
   const [subject, setSubject] = useState('');
@@ -47,7 +48,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '' }: Cre
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/requests`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, message }),
+        body: JSON.stringify({ email, message, user_id: defaultUserId ?? null }),
       });
 
       const data = await res.json();
@@ -144,7 +145,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '' }: Cre
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Link2 className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Smile className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Triangle className="w-4 h-4" /></button>
-                    <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Image className="w-4 h-4" /></button>
+                    <button aria-label="Attach image" className="p-2 hover:bg-gray-100 rounded text-gray-500"><ImageIcon className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Clock className="w-4 h-4" /></button>
                     <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Edit3 className="w-4 h-4" /></button>
                   </div>
