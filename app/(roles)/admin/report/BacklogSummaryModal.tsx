@@ -74,13 +74,18 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
     (t) => new Date(t.date).getTime() >= cutoff,
   );
 
-  const total   = filteredTickets.length;
-  const backlog = filteredTickets.filter((t) => t.status !== 'resolved');
+  const total = filteredTickets.length;
 
-  // EP06-ST003: Total backlog
+  // Backlog = anything not yet finalized (not solved or failed)
+  const backlog = filteredTickets.filter(
+    (t) => t.status !== 'solved' && t.status !== 'failed',
+  );
+
   const totalBacklog = backlog.length;
 
-  // EP06-ST003: Breakdown by Category
+  // Breakdown by Category — worst status priority: failed > solving > assigned > new > renew > draft
+  const STATUS_PRIORITY: TicketStatus[] = ['failed', 'solving', 'assigned', 'new', 'renew', 'draft'];
+
   const categoryMap = backlog.reduce<Record<string, { tickets: typeof backlog }>>(
     (acc, t) => {
       if (!acc[t.category]) acc[t.category] = { tickets: [] };
@@ -93,15 +98,12 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
   const categoryRows = Object.entries(categoryMap)
     .sort((a, b) => b[1].tickets.length - a[1].tickets.length)
     .map(([name, { tickets }]) => {
-      const worstStatus: TicketStatus = tickets.some((t) => t.status === 'critical')
-        ? 'critical'
-        : tickets.some((t) => t.status === 'in-progress')
-        ? 'in-progress'
-        : 'submitted';
+      const worstStatus: TicketStatus =
+        STATUS_PRIORITY.find((s) => tickets.some((t) => t.status === s)) ?? 'draft';
       return { name, total: tickets.length, status: worstStatus };
     });
 
-  // EP06-ST003: Breakdown by current Status
+  // Breakdown by current Status
   const statusRows = (Object.keys(BACKLOG_STATUS_META) as TicketStatus[]).map((status) => {
     const count = filteredTickets.filter((t) => t.status === status).length;
     return {
@@ -113,17 +115,17 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
     };
   });
 
-  // EP06-ST003 + EP06-ST004: Assignee load
+  // Assignee load — open = not solved/failed, resolved = solved
   const assigneeRows = DASHBOARD_ASSIGNEES.map((a) => {
     const open     = backlog.filter((t) => t.assignee.name === a.name).length;
     const resolved = filteredTickets.filter(
-      (t) => t.assignee.name === a.name && t.status === 'resolved',
+      (t) => t.assignee.name === a.name && t.status === 'solved',
     ).length;
     const capacity  = total > 0 ? Math.round((open / total) * 100) : 0;
     const loadColor =
-      capacity >= 40 ? STATUS_STYLES.critical.dot
-      : capacity >= 20 ? STATUS_STYLES['in-progress'].dot
-      : STATUS_STYLES.resolved.dot;
+      capacity >= 40 ? STATUS_STYLES.failed.dot
+      : capacity >= 20 ? STATUS_STYLES.solving.dot
+      : STATUS_STYLES.solved.dot;
     return { ...a, open, resolved, capacity, loadColor };
   }).sort((a, b) => b.open - a.open);
 
@@ -189,10 +191,8 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
             </p>
           ) : (
             <>
-              {/* EP06-ST003: Total Backlog KPI */}
-              <div
-                className="rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 flex items-center justify-between"
-              >
+              {/* Total Backlog KPI */}
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 flex items-center justify-between">
                 <div>
                   <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                     Total Backlog
@@ -212,7 +212,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                 </div>
               </div>
 
-              {/* EP06-ST003: Backlog by Category */}
+              {/* Backlog by Category */}
               <div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <AlertTriangle size={12} className="text-amber-500" />
@@ -252,7 +252,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                 )}
               </div>
 
-              {/* EP06-ST003: Tickets by Status */}
+              {/* Tickets by Status */}
               <div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Clock size={12} className="text-indigo-500" />
@@ -289,7 +289,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                 </div>
               </div>
 
-              {/* EP06-ST003 + EP06-ST004: Assignee Backlog Load */}
+              {/* Assignee Backlog Load */}
               <div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Layers size={12} className="text-indigo-400" />
@@ -299,7 +299,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100">
-                        {['Assignee', 'Department', 'Open Tickets', 'Resolved', 'Load'].map((h) => (
+                        {['Assignee', 'Department', 'Open Tickets', 'Solved', 'Load'].map((h) => (
                           <th
                             key={h}
                             className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"
@@ -319,7 +319,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                             <div className="flex items-center gap-2">
                               <div
                                 className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                style={{ background: STATUS_STYLES.submitted.dot }}
+                                style={{ background: STATUS_STYLES.new.dot }}
                               >
                                 <span className="text-white text-[9px] font-bold">{a.fallback}</span>
                               </div>
@@ -332,8 +332,8 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                             <span
                               className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
                               style={{
-                                background: STATUS_STYLES.resolved.bg,
-                                color:      STATUS_STYLES.resolved.text,
+                                background: STATUS_STYLES.solved.bg,
+                                color:      STATUS_STYLES.solved.text,
                               }}
                             >
                               {a.resolved}
