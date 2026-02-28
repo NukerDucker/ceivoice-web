@@ -11,8 +11,10 @@ const PUBLIC_PATHS = [
   '/auth-success',
   '/onboarding',
   '/auth/confirm',
-  '/auth/callback', //
+  '/auth/callback',
   '/test',
+  '/request-submitted',
+  '/track',
 ];
 
 const ROLE_HIERARCHY: Record<AppRole, number> = {

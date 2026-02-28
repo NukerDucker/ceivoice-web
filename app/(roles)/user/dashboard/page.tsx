@@ -2,6 +2,7 @@ import { TicketList, type Ticket } from '@/components/tickets/TicketTable';
 import { apiFetch } from '@/lib/api';
 import { Header } from '@/components/tickets/TicketListHeader';
 import type { ApiTicket } from '@/types/api';
+import { createClient } from '@/lib/supabase/server';
 
 const statusMap: Record<string, Ticket['status']> = {
   Draft: 'submitted', New: 'submitted',
@@ -24,6 +25,9 @@ function toTicket(t: ApiTicket): Ticket {
 }
 
 export default async function Page() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
   const raw = await apiFetch<ApiTicket[]>('/tickets/mine');
   const tickets = raw.map(toTicket);
 
@@ -31,7 +35,7 @@ export default async function Page() {
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 px-10 pt-6 pb-10 bg-gray-50 overflow-auto">
         <div className="bg-white rounded-lg shadow-sm">
-          <Header />
+          <Header userEmail={user?.email} />
         </div>
 
         <div className="mt-4 bg-white rounded-lg shadow-sm p-6">

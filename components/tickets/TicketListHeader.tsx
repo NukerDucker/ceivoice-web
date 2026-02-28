@@ -15,7 +15,11 @@ import {
 } from "@/components/ui/input-group";
 import { CreateTicketModal } from "@/components/tickets/ReplyBox";
 
-export function Header() {
+interface HeaderProps {
+    userEmail?: string;
+}
+
+export function Header({ userEmail }: HeaderProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     return (
@@ -53,6 +57,7 @@ export function Header() {
             <CreateTicketModal
                 open={isModalOpen}
                 onOpenChange={setIsModalOpen}
+                defaultEmail={userEmail}
             />
         </>
     );
