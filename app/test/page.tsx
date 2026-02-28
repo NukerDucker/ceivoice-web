@@ -1,324 +1,253 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from "react";
+import { ClipboardList, ChevronRight } from "lucide-react";
+import { Sidebar } from "@/components/layout/AssigneeSidebar";
+import { Header } from "@/components/layout/Navbar";
 import {
-  Bell, GitMerge, CheckCircle2, XCircle, Clock,
-  Sparkles, ChevronRight, Check, Trash2,
-} from 'lucide-react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
-import { Header } from '@/components/layout/notification';
+  MY_ACTIVE_TICKETS,
+  MY_RESOLVED_TICKETS,
+  ASSIGNEE_PERFORMANCE,
+  CURRENT_ASSIGNEE,
+  getCatStyle,
+  PRIORITY_STYLE,
+  STATUS_STYLES,
+  type AssigneeTicket,
+} from "@/lib/assignee-dashboard-data";
+import { TicketDetailModal, STATUS_LABEL, timeAgo, timeUntil } from "../(roles)/assignee/dashboard/Ticketdetailmodal";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// SUB-COMPONENTS
+// ─────────────────────────────────────────────────────────────────────────────
 
-type NotificationType = 'draft_ready' | 'merge_suggestion' | 'ticket_closed' | 'deadline';
-
-interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  description: string;
-  timestamp: string;
-  read: boolean;
-  ticketId?: string;
-}
-
-// ─── Seed data ────────────────────────────────────────────────────────────────
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n-1',
-    type: 'merge_suggestion',
-    title: 'Merge Suggestion — 3 Similar Requests',
-    description: '3 users reported "The 3D printer in our lab is broken!" — the system recommends consolidating into a single draft ticket.',
-    timestamp: '2 minutes ago',
-    read: false,
-    ticketId: 'DFT-042',
-  },
-  {
-    id: 'n-2',
-    type: 'draft_ready',
-    title: 'New Draft Ready for Review',
-    description: 'AI has processed a new request from user@company.com — "Cannot access classroom portal." Draft ticket DFT-043 is awaiting your review.',
-    timestamp: '8 minutes ago',
-    read: false,
-    ticketId: 'DFT-043',
-  },
-  {
-    id: 'n-3',
-    type: 'deadline',
-    title: 'Deadline Approaching — TKT-019',
-    description: 'Ticket TKT-019 "Email server outage" is due in 2 hours and is still In Progress. Assigned to Dana Kim.',
-    timestamp: '15 minutes ago',
-    read: false,
-    ticketId: 'TKT-019',
-  },
-  {
-    id: 'n-4',
-    type: 'draft_ready',
-    title: 'New Draft Ready for Review',
-    description: 'AI has processed a new request from student22@company.com — "Need to reset my database password." Draft ticket DFT-041 is awaiting your review.',
-    timestamp: '1 hour ago',
-    read: true,
-    ticketId: 'DFT-041',
-  },
-  {
-    id: 'n-5',
-    type: 'ticket_closed',
-    title: 'Ticket Solved — TKT-017',
-    description: 'Ticket TKT-017 "VPN access issue" has been marked as Solved by Alex Chen.',
-    timestamp: '2 hours ago',
-    read: true,
-    ticketId: 'TKT-017',
-  },
-  {
-    id: 'n-6',
-    type: 'ticket_closed',
-    title: 'Ticket Failed — TKT-015',
-    description: 'Ticket TKT-015 "Legacy system migration" has been marked as Failed by Sam Rivera. A resolution comment has been logged.',
-    timestamp: '3 hours ago',
-    read: true,
-    ticketId: 'TKT-015',
-  },
-  {
-    id: 'n-7',
-    type: 'deadline',
-    title: 'Deadline Passed — TKT-012',
-    description: 'Ticket TKT-012 "Storage quota exceeded" passed its deadline 1 hour ago and remains Open. Immediate attention required.',
-    timestamp: '4 hours ago',
-    read: true,
-    ticketId: 'TKT-012',
-  },
-  {
-    id: 'n-8',
-    type: 'merge_suggestion',
-    title: 'Merge Suggestion — 2 Similar Requests',
-    description: '2 users reported issues with the HR portal login. The system recommends merging into draft DFT-038.',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'DFT-038',
-  },
-];
-
-// ─── Config per type ──────────────────────────────────────────────────────────
-
-const TYPE_CONFIG: Record<NotificationType, {
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  badge: string;
-  label: string;
-}> = {
-  draft_ready: {
-    icon: <Sparkles size={14} />,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    badge: 'bg-blue-100 text-blue-700 border-blue-200',
-    label: 'Draft Ready',
-  },
-  merge_suggestion: {
-    icon: <GitMerge size={14} />,
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-    badge: 'bg-violet-100 text-violet-700 border-violet-200',
-    label: 'Merge Suggestion',
-  },
-  ticket_closed: {
-    icon: <CheckCircle2 size={14} />,
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-    badge: 'bg-green-100 text-green-700 border-green-200',
-    label: 'Ticket Closed',
-  },
-  deadline: {
-    icon: <Clock size={14} />,
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-    badge: 'bg-orange-100 text-orange-700 border-orange-200',
-    label: 'Deadline',
-  },
-};
-
-// ─── Filter tabs ──────────────────────────────────────────────────────────────
-
-const FILTERS = [
-  { id: 'all',              label: 'All' },
-  { id: 'draft_ready',     label: 'Draft Ready' },
-  { id: 'merge_suggestion', label: 'Merge Suggestions' },
-  { id: 'ticket_closed',   label: 'Ticket Closed' },
-  { id: 'deadline',        label: 'Deadlines' },
-] as const;
-
-type FilterId = typeof FILTERS[number]['id'];
-
-// ─── Notification Card ────────────────────────────────────────────────────────
-
-function NotificationCard({
-  notification,
-  onRead,
-  onDelete,
+function StatCard({
+  label, value, sub, subColor, bgColor,
 }: {
-  notification: Notification;
-  onRead: (id: string) => void;
-  onDelete: (id: string) => void;
+  label: string; value: string | number; sub: string;
+  subColor: string; bgColor: string;
 }) {
-  const cfg = TYPE_CONFIG[notification.type];
-
   return (
-    <div className={`flex items-start gap-4 px-5 py-4 rounded-2xl border transition-all group ${
-      notification.read
-        ? 'bg-white border-gray-100'
-        : 'bg-blue-50/30 border-blue-100'
-    }`}>
-      {/* Icon */}
-      <div className={`w-8 h-8 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0 mt-0.5`}>
-        {cfg.icon}
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          {!notification.read && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-          )}
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge}`}>
-            {cfg.label}
-          </span>
-          {notification.ticketId && (
-            <span className="text-[10px] text-gray-400 font-mono">{notification.ticketId}</span>
-          )}
-          <span className="text-[10px] text-gray-400 ml-auto">{notification.timestamp}</span>
-        </div>
-        <p className="text-xs font-semibold text-gray-800 mb-0.5">{notification.title}</p>
-        <p className="text-[11px] text-gray-500 leading-relaxed">{notification.description}</p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-        {!notification.read && (
-          <button
-            onClick={() => onRead(notification.id)}
-            title="Mark as read"
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            <Check size={13} />
-          </button>
-        )}
-        <button
-          onClick={() => onDelete(notification.id)}
-          title="Dismiss"
-          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-        >
-          <Trash2 size={13} />
-        </button>
-        <button
-          title="View ticket"
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-        >
-          <ChevronRight size={13} />
-        </button>
-      </div>
+    <div className="rounded-2xl p-4 flex flex-col gap-1" style={{ background: bgColor }}>
+      <p className="text-xs font-medium text-slate-600">{label}</p>
+      <p className="text-4xl font-bold text-slate-900">{value}</p>
+      <p className="text-xs font-medium" style={{ color: subColor }}>{sub}</p>
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────────────────────
 
-export default function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+export default function AssigneeDashboardPage() {
+  const [tickets, setTickets]               = useState<AssigneeTicket[]>(MY_ACTIVE_TICKETS);
+  const [sortBy, setSortBy]                 = useState<"deadline" | "priority">("deadline");
+  const [selectedTicket, setSelectedTicket] = useState<AssigneeTicket | null>(null);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const activeTickets = useMemo(() => {
+    return [...tickets]
+      .filter((t) => t.status !== "solved" && t.status !== "failed")
+      .sort((a, b) => {
+        if (sortBy === "deadline") return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        const order = { critical: 0, high: 1, medium: 2, low: 3 };
+        return order[a.priority] - order[b.priority];
+      });
+  }, [tickets, sortBy]);
 
-  const filtered = notifications.filter((n) =>
-    activeFilter === 'all' ? true : n.type === activeFilter
-  );
-
-  const markAllRead = () =>
-    setNotifications((p) => p.map((n) => ({ ...n, read: true })));
-
-  const markRead = (id: string) =>
-    setNotifications((p) => p.map((n) => n.id === id ? { ...n, read: true } : n));
-
-  const dismiss = (id: string) =>
-    setNotifications((p) => p.filter((n) => n.id !== id));
+  const handleTicketUpdate = (ticketId: string, updates: Partial<AssigneeTicket>) => {
+    setTickets((prev) => prev.map((t) => t.ticketId === ticketId ? { ...t, ...updates } : t));
+    if (selectedTicket?.ticketId === ticketId) {
+      setSelectedTicket((prev) => prev ? { ...prev, ...updates } : prev);
+    }
+  };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
+    <div className="flex h-screen overflow-hidden bg-slate-50">
 
+      {/* ── Sidebar ── */}
+      <div className="flex flex-col h-screen shrink-0">
+        <Sidebar userName={CURRENT_ASSIGNEE.name} />
+      </div>
+
+      {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <div className="flex-1 overflow-y-auto">
+          <Header />
 
-        {/* ── Page header ── */}
-        <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
-              <Bell size={14} />
+          <div className="px-8 py-6 space-y-5">
+
+            {/* ── Stat Cards ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard label="My Active Tickets"  value={ASSIGNEE_PERFORMANCE.activeCount}       sub="Currently assigned to you"  subColor="#6366f1" bgColor="#dbeafe" />
+              <StatCard label="Critical / Urgent"  value={ASSIGNEE_PERFORMANCE.criticalCount}     sub="Need immediate action"      subColor="#ef4444" bgColor="#fef3c2" />
+              <StatCard label="Resolved (30 days)" value={ASSIGNEE_PERFORMANCE.closedLast30}      sub={`${ASSIGNEE_PERFORMANCE.solvedLast30} solved · ${ASSIGNEE_PERFORMANCE.failedLast30} failed`} subColor="#10b981" bgColor="#dcfce7" />
+              <StatCard label="Avg Response Time"  value={`${ASSIGNEE_PERFORMANCE.avgFirstResponseHours}h`} sub="First response average"  subColor="#10b981" bgColor="#e9d5ff" />
             </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-              </p>
+
+            {/* ── Active Workload ── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
+                    <ClipboardList size={16} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Active Workload</h3>
+                    <p className="text-xs text-slate-500">Your open tickets sorted by urgency — solved & failed excluded</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium">Sort by:</span>
+                  <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                    {([{ key: "deadline", label: "Deadline" }, { key: "priority", label: "Priority" }] as const).map((opt) => (
+                      <button
+                        key={opt.key}
+                        onClick={() => setSortBy(opt.key)}
+                        className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
+                        style={{
+                          background: sortBy === opt.key ? "#fff" : "transparent",
+                          color:      sortBy === opt.key ? "#0f172a" : "#64748b",
+                          boxShadow:  sortBy === opt.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                        }}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {activeTickets.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-2xl mb-2">🎉</p>
+                  <p className="text-sm font-semibold text-slate-500">All caught up! No active tickets.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {activeTickets.map((t) => {
+                    const cs       = getCatStyle(t.category);
+                    const st       = STATUS_STYLES[t.status];
+                    const pr       = PRIORITY_STYLE[t.priority];
+                    const timeLeft = timeUntil(t.deadline);
+                    return (
+                      <div
+                        key={t.ticketId}
+                        className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors cursor-pointer group"
+                        onClick={() => setSelectedTicket(t)}
+                      >
+                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: pr.dot }} />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-bold text-slate-400">{t.ticketId}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
+                              {t.category}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                            {t.title}
+                          </p>
+                          <p className="text-xs text-slate-400 mt-0.5">Opened {timeAgo(t.date)}</p>
+                        </div>
+                        <div className="shrink-0 flex flex-col items-center">
+                          <p className="text-[10px] text-slate-400 mb-1">Time remaining</p>
+                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${timeLeft.urgent ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-600"}`}>
+                            {timeLeft.urgent && "⚠ "}{timeLeft.label}
+                          </span>
+                        </div>
+                        <div className="shrink-0 flex flex-col items-center">
+                          <p className="text-[10px] text-slate-400 mb-1">Status</p>
+                          <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
+                            {STATUS_LABEL[t.status]}
+                          </span>
+                        </div>
+                        <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Bottom Row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+              {/* Personal Performance */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <h3 className="text-base font-bold text-slate-900 mb-4">My Performance (30 days)</h3>
+                <div className="grid grid-cols-2 gap-3 mb-5">
+                  {[
+                    { label: "Total Volume", value: ASSIGNEE_PERFORMANCE.totalAssigned, color: "#6366f1", bg: "#eef2ff" },
+                    { label: "Resolved",     value: ASSIGNEE_PERFORMANCE.solvedLast30,  color: "#16a34a", bg: "#f0fdf4" },
+                    { label: "Failed",       value: ASSIGNEE_PERFORMANCE.failedLast30,  color: "#ef4444", bg: "#fef2f2" },
+                    { label: "In Progress",  value: ASSIGNEE_PERFORMANCE.activeCount,   color: "#f59e0b", bg: "#fffbeb" },
+                  ].map((s, i) => (
+                    <div key={i} className="rounded-xl p-4 border border-slate-100" style={{ background: s.bg }}>
+                      <p className="text-3xl font-bold leading-none" style={{ color: s.color }}>{s.value}</p>
+                      <p className="text-xs font-medium text-slate-500 mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+                <div>
+                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                    <span className="font-medium">Resolution Rate</span>
+                    <span className="font-bold text-slate-700">{ASSIGNEE_PERFORMANCE.resolutionRatePct}%</span>
+                  </div>
+                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-700"
+                      style={{ width: `${ASSIGNEE_PERFORMANCE.resolutionRatePct}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold text-slate-900">Recent Activity</h3>
+                  <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">Last 30 days</span>
+                </div>
+                <div className="space-y-3">
+                  {MY_RESOLVED_TICKETS.map((t, i) => {
+                    const st = STATUS_STYLES[t.status];
+                    const cs = getCatStyle(t.category);
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: st.bg }}>
+                          <span style={{ color: st.text }}>{t.status === "solved" ? "✓" : "✗"}</span>
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900 truncate">{t.title}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
+                              {t.category}
+                            </span>
+                            <span className="text-[10px] text-slate-400">{timeAgo(t.resolvedDate)}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] font-bold px-3 py-1 rounded-full shrink-0" style={{ background: st.bg, color: st.text }}>
+                          {STATUS_LABEL[t.status]}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
             </div>
           </div>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <Check size={12} /> Mark all as read
-            </button>
-          )}
-        </div>
-
-        {/* ── Filter tabs ── */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
-          {FILTERS.map((f) => {
-            const count = f.id === 'all'
-              ? notifications.length
-              : notifications.filter((n) => n.type === f.id).length;
-            const isActive = activeFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {f.label}
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── List ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
-              <Bell size={28} className="mb-2" />
-              <p className="text-xs font-semibold">No notifications</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 max-w-3xl">
-              {filtered.map((n) => (
-                <NotificationCard
-                  key={n.id}
-                  notification={n}
-                  onRead={markRead}
-                  onDelete={dismiss}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
+
+      {/* ── Ticket Detail Modal ── */}
+      {selectedTicket && (
+        <TicketDetailModal
+          ticket={selectedTicket}
+          currentUser={CURRENT_ASSIGNEE}
+          onClose={() => setSelectedTicket(null)}
+          onUpdate={handleTicketUpdate}
+        />
+      )}
     </div>
   );
 }
