@@ -1,10 +1,40 @@
-'use client';
-
-import { TicketList } from '@/components/tickets/TicketTable';
-import { mockTickets } from '@/lib/constants';
+import { TicketList, type Ticket } from '@/components/tickets/TicketTable';
+import { apiFetch } from '@/lib/api';
 import { Header } from '@/components/tickets/TicketListHeader';
 
-export default function Page() {
+interface BackendTicket {
+  ticket_id: number;
+  title: string;
+  created_at: string;
+  category: { name: string } | null;
+  status: { name: string } | null;
+  assignee: { full_name: string | null; user_name: string | null } | null;
+}
+
+const statusMap: Record<string, Ticket['status']> = {
+  Draft: 'submitted', New: 'submitted',
+  Assigned: 'in-progress', Solving: 'in-progress', Renew: 'in-progress',
+  Solved: 'resolved', Failed: 'critical',
+};
+
+function toTicket(t: BackendTicket): Ticket {
+  const displayName = t.assignee?.full_name ?? t.assignee?.user_name ?? null;
+  return {
+    ticketId: `TD-${String(t.ticket_id).padStart(6, '0')}`,
+    title: t.title,
+    category: t.category?.name ?? null,
+    date: new Date(t.created_at),
+    status: statusMap[t.status?.name ?? ''] ?? 'submitted',
+    assignee: displayName
+      ? { name: displayName, fallback: displayName.slice(0, 2).toUpperCase() }
+      : undefined,
+  };
+}
+
+export default async function Page() {
+  const raw = await apiFetch<BackendTicket[]>('/tickets/mine');
+  const tickets = raw.map(toTicket);
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex-1 px-10 pt-6 pb-10 bg-gray-50 overflow-auto">
@@ -13,7 +43,7 @@ export default function Page() {
         </div>
 
         <div className="mt-4 bg-white rounded-lg shadow-sm p-6">
-          <TicketList data={mockTickets} />
+          <TicketList data={tickets} />
         </div>
       </div>
     </div>

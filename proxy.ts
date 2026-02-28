@@ -83,8 +83,7 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === '/dashboard') {
-    return NextResponse.redirect(new URL(`/auth-test`, origin));
-  // return NextResponse.redirect(new URL(`/${appRole}/dashboard`, origin));
+  return NextResponse.redirect(new URL(`/${appRole}/dashboard`, origin));
   }
   // Role gate
   const requiredRole = Object.entries(ROLE_ROUTES).find(([prefix]) =>
