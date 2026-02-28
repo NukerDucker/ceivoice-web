@@ -11,7 +11,7 @@ const PUBLIC_PATHS = [
   '/auth-success',
   '/onboarding',
   '/auth/confirm',
-  '/auth/callback', // ✅ add this
+  '/auth/callback', //
   '/test',
 ];
 
@@ -59,7 +59,6 @@ export async function proxy(request: NextRequest) {
     }
   );
 
-  // ✅ Verify with Supabase auth server
   const { data: { user }, error } = await supabase.auth.getUser();
 
   if (!user || error) {
@@ -72,10 +71,11 @@ export async function proxy(request: NextRequest) {
   const jwt = session?.access_token
     ? JSON.parse(atob(session.access_token.split('.')[1]))
     : {};
-
+  console.log('Line 74')
   const appRole = (jwt.app_role ?? 'user') as AppRole;
   const onboardingDone = (jwt.onboarding_completed ?? false) as boolean;
 
+  console.log("Line 78", onboardingDone)
   if (onboardingDone && pathname.startsWith('/onboarding')) {
   return NextResponse.redirect(new URL('/dashboard', origin));
 }
@@ -83,6 +83,7 @@ export async function proxy(request: NextRequest) {
   if (!onboardingDone && !pathname.startsWith('/onboarding')) {
     return NextResponse.redirect(new URL('/onboarding', origin));
   }
+   console.log("Line 78", onboardingDone);
 
   if (pathname === '/dashboard') {
     return NextResponse.redirect(new URL(`/auth-test`, origin));

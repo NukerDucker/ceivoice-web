@@ -41,10 +41,10 @@ const onSubmit = async (e: React.FormEvent) => {
 
   try {
     const supabase = createClient();
-
+    console.log("Supabase Client Created")
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
-
+  console.log("Get User: ", { data: { user } })
     const { error: dbError } = await supabase
       .from("users")
       .update({
@@ -71,7 +71,8 @@ const onSubmit = async (e: React.FormEvent) => {
       ? JSON.parse(atob(newSession.access_token.split('.')[1]))
       : {};
     const appRole = jwt.app_role ?? 'user';
-
+    console.log(appRole);
+    console.log("Boarding Done");
     // router.push(`/${appRole}/dashboard`);
     router.push("/auth-test");
   } catch (err: unknown) {

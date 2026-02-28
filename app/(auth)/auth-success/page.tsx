@@ -21,6 +21,7 @@ export default function AuthSuccessPage() {
         if (user.role === "admin") {
           router.replace("/admin/dashboard");
         } else if (user.role === "user") {
+          console.log("User", user);
           router.replace("/user/dashboard");
         }
       })
