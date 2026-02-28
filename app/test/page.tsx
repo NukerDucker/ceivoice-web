@@ -1,253 +1,320 @@
-"use client";
+'use client';
 
-import React, { useState, useMemo } from "react";
-import { ClipboardList, ChevronRight } from "lucide-react";
-import { Sidebar } from "@/components/layout/AssigneeSidebar";
-import { Header } from "@/components/layout/Navbar";
+import React, { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Sidebar } from '@/components/layout/AdminSidebar';
+import { Header } from '@/components/layout/ReviewTicketTB';
 import {
-  MY_ACTIVE_TICKETS,
-  MY_RESOLVED_TICKETS,
-  ASSIGNEE_PERFORMANCE,
-  CURRENT_ASSIGNEE,
-  getCatStyle,
-  PRIORITY_STYLE,
-  STATUS_STYLES,
-  type AssigneeTicket,
-} from "@/lib/assignee-dashboard-data";
-import { TicketDetailModal, STATUS_LABEL, timeAgo, timeUntil } from "../(roles)/assignee/dashboard/Ticketdetailmodal";
+  DASHBOARD_ASSIGNEES,
+  DASHBOARD_TICKETS,
+  AI_SUGGESTIONS,
+  ORIGINAL_MESSAGES,
+} from '@/lib/admin-dashboard-data';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// SUB-COMPONENTS
-// ─────────────────────────────────────────────────────────────────────────────
 
-function StatCard({
-  label, value, sub, subColor, bgColor,
-}: {
-  label: string; value: string | number; sub: string;
-  subColor: string; bgColor: string;
-}) {
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface FormValues {
+  title?: string;
+  category?: string;
+  summary?: string;
+  solution?: string;
+  assigneeIdx?: number;
+  deadline?: string;
+  deadlineTime?: string;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function timeAgo(date: Date): string {
+  const diff  = Date.now() - date.getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  < 60) return `${mins} minute${mins !== 1 ? 's' : ''} ago`;
+  if (hours < 24) return `${hours} hour${hours !== 1 ? 's' : ''} ago`;
+  return `${days} day${days !== 1 ? 's' : ''} ago`;
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-2xl p-4 flex flex-col gap-1" style={{ background: bgColor }}>
-      <p className="text-xs font-medium text-slate-600">{label}</p>
-      <p className="text-4xl font-bold text-slate-900">{value}</p>
-      <p className="text-xs font-medium" style={{ color: subColor }}>{sub}</p>
+    <div>
+      <label className="block text-[11.5px] font-bold text-gray-500 mb-1.5 uppercase tracking-wide">
+        {label}
+      </label>
+      {children}
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// PAGE
-// ─────────────────────────────────────────────────────────────────────────────
+const inputClass    = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-900 bg-gray-50 outline-none font-sans';
+const textareaClass = `${inputClass} resize-y leading-relaxed`;
 
-export default function AssigneeDashboardPage() {
-  const [tickets, setTickets]               = useState<AssigneeTicket[]>(MY_ACTIVE_TICKETS);
-  const [sortBy, setSortBy]                 = useState<"deadline" | "priority">("deadline");
-  const [selectedTicket, setSelectedTicket] = useState<AssigneeTicket | null>(null);
+// ─── Not-found screen ─────────────────────────────────────────────────────────
 
-  const activeTickets = useMemo(() => {
-    return [...tickets]
-      .filter((t) => t.status !== "solved" && t.status !== "failed")
-      .sort((a, b) => {
-        if (sortBy === "deadline") return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
-        const order = { critical: 0, high: 1, medium: 2, low: 3 };
-        return order[a.priority] - order[b.priority];
-      });
-  }, [tickets, sortBy]);
+function NotFound({ id }: { id: string }) {
+  const router = useRouter();
+  return (
+    <div className="flex flex-col items-center justify-center flex-1 gap-4 text-gray-400">
+      <p className="text-lg font-semibold text-gray-700">Ticket not found</p>
+      <p className="text-sm">
+        No ticket with ID <span className="font-mono text-gray-600">#{id}</span> exists in the system.
+      </p>
+      <button
+        onClick={() => router.back()}
+        className="mt-2 px-5 py-2 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-800 transition-colors"
+      >
+        ← Go back
+      </button>
+    </div>
+  );
+}
 
-  const handleTicketUpdate = (ticketId: string, updates: Partial<AssigneeTicket>) => {
-    setTickets((prev) => prev.map((t) => t.ticketId === ticketId ? { ...t, ...updates } : t));
-    if (selectedTicket?.ticketId === ticketId) {
-      setSelectedTicket((prev) => prev ? { ...prev, ...updates } : prev);
+// ─── Inner component (needs useSearchParams, so must be inside Suspense) ─────
+
+function ReviewTicketInner() {
+  const router       = useRouter();
+  const searchParams = useSearchParams();
+  const selectedId   = searchParams.get('id') ?? '';
+
+  const [form,         setForm]         = useState<Record<string, FormValues>>({});
+  const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving'    | 'saved' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'error'>('idle');
+
+  const currentTicket = DASHBOARD_TICKETS.find((t) => t.ticketId === selectedId) ?? null;
+  const ai            = AI_SUGGESTIONS[selectedId]    ?? null;
+  const original      = ORIGINAL_MESSAGES[selectedId] ?? null;
+
+  if (!currentTicket) {
+    return (
+      <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
+        <Sidebar userRole="admin" userName="Palm Pollapat" />
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <Header title="Review and Edit Draft Ticket" />
+          <NotFound id={selectedId || '(none)'} />
+        </main>
+      </div>
+    );
+  }
+
+  function getField<K extends keyof FormValues>(key: K, fallback: FormValues[K]): FormValues[K] {
+    const val = form[selectedId]?.[key];
+    return val !== undefined ? val : fallback;
+  }
+
+  function setField<K extends keyof FormValues>(key: K, value: FormValues[K]) {
+    setForm((f) => ({ ...f, [selectedId]: { ...(f[selectedId] ?? {}), [key]: value } }));
+  }
+
+  const titleVal        = getField('title',        currentTicket.title)                                                  as string;
+  const categoryVal     = getField('category',     ai?.category ?? currentTicket.category)                               as string;
+  const summaryVal      = getField('summary',      ai?.summary ?? '')                                                     as string;
+  const solutionVal     = getField('solution',     ai?.suggestedSolution ?? '')                                           as string;
+  const assigneeIdxVal  = getField('assigneeIdx',  Math.max(0, DASHBOARD_ASSIGNEES.findIndex((a) => a.name === currentTicket.assignee.name))) as number;
+  const deadlineVal     = getField('deadline',     ai?.deadline ?? '')                                                   as string;
+  const deadlineTimeVal = getField('deadlineTime', ai?.deadlineTime ?? '')                                               as string;
+
+  function getPayload() {
+    return {
+      ticketId: selectedId,
+      title:    titleVal,
+      category: categoryVal,
+      summary:  summaryVal,
+      solution: solutionVal,
+      assignee: DASHBOARD_ASSIGNEES[assigneeIdxVal]?.name ?? null,
+      deadline: deadlineVal ? `${deadlineVal}T${deadlineTimeVal || '00:00'}` : null,
+    };
+  }
+
+  const handleSaveDraft = async () => {
+    setSaveStatus('saving');
+    try {
+      console.log('Draft payload:', getPayload());
+      await new Promise((res) => setTimeout(res, 800));
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2500);
+    } catch (err) {
+      console.error(err);
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 2500);
     }
   };
 
-  return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
+  const handleSubmit = async () => {
+    setSubmitStatus('submitting');
+    try {
+      const res = await fetch('/api/tickets', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ ...getPayload(), status: 'open' }),
+      });
+      if (!res.ok) throw new Error('Failed to submit');
+      router.push('/admin/tickets');
+    } catch (err) {
+      console.error(err);
+      setSubmitStatus('error');
+      setTimeout(() => setSubmitStatus('idle'), 2500);
+    }
+  };
 
-      {/* ── Sidebar ── */}
+  const subtitle = `Draft ${currentTicket.ticketId} · created ${timeAgo(currentTicket.date)}`;
+
+  return (
+    <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
       <div className="flex flex-col h-screen shrink-0">
-        <Sidebar userName={CURRENT_ASSIGNEE.name} />
+        <Sidebar userRole="admin" userName="Palm Pollapat" />
       </div>
 
-      {/* ── Main Content ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
-          <Header />
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <Header title="Review and Edit Draft Ticket" subtitle={subtitle} />
 
-          <div className="px-8 py-6 space-y-5">
+        <div className="flex-1 overflow-auto p-6 grid grid-cols-2 gap-5">
 
-            {/* ── Stat Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="My Active Tickets"  value={ASSIGNEE_PERFORMANCE.activeCount}       sub="Currently assigned to you"  subColor="#6366f1" bgColor="#dbeafe" />
-              <StatCard label="Critical / Urgent"  value={ASSIGNEE_PERFORMANCE.criticalCount}     sub="Need immediate action"      subColor="#ef4444" bgColor="#fef3c2" />
-              <StatCard label="Resolved (30 days)" value={ASSIGNEE_PERFORMANCE.closedLast30}      sub={`${ASSIGNEE_PERFORMANCE.solvedLast30} solved · ${ASSIGNEE_PERFORMANCE.failedLast30} failed`} subColor="#10b981" bgColor="#dcfce7" />
-              <StatCard label="Avg Response Time"  value={`${ASSIGNEE_PERFORMANCE.avgFirstResponseHours}h`} sub="First response average"  subColor="#10b981" bgColor="#e9d5ff" />
+          {/* Original Request */}
+          <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
+            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2.5 rounded-t-xl">
+              <span className="text-base">✉️</span>
+              <span className="text-[13.5px] font-semibold text-gray-700">Original request</span>
             </div>
-
-            {/* ── Active Workload ── */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-                    <ClipboardList size={16} className="text-blue-600" />
+            <div className="p-5 flex-1 overflow-y-auto">
+              {original ? (
+                <>
+                  <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide mb-2.5">
+                    From: {original.from}
                   </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Active Workload</h3>
-                    <p className="text-xs text-slate-500">Your open tickets sorted by urgency — solved & failed excluded</p>
+                  <div className="text-[13.5px] leading-7 text-gray-700 whitespace-pre-wrap">
+                    {original.body}
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 font-medium">Sort by:</span>
-                  <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
-                    {([{ key: "deadline", label: "Deadline" }, { key: "priority", label: "Priority" }] as const).map((opt) => (
-                      <button
-                        key={opt.key}
-                        onClick={() => setSortBy(opt.key)}
-                        className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
-                        style={{
-                          background: sortBy === opt.key ? "#fff" : "transparent",
-                          color:      sortBy === opt.key ? "#0f172a" : "#64748b",
-                          boxShadow:  sortBy === opt.key ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {activeTickets.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-2xl mb-2">🎉</p>
-                  <p className="text-sm font-semibold text-slate-500">All caught up! No active tickets.</p>
-                </div>
+                </>
               ) : (
-                <div className="divide-y divide-slate-100">
-                  {activeTickets.map((t) => {
-                    const cs       = getCatStyle(t.category);
-                    const st       = STATUS_STYLES[t.status];
-                    const pr       = PRIORITY_STYLE[t.priority];
-                    const timeLeft = timeUntil(t.deadline);
-                    return (
-                      <div
-                        key={t.ticketId}
-                        className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors cursor-pointer group"
-                        onClick={() => setSelectedTicket(t)}
-                      >
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: pr.dot }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-400">{t.ticketId}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
-                              {t.category}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                            {t.title}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-0.5">Opened {timeAgo(t.date)}</p>
-                        </div>
-                        <div className="shrink-0 flex flex-col items-center">
-                          <p className="text-[10px] text-slate-400 mb-1">Time remaining</p>
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${timeLeft.urgent ? "bg-red-100 text-red-600" : "bg-slate-100 text-slate-600"}`}>
-                            {timeLeft.urgent && "⚠ "}{timeLeft.label}
-                          </span>
-                        </div>
-                        <div className="shrink-0 flex flex-col items-center">
-                          <p className="text-[10px] text-slate-400 mb-1">Status</p>
-                          <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
-                            {STATUS_LABEL[t.status]}
-                          </span>
-                        </div>
-                        <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
-                      </div>
-                    );
-                  })}
+                <div className="flex flex-col gap-2">
+                  <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide mb-1">
+                    Ticket details
+                  </div>
+                  <p className="text-[13.5px] text-gray-700">
+                    <span className="font-semibold">Title:</span> {currentTicket.title}
+                  </p>
+                  <p className="text-[13.5px] text-gray-700">
+                    <span className="font-semibold">Category:</span> {currentTicket.category}
+                  </p>
+                  <p className="text-[13.5px] text-gray-700">
+                    <span className="font-semibold">Priority:</span> {currentTicket.priority}
+                  </p>
+                  <p className="text-[13.5px] text-gray-700">
+                    <span className="font-semibold">Assignee:</span> {currentTicket.assignee.name}
+                  </p>
+                  <p className="text-[13.5px] text-gray-500 italic mt-2">
+                    No original message on record for this ticket.
+                  </p>
                 </div>
               )}
             </div>
+          </div>
 
-            {/* ── Bottom Row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          {/* AI Suggestion */}
+          <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
+            <div className="px-4 py-3 bg-sky-50 border-b border-sky-200 flex items-center gap-2.5 rounded-t-xl">
+              <span className="text-base">🤖</span>
+              <span className="text-[13.5px] font-semibold text-sky-700">AI suggestion</span>
+              <span className="ml-auto text-[10.5px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full font-semibold">
+                Auto-generated
+              </span>
+            </div>
 
-              {/* Personal Performance */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-4">My Performance (30 days)</h3>
-                <div className="grid grid-cols-2 gap-3 mb-5">
-                  {[
-                    { label: "Total Volume", value: ASSIGNEE_PERFORMANCE.totalAssigned, color: "#6366f1", bg: "#eef2ff" },
-                    { label: "Resolved",     value: ASSIGNEE_PERFORMANCE.solvedLast30,  color: "#16a34a", bg: "#f0fdf4" },
-                    { label: "Failed",       value: ASSIGNEE_PERFORMANCE.failedLast30,  color: "#ef4444", bg: "#fef2f2" },
-                    { label: "In Progress",  value: ASSIGNEE_PERFORMANCE.activeCount,   color: "#f59e0b", bg: "#fffbeb" },
-                  ].map((s, i) => (
-                    <div key={i} className="rounded-xl p-4 border border-slate-100" style={{ background: s.bg }}>
-                      <p className="text-3xl font-bold leading-none" style={{ color: s.color }}>{s.value}</p>
-                      <p className="text-xs font-medium text-slate-500 mt-1">{s.label}</p>
-                    </div>
+            <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-3.5">
+
+              <Field label="Title">
+                <input value={titleVal} onChange={(e) => setField('title', e.target.value)} className={inputClass} />
+              </Field>
+
+              <Field label="Category">
+                <input value={categoryVal} onChange={(e) => setField('category', e.target.value)} className={inputClass} />
+              </Field>
+
+              <Field label="Summary">
+                <textarea value={summaryVal} onChange={(e) => setField('summary', e.target.value)} rows={3} className={textareaClass} />
+              </Field>
+
+              <Field label="Suggested Solution">
+                <textarea value={solutionVal} onChange={(e) => setField('solution', e.target.value)} rows={3} className={textareaClass} />
+              </Field>
+
+              <Field label="Assignee">
+                <div className="flex flex-wrap gap-2 p-2.5 border border-gray-200 rounded-lg bg-gray-50">
+                  {DASHBOARD_ASSIGNEES.map((a, i) => (
+                    <button
+                      key={a.name}
+                      onClick={() => setField('assigneeIdx', i)}
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-semibold transition-colors ${
+                        assigneeIdxVal === i ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      <img src={a.avatar} alt={a.name} className="w-4 h-4 rounded-full" />
+                      {a.fallback}
+                    </button>
                   ))}
                 </div>
-                <div>
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span className="font-medium">Resolution Rate</span>
-                    <span className="font-bold text-slate-700">{ASSIGNEE_PERFORMANCE.resolutionRatePct}%</span>
-                  </div>
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all duration-700"
-                      style={{ width: `${ASSIGNEE_PERFORMANCE.resolutionRatePct}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
+              </Field>
 
-              {/* Recent Activity */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold text-slate-900">Recent Activity</h3>
-                  <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">Last 30 days</span>
+              <Field label="Deadline">
+                <div className="flex gap-2.5">
+                  <input type="date" value={deadlineVal}     onChange={(e) => setField('deadline',     e.target.value)} className={`${inputClass} flex-1`} />
+                  <input type="time" value={deadlineTimeVal} onChange={(e) => setField('deadlineTime', e.target.value)} className={`${inputClass} w-28 shrink-0`} />
                 </div>
-                <div className="space-y-3">
-                  {MY_RESOLVED_TICKETS.map((t, i) => {
-                    const st = STATUS_STYLES[t.status];
-                    const cs = getCatStyle(t.category);
-                    return (
-                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ background: st.bg }}>
-                          <span style={{ color: st.text }}>{t.status === "solved" ? "✓" : "✗"}</span>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 truncate">{t.title}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
-                              {t.category}
-                            </span>
-                            <span className="text-[10px] text-slate-400">{timeAgo(t.resolvedDate)}</span>
-                          </div>
-                        </div>
-                        <span className="text-[10px] font-bold px-3 py-1 rounded-full shrink-0" style={{ background: st.bg, color: st.text }}>
-                          {STATUS_LABEL[t.status]}
-                        </span>
-                      </div>
-                    );
-                  })}
+              </Field>
+
+              {(saveStatus === 'saved' || saveStatus === 'error' || submitStatus === 'error') && (
+                <div className={`px-3 py-2 rounded-lg text-[12.5px] font-semibold border ${
+                  saveStatus === 'error' || submitStatus === 'error'
+                    ? 'bg-red-50 text-red-600 border-red-200'
+                    : 'bg-green-50 text-green-700 border-green-200'
+                }`}>
+                  {saveStatus   === 'saved' && '✅ Draft saved successfully!'}
+                  {saveStatus   === 'error' && '❌ Failed to save draft. Please try again.'}
+                  {submitStatus === 'error' && '❌ Failed to submit ticket. Please try again.'}
                 </div>
+              )}
+
+              <div className="flex gap-2 justify-end pt-1 flex-wrap">
+                <button
+                  onClick={handleSaveDraft}
+                  disabled={saveStatus === 'saving'}
+                  className={`px-4 py-2 rounded-full text-[12.5px] font-semibold border-[1.5px] border-amber-300 bg-amber-50 text-amber-600 transition-opacity ${
+                    saveStatus === 'saving' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-amber-100 cursor-pointer'
+                  }`}
+                >
+                  {saveStatus === 'saving' ? 'Saving...' : 'Save Draft'}
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitStatus === 'submitting'}
+                  className={`px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
+                    submitStatus === 'submitting' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-100 cursor-pointer'
+                  }`}
+                >
+                  {submitStatus === 'submitting' ? 'Submitting...' : 'Submit as New Ticket'}
+                </button>
               </div>
 
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── Ticket Detail Modal ── */}
-      {selectedTicket && (
-        <TicketDetailModal
-          ticket={selectedTicket}
-          currentUser={CURRENT_ASSIGNEE}
-          onClose={() => setSelectedTicket(null)}
-          onUpdate={handleTicketUpdate}
-        />
-      )}
+        </div>
+      </main>
     </div>
+  );
+}
+
+// ─── Default export — wraps inner in Suspense (required for useSearchParams) ──
+
+export default function ReviewTicketPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex h-screen items-center justify-center bg-gray-100 text-gray-400 text-sm">
+        Loading ticket…
+      </div>
+    }>
+      <ReviewTicketInner />
+    </Suspense>
   );
 }
