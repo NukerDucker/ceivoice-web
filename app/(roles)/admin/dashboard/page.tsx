@@ -7,16 +7,24 @@ import { DASHBOARD_ASSIGNEES, DASHBOARD_TICKETS } from "@/lib/admin-dashboard-da
 import type { DashboardAssignee, DashboardTicket } from "@/lib/admin-dashboard-data";
 import {
   STATUS_STYLE,
+  PRIORITY_STYLE,
+  PRIORITY_ORDER,
+  ASSIGNEE_STATUS_STYLE,
+  BAR_CHART_COLORS,
   getCatStyle,
   timeAgo,
   totalTickets,
   draftTickets,
   activeTickets,
   resolvedTickets,
-  criticalTickets,
+  priorityBreakdown,
   categoryData,
   weeklyData,
 } from "@/lib/admin-dashboard-utils";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STAT CARD
+// ─────────────────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, sub, subColor, bgColor }: {
   label: string;
@@ -34,6 +42,10 @@ function StatCard({ label, value, sub, subColor, bgColor }: {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// AVATAR
+// ─────────────────────────────────────────────────────────────────────────────
+
 function Avatar({ user }: { user: DashboardAssignee }) {
   if (user.avatar) {
     return (
@@ -50,6 +62,10 @@ function Avatar({ user }: { user: DashboardAssignee }) {
     </div>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DONUT CHART
+// ─────────────────────────────────────────────────────────────────────────────
 
 function DonutChart() {
   const r = 70, cx = 90, cy = 90, circ = 2 * Math.PI * r;
@@ -72,6 +88,7 @@ function DonutChart() {
             strokeDashoffset={-s.offset + circ * 0.25}
           />
         ))}
+        {/* totalTickets imported from utils */}
         <text x={cx} y={cy} textAnchor="middle" style={{ fontSize: 28, fontWeight: 700, fill: "#0f172a" }}>
           {totalTickets.toLocaleString()}
         </text>
@@ -91,10 +108,13 @@ function DonutChart() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// BAR CHART — colors from BAR_CHART_COLORS in utils
+// ─────────────────────────────────────────────────────────────────────────────
+
 function BarChart() {
   const maxVal = Math.max(...weeklyData.map((d) => d.value), 1);
-  const maxH = 140;
-  const colors = ["#fde68a", "#bfdbfe", "#ddd6fe", "#a7f3d0"];
+  const maxH   = 140;
 
   return (
     <div className="flex items-end justify-between gap-4 mt-6" style={{ height: maxH + 60 }}>
@@ -104,7 +124,7 @@ function BarChart() {
           <div key={i} className="flex flex-col items-center flex-1">
             <div
               className="w-full rounded-t-lg transition-all duration-500"
-              style={{ height: h, background: colors[i % colors.length] }}
+              style={{ height: h, background: BAR_CHART_COLORS[i % BAR_CHART_COLORS.length] }}
             />
             <p className="text-lg font-bold text-slate-900 mt-2">{d.value}</p>
             <p className="text-xs text-slate-500">{d.week}</p>
@@ -115,6 +135,10 @@ function BarChart() {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function AdminDashboardPage() {
   const [range, setRange] = useState<"7D" | "30D" | "90D">("30D");
 
@@ -123,29 +147,23 @@ export default function AdminDashboardPage() {
 
       {/* ── Sidebar ── */}
       <div className="flex flex-col h-screen shrink-0">
-        <Sidebar
-          userRole="admin"
-          userName="Palm Pollapat"
-        />
+        <Sidebar userRole="admin" userName="Palm Pollapat" />
       </div>
 
       {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-
-        {/* Scrollable area */}
         <div className="flex-1 overflow-y-auto bg-slate-50">
 
-          {/* Header scrolls with content */}
           <AdminDashboardHeader />
 
           <div className="px-8 py-6 space-y-5">
 
             {/* ── Stat Cards ── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Draft Queue" value={draftTickets.length} sub="Need Reviews" subColor="#ef4444" bgColor="#fef3c2" />
-              <StatCard label="Active Tickets" value={activeTickets.length} sub="In Progress" subColor="#6366f1" bgColor="#dbeafe" />
-              <StatCard label="Avg Resolution" value={resolvedTickets.length > 0 ? "4.2h" : "—"} sub="↓ 15-21% faster" subColor="#10b981" bgColor="#e9d5ff" />
-              <StatCard label="Active Assignees" value={DASHBOARD_ASSIGNEES.length} sub="Team Members" subColor="#64748b" bgColor="#ccfbf1" />
+              <StatCard label="Draft Queue"      value={draftTickets.length}                        sub="Need Reviews"    subColor="#ef4444" bgColor="#fef3c2" />
+              <StatCard label="Active Tickets"   value={activeTickets.length}                       sub="In Progress"     subColor="#6366f1" bgColor="#dbeafe" />
+              <StatCard label="Avg Resolution"   value={resolvedTickets.length > 0 ? "4.2h" : "—"} sub="↓ 15-21% faster" subColor="#10b981" bgColor="#e9d5ff" />
+              <StatCard label="Active Assignees" value={DASHBOARD_ASSIGNEES.length}                 sub="Team Members"    subColor="#64748b" bgColor="#ccfbf1" />
             </div>
 
             {/* ── Draft Queue ── */}
@@ -172,7 +190,8 @@ export default function AdminDashboardPage() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {draftTickets.map((t: DashboardTicket) => {
-                    const cs = getCatStyle(t.category);
+                    const cs = getCatStyle(t.category);          // from utils
+                    const ps = PRIORITY_STYLE[t.priority];       // from utils
                     return (
                       <div key={t.ticketId} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -181,7 +200,7 @@ export default function AdminDashboardPage() {
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
-                            <span>{t.assignee.name.toLowerCase().replace(' ', '.')}@example.com</span>
+                            <span>{t.assignee.name.toLowerCase().replace(" ", ".")}@example.com</span>
                           </div>
                           <div className="flex items-center gap-2 text-xs text-slate-500">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -193,11 +212,19 @@ export default function AdminDashboardPage() {
 
                         <div className="flex items-center gap-3 shrink-0">
                           <h4 className="text-sm font-semibold text-slate-900 max-w-md truncate">{t.title}</h4>
+                          {/* category badge — style from getCatStyle(), label from t.category (data) */}
                           <span
                             className="text-[10px] font-bold px-3 py-1 rounded-full uppercase"
                             style={{ background: cs.bg, color: cs.color }}
                           >
                             {t.category}
+                          </span>
+                          {/* priority badge — style + label from PRIORITY_STYLE (utils) */}
+                          <span
+                            className="text-[10px] font-bold px-3 py-1 rounded-full uppercase"
+                            style={{ background: ps.bg, color: ps.color }}
+                          >
+                            {ps.label}
                           </span>
                           <button className="text-sm px-4 py-1.5 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors font-medium">
                             Edit
@@ -218,8 +245,8 @@ export default function AdminDashboardPage() {
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <div className="w-1 h-6 bg-gradient-to-b from-yellow-400 via-blue-400 to-purple-400 rounded-full"></div>
-                    <span className="text-base font-bold text-slate-900">Ticket Volume Over time</span>
+                    <div className="w-1 h-6 bg-gradient-to-b from-yellow-400 via-blue-400 to-purple-400 rounded-full" />
+                    <span className="text-base font-bold text-slate-900">Ticket Volume Over Time</span>
                   </div>
                   <div className="flex gap-2 bg-slate-100 rounded-lg p-1">
                     {(["7D", "30D", "90D"] as const).map((r) => (
@@ -229,8 +256,8 @@ export default function AdminDashboardPage() {
                         className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
                         style={{
                           background: range === r ? "#fff" : "transparent",
-                          color: range === r ? "#0f172a" : "#64748b",
-                          boxShadow: range === r ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                          color:      range === r ? "#0f172a" : "#64748b",
+                          boxShadow:  range === r ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
                         }}
                       >
                         {r}
@@ -255,7 +282,7 @@ export default function AdminDashboardPage() {
             {/* ── Bottom Row ── */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-              {/* Assignee Management */}
+              {/* ── Assignee Management ── */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold text-slate-900">Assignee Management</h3>
@@ -266,14 +293,19 @@ export default function AdminDashboardPage() {
                 <div className="space-y-3">
                   {DASHBOARD_ASSIGNEES.map((a: DashboardAssignee, i: number) => {
                     const userTickets = DASHBOARD_TICKETS.filter((t) => t.assignee.name === a.name);
-                    const hasCritical = userTickets.some((t) => t.status === "critical");
-                    const hasActive = userTickets.some((t) => t.status === "in-progress");
+
+                    // derive label from data fields
+                    const hasCritical = userTickets.some((t) =>
+                      t.priority === "critical" && t.status !== "solved" && t.status !== "failed"
+                    );
+                    const hasActive = userTickets.some((t) =>
+                      t.status === "solving" || t.status === "assigned"
+                    );
                     const statusLabel = hasCritical ? "CRITICAL" : hasActive ? "ACTIVE" : "IDLE";
-                    const statusStyle = hasCritical
-                      ? { bg: "#fee2e2", color: "#b91c1c" }
-                      : hasActive
-                      ? { bg: "#dcfce7", color: "#15803d" }
-                      : { bg: "#f3f4f6", color: "#6b7280" };
+
+                    // style from ASSIGNEE_STATUS_STYLE in utils — no hardcoded colors
+                    const statusStyle = ASSIGNEE_STATUS_STYLE[statusLabel];
+
                     return (
                       <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
                         <Avatar user={a} />
@@ -298,7 +330,7 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              {/* Active Workload Overview */}
+              {/* ── Active Workload Overview ── */}
               <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-base font-bold text-slate-900">Active Workload Overview</h3>
@@ -306,23 +338,26 @@ export default function AdminDashboardPage() {
                     View All →
                   </button>
                 </div>
-                <div className="grid grid-cols-3 gap-3 mb-4">
-                  {[
-                    { label: "New", value: draftTickets.length, color: "#16a34a", bg: "#f0fdf4" },
-                    { label: "In Progress", value: activeTickets.length, color: "#6366f1", bg: "#eef2ff" },
-                    { label: "Critical", value: criticalTickets.length, color: "#ef4444", bg: "#fef2f2" },
-                  ].map((s, i) => (
-                    <div key={i} className="rounded-xl p-4 text-center border border-slate-200" style={{ background: s.bg }}>
-                      <p className="text-3xl font-bold leading-none" style={{ color: s.color }}>{s.value}</p>
-                      <p className="text-xs font-medium text-slate-500 mt-1">{s.label}</p>
+
+                {/* priorityBreakdown from utils — no hardcoded values */}
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  {priorityBreakdown.map((s, i) => (
+                    <div key={i} className="rounded-xl p-3 text-center border border-slate-200" style={{ background: s.bg }}>
+                      <p className="text-2xl font-bold leading-none" style={{ color: s.color }}>{s.value}</p>
+                      <p className="text-[10px] font-medium text-slate-500 mt-1">{s.label}</p>
                     </div>
                   ))}
                 </div>
+
+                {/* sort uses PRIORITY_ORDER from utils — no hardcoded object */}
                 <div className="space-y-2">
-                  {DASHBOARD_TICKETS.filter((t) => t.status !== "resolved")
+                  {DASHBOARD_TICKETS
+                    .filter((t) => t.status !== "solved" && t.status !== "failed")
+                    .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
                     .slice(0, 4)
                     .map((t: DashboardTicket) => {
-                      const st = STATUS_STYLE[t.status];
+                      const st = STATUS_STYLE[t.status];   // { bg, text, dot } from utils
+                      const ps = PRIORITY_STYLE[t.priority]; // from utils
                       return (
                         <div key={t.ticketId} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200">
                           <Avatar user={t.assignee} />
@@ -330,11 +365,19 @@ export default function AdminDashboardPage() {
                             <p className="text-sm font-semibold text-slate-900 truncate">{t.title}</p>
                             <p className="text-xs text-slate-500">{t.ticketId}</p>
                           </div>
+                          {/* priority badge */}
                           <span
-                            className="text-[10px] font-bold px-3 py-1 rounded-full shrink-0"
-                            style={{ background: st.bg, color: st.color }}
+                            className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
+                            style={{ background: ps.bg, color: ps.color }}
                           >
-                            {st.label}
+                            {ps.label}
+                          </span>
+                          {/* status badge — st.text not st.color */}
+                          <span
+                            className="text-[10px] font-bold px-3 py-1 rounded-full shrink-0 capitalize"
+                            style={{ background: st.bg, color: st.text }}
+                          >
+                            {t.status}
                           </span>
                         </div>
                       );

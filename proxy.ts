@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 
 type AppRole = 'user' | 'assignee' | 'admin';
 
-const PUBLIC_PATHS = ['/login', '/register', '/auth-success', '/onboarding', '/auth/confirm'];
+const PUBLIC_PATHS = ['/login', '/register', '/auth-success', '/onboarding', '/auth/confirm', '/test'];
 
 const ROLE_ROUTES: Record<string, AppRole> = {
   '/user':     'user',

@@ -1,322 +1,392 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
+import { Sidebar } from "@/components/layout/AdminSidebar";
+import { Header as AdminDashboardHeader } from "@/components/layout/Navbar";
+import { DASHBOARD_ASSIGNEES, DASHBOARD_TICKETS } from "@/lib/admin-dashboard-data";
+import type { DashboardAssignee, DashboardTicket } from "@/lib/admin-dashboard-data";
 import {
-  Bell, GitMerge, CheckCircle2, XCircle, Clock,
-  Sparkles, ChevronRight, Check, Trash2,
-} from 'lucide-react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
-import { Header } from '@/components/layout/notification';
+  STATUS_STYLE,
+  PRIORITY_STYLE,
+  PRIORITY_ORDER,
+  ASSIGNEE_STATUS_STYLE,
+  BAR_CHART_COLORS,
+  getCatStyle,
+  timeAgo,
+  totalTickets,
+  draftTickets,
+  activeTickets,
+  resolvedTickets,
+  priorityBreakdown,
+  categoryData,
+  weeklyData,
+} from "@/lib/admin-dashboard-utils";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// STAT CARD
+// ─────────────────────────────────────────────────────────────────────────────
 
-type NotificationType = 'draft_ready' | 'merge_suggestion' | 'ticket_closed' | 'deadline';
-
-interface Notification {
-  id: string;
-  type: NotificationType;
-  title: string;
-  description: string;
-  timestamp: string;
-  read: boolean;
-  ticketId?: string;
+function StatCard({ label, value, sub, subColor, bgColor }: {
+  label: string;
+  value: string | number;
+  sub: string;
+  subColor: string;
+  bgColor: string;
+}) {
+  return (
+    <div className="rounded-2xl p-4 flex flex-col gap-1" style={{ background: bgColor }}>
+      <p className="text-xs font-medium text-slate-600">{label}</p>
+      <p className="text-4xl font-bold text-slate-900">{value}</p>
+      <p className="text-xs font-medium" style={{ color: subColor }}>{sub}</p>
+    </div>
+  );
 }
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// AVATAR
+// ─────────────────────────────────────────────────────────────────────────────
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n-1',
-    type: 'merge_suggestion',
-    title: 'Merge Suggestion — 3 Similar Requests',
-    description: '3 users reported "The 3D printer in our lab is broken!" — the system recommends consolidating into a single draft ticket.',
-    timestamp: '2 minutes ago',
-    read: false,
-    ticketId: 'DFT-042',
-  },
-  {
-    id: 'n-2',
-    type: 'draft_ready',
-    title: 'New Draft Ready for Review',
-    description: 'AI has processed a new request from user@company.com — "Cannot access classroom portal." Draft ticket DFT-043 is awaiting your review.',
-    timestamp: '8 minutes ago',
-    read: false,
-    ticketId: 'DFT-043',
-  },
-  {
-    id: 'n-3',
-    type: 'deadline',
-    title: 'Deadline Approaching — TKT-019',
-    description: 'Ticket TKT-019 "Email server outage" is due in 2 hours and is still In Progress. Assigned to Dana Kim.',
-    timestamp: '15 minutes ago',
-    read: false,
-    ticketId: 'TKT-019',
-  },
-  {
-    id: 'n-4',
-    type: 'draft_ready',
-    title: 'New Draft Ready for Review',
-    description: 'AI has processed a new request from student22@company.com — "Need to reset my database password." Draft ticket DFT-041 is awaiting your review.',
-    timestamp: '1 hour ago',
-    read: true,
-    ticketId: 'DFT-041',
-  },
-  {
-    id: 'n-5',
-    type: 'ticket_closed',
-    title: 'Ticket Solved — TKT-017',
-    description: 'Ticket TKT-017 "VPN access issue" has been marked as Solved by Alex Chen.',
-    timestamp: '2 hours ago',
-    read: true,
-    ticketId: 'TKT-017',
-  },
-  {
-    id: 'n-6',
-    type: 'ticket_closed',
-    title: 'Ticket Failed — TKT-015',
-    description: 'Ticket TKT-015 "Legacy system migration" has been marked as Failed by Sam Rivera. A resolution comment has been logged.',
-    timestamp: '3 hours ago',
-    read: true,
-    ticketId: 'TKT-015',
-  },
-  {
-    id: 'n-7',
-    type: 'deadline',
-    title: 'Deadline Passed — TKT-012',
-    description: 'Ticket TKT-012 "Storage quota exceeded" passed its deadline 1 hour ago and remains Open. Immediate attention required.',
-    timestamp: '4 hours ago',
-    read: true,
-    ticketId: 'TKT-012',
-  },
-  {
-    id: 'n-8',
-    type: 'merge_suggestion',
-    title: 'Merge Suggestion — 2 Similar Requests',
-    description: '2 users reported issues with the HR portal login. The system recommends merging into draft DFT-038.',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'DFT-038',
-  },
-];
+function Avatar({ user }: { user: DashboardAssignee }) {
+  if (user.avatar) {
+    return (
+      <img
+        src={user.avatar}
+        alt={user.name}
+        className="w-8 h-8 rounded-full object-cover shrink-0"
+      />
+    );
+  }
+  return (
+    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+      {user.fallback}
+    </div>
+  );
+}
 
-// ─── Config per type ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// DONUT CHART
+// ─────────────────────────────────────────────────────────────────────────────
 
-const TYPE_CONFIG: Record<NotificationType, {
-  icon: React.ReactNode;
-  color: string;
-  bg: string;
-  badge: string;
-  label: string;
-}> = {
-  draft_ready: {
-    icon: <Sparkles size={14} />,
-    color: 'text-blue-600',
-    bg: 'bg-blue-50',
-    badge: 'bg-blue-100 text-blue-700 border-blue-200',
-    label: 'Draft Ready',
-  },
-  merge_suggestion: {
-    icon: <GitMerge size={14} />,
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-    badge: 'bg-violet-100 text-violet-700 border-violet-200',
-    label: 'Merge Suggestion',
-  },
-  ticket_closed: {
-    icon: <CheckCircle2 size={14} />,
-    color: 'text-green-600',
-    bg: 'bg-green-50',
-    badge: 'bg-green-100 text-green-700 border-green-200',
-    label: 'Ticket Closed',
-  },
-  deadline: {
-    icon: <Clock size={14} />,
-    color: 'text-orange-600',
-    bg: 'bg-orange-50',
-    badge: 'bg-orange-100 text-orange-700 border-orange-200',
-    label: 'Deadline',
-  },
-};
-
-// ─── Filter tabs ──────────────────────────────────────────────────────────────
-
-const FILTERS = [
-  { id: 'all',              label: 'All' },
-  { id: 'draft_ready',     label: 'Draft Ready' },
-  { id: 'merge_suggestion', label: 'Merge Suggestions' },
-  { id: 'ticket_closed',   label: 'Ticket Closed' },
-  { id: 'deadline',        label: 'Deadlines' },
-] as const;
-
-type FilterId = typeof FILTERS[number]['id'];
-
-// ─── Notification Card ────────────────────────────────────────────────────────
-
-function NotificationCard({
-  notification,
-  onRead,
-  onDelete,
-}: {
-  notification: Notification;
-  onRead: (id: string) => void;
-  onDelete: (id: string) => void;
-}) {
-  const cfg = TYPE_CONFIG[notification.type];
+function DonutChart() {
+  const r = 70, cx = 90, cy = 90, circ = 2 * Math.PI * r;
+  let off = 0;
+  const slices = categoryData.map((d) => {
+    const dash = (d.pct / 100) * circ;
+    const s = { ...d, dash, gap: circ - dash, offset: off };
+    off += dash;
+    return s;
+  });
 
   return (
-    <div className={`flex items-start gap-4 px-5 py-4 rounded-2xl border transition-all group ${
-      notification.read
-        ? 'bg-white border-gray-100'
-        : 'bg-blue-50/30 border-blue-100'
-    }`}>
-      {/* Icon */}
-      <div className={`w-8 h-8 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0 mt-0.5`}>
-        {cfg.icon}
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 flex-wrap mb-1">
-          {!notification.read && (
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
-          )}
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge}`}>
-            {cfg.label}
-          </span>
-          {notification.ticketId && (
-            <span className="text-[10px] text-gray-400 font-mono">{notification.ticketId}</span>
-          )}
-          <span className="text-[10px] text-gray-400 ml-auto">{notification.timestamp}</span>
-        </div>
-        <p className="text-xs font-semibold text-gray-800 mb-0.5">{notification.title}</p>
-        <p className="text-[11px] text-gray-500 leading-relaxed">{notification.description}</p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
-        {!notification.read && (
-          <button
-            onClick={() => onRead(notification.id)}
-            title="Mark as read"
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-          >
-            <Check size={13} />
-          </button>
-        )}
-        <button
-          onClick={() => onDelete(notification.id)}
-          title="Dismiss"
-          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-        >
-          <Trash2 size={13} />
-        </button>
-        <button
-          title="View ticket"
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-        >
-          <ChevronRight size={13} />
-        </button>
+    <div className="flex flex-col items-center w-full">
+      <svg width={180} height={180} viewBox="0 0 180 180">
+        {slices.map((s, i) => (
+          <circle
+            key={i} cx={cx} cy={cy} r={r} fill="none"
+            stroke={s.color} strokeWidth={28}
+            strokeDasharray={`${s.dash} ${s.gap}`}
+            strokeDashoffset={-s.offset + circ * 0.25}
+          />
+        ))}
+        {/* totalTickets imported from utils */}
+        <text x={cx} y={cy} textAnchor="middle" style={{ fontSize: 28, fontWeight: 700, fill: "#0f172a" }}>
+          {totalTickets.toLocaleString()}
+        </text>
+      </svg>
+      <div className="w-full mt-4 space-y-2">
+        {categoryData.map((d, i) => (
+          <div key={i} className="flex items-center justify-between text-sm">
+            <div className="flex items-center gap-2">
+              <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
+              <span className="text-slate-700">{d.label}</span>
+            </div>
+            <span className="font-semibold text-slate-900">{d.value} ({d.pct}%)</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// BAR CHART — colors from BAR_CHART_COLORS in utils
+// ─────────────────────────────────────────────────────────────────────────────
 
-export default function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const filtered = notifications.filter((n) =>
-    activeFilter === 'all' ? true : n.type === activeFilter
-  );
-
-  const markAllRead = () =>
-    setNotifications((p) => p.map((n) => ({ ...n, read: true })));
-
-  const markRead = (id: string) =>
-    setNotifications((p) => p.map((n) => n.id === id ? { ...n, read: true } : n));
-
-  const dismiss = (id: string) =>
-    setNotifications((p) => p.filter((n) => n.id !== id));
+function BarChart() {
+  const maxVal = Math.max(...weeklyData.map((d) => d.value), 1);
+  const maxH   = 140;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
+    <div className="flex items-end justify-between gap-4 mt-6" style={{ height: maxH + 60 }}>
+      {weeklyData.map((d, i) => {
+        const h = Math.max(20, Math.round((d.value / maxVal) * maxH));
+        return (
+          <div key={i} className="flex flex-col items-center flex-1">
+            <div
+              className="w-full rounded-t-lg transition-all duration-500"
+              style={{ height: h, background: BAR_CHART_COLORS[i % BAR_CHART_COLORS.length] }}
+            />
+            <p className="text-lg font-bold text-slate-900 mt-2">{d.value}</p>
+            <p className="text-xs text-slate-500">{d.week}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PAGE
+// ─────────────────────────────────────────────────────────────────────────────
+
+export default function AdminDashboardPage() {
+  const [range, setRange] = useState<"7D" | "30D" | "90D">("30D");
+
+  return (
+    <div className="flex h-screen overflow-hidden">
+
+      {/* ── Sidebar ── */}
+      <div className="flex flex-col h-screen shrink-0">
+        <Sidebar userRole="admin" userName="Palm Pollapat" />
+      </div>
+
+      {/* ── Main Content ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <div className="flex-1 overflow-y-auto bg-slate-50">
 
-        {/* ── Page header ── */}
-        <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
-              <Bell size={14} />
+          <AdminDashboardHeader />
+
+          <div className="px-8 py-6 space-y-5">
+
+            {/* ── Stat Cards ── */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard label="Draft Queue"      value={draftTickets.length}                        sub="Need Reviews"    subColor="#ef4444" bgColor="#fef3c2" />
+              <StatCard label="Active Tickets"   value={activeTickets.length}                       sub="In Progress"     subColor="#6366f1" bgColor="#dbeafe" />
+              <StatCard label="Avg Resolution"   value={resolvedTickets.length > 0 ? "4.2h" : "—"} sub="↓ 15-21% faster" subColor="#10b981" bgColor="#e9d5ff" />
+              <StatCard label="Active Assignees" value={DASHBOARD_ASSIGNEES.length}                 sub="Team Members"    subColor="#64748b" bgColor="#ccfbf1" />
             </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-              </p>
+
+            {/* ── Draft Queue ── */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
+                    <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" clipRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Draft Queue - Action Required</h3>
+                    <p className="text-xs text-slate-500">All submitted tickets pending admin review and approval</p>
+                  </div>
+                </div>
+                <button className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                  View All Draft
+                </button>
+              </div>
+
+              {draftTickets.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-10">No pending submissions.</p>
+              ) : (
+                <div className="divide-y divide-slate-100">
+                  {draftTickets.map((t: DashboardTicket) => {
+                    const cs = getCatStyle(t.category);          // from utils
+                    const ps = PRIORITY_STYLE[t.priority];       // from utils
+                    return (
+                      <div key={t.ticketId} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <Avatar user={t.assignee} />
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
+                            <span>{t.assignee.name.toLowerCase().replace(" ", ".")}@example.com</span>
+                          </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <span>{timeAgo(t.date)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <h4 className="text-sm font-semibold text-slate-900 max-w-md truncate">{t.title}</h4>
+                          {/* category badge — style from getCatStyle(), label from t.category (data) */}
+                          <span
+                            className="text-[10px] font-bold px-3 py-1 rounded-full uppercase"
+                            style={{ background: cs.bg, color: cs.color }}
+                          >
+                            {t.category}
+                          </span>
+                          {/* priority badge — style + label from PRIORITY_STYLE (utils) */}
+                          <span
+                            className="text-[10px] font-bold px-3 py-1 rounded-full uppercase"
+                            style={{ background: ps.bg, color: ps.color }}
+                          >
+                            {ps.label}
+                          </span>
+                          <button className="text-sm px-4 py-1.5 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors font-medium">
+                            Edit
+                          </button>
+                          <button className="text-sm px-4 py-1.5 rounded-lg bg-green-600 text-white hover:bg-green-700 transition-colors font-medium">
+                            Submit
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* ── Charts Row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-1 h-6 bg-gradient-to-b from-yellow-400 via-blue-400 to-purple-400 rounded-full" />
+                    <span className="text-base font-bold text-slate-900">Ticket Volume Over Time</span>
+                  </div>
+                  <div className="flex gap-2 bg-slate-100 rounded-lg p-1">
+                    {(["7D", "30D", "90D"] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setRange(r)}
+                        className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
+                        style={{
+                          background: range === r ? "#fff" : "transparent",
+                          color:      range === r ? "#0f172a" : "#64748b",
+                          boxShadow:  range === r ? "0 1px 3px rgba(0,0,0,0.1)" : "none",
+                        }}
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <BarChart />
+              </div>
+
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <h3 className="text-base font-bold text-slate-900">Category & Status Breakdown</h3>
+                    <p className="text-xs text-slate-500 mt-1">Distributed by category and current status</p>
+                  </div>
+                </div>
+                <DonutChart />
+              </div>
+            </div>
+
+            {/* ── Bottom Row ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+              {/* ── Assignee Management ── */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold text-slate-900">Assignee Management</h3>
+                  <button className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                    Manage User →
+                  </button>
+                </div>
+                <div className="space-y-3">
+                  {DASHBOARD_ASSIGNEES.map((a: DashboardAssignee, i: number) => {
+                    const userTickets = DASHBOARD_TICKETS.filter((t) => t.assignee.name === a.name);
+
+                    // derive label from data fields
+                    const hasCritical = userTickets.some((t) =>
+                      t.priority === "critical" && t.status !== "solved" && t.status !== "failed"
+                    );
+                    const hasActive = userTickets.some((t) =>
+                      t.status === "solving" || t.status === "assigned"
+                    );
+                    const statusLabel = hasCritical ? "CRITICAL" : hasActive ? "ACTIVE" : "IDLE";
+
+                    // style from ASSIGNEE_STATUS_STYLE in utils — no hardcoded colors
+                    const statusStyle = ASSIGNEE_STATUS_STYLE[statusLabel];
+
+                    return (
+                      <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer border border-slate-200">
+                        <Avatar user={a} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-900">{a.name}</p>
+                          <div className="flex gap-2 mt-1">
+                            <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-medium">{a.role}</span>
+                            <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-md font-medium">{a.department}</span>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] font-bold px-3 py-1 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                            {statusLabel}
+                          </span>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {userTickets.length} ticket{userTickets.length !== 1 ? "s" : ""}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Active Workload Overview ── */}
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-base font-bold text-slate-900">Active Workload Overview</h3>
+                  <button className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                    View All →
+                  </button>
+                </div>
+
+                {/* priorityBreakdown from utils — no hardcoded values */}
+                <div className="grid grid-cols-4 gap-3 mb-4">
+                  {priorityBreakdown.map((s, i) => (
+                    <div key={i} className="rounded-xl p-3 text-center border border-slate-200" style={{ background: s.bg }}>
+                      <p className="text-2xl font-bold leading-none" style={{ color: s.color }}>{s.value}</p>
+                      <p className="text-[10px] font-medium text-slate-500 mt-1">{s.label}</p>
+                    </div>
+                  ))}
+                </div>
+
+                {/* sort uses PRIORITY_ORDER from utils — no hardcoded object */}
+                <div className="space-y-2">
+                  {DASHBOARD_TICKETS
+                    .filter((t) => t.status !== "solved" && t.status !== "failed")
+                    .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
+                    .slice(0, 4)
+                    .map((t: DashboardTicket) => {
+                      const st = STATUS_STYLE[t.status];   // { bg, text, dot } from utils
+                      const ps = PRIORITY_STYLE[t.priority]; // from utils
+                      return (
+                        <div key={t.ticketId} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200">
+                          <Avatar user={t.assignee} />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-slate-900 truncate">{t.title}</p>
+                            <p className="text-xs text-slate-500">{t.ticketId}</p>
+                          </div>
+                          {/* priority badge */}
+                          <span
+                            className="text-[10px] font-bold px-2 py-1 rounded-full shrink-0"
+                            style={{ background: ps.bg, color: ps.color }}
+                          >
+                            {ps.label}
+                          </span>
+                          {/* status badge — st.text not st.color */}
+                          <span
+                            className="text-[10px] font-bold px-3 py-1 rounded-full shrink-0 capitalize"
+                            style={{ background: st.bg, color: st.text }}
+                          >
+                            {t.status}
+                          </span>
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+
             </div>
           </div>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <Check size={12} /> Mark all as read
-            </button>
-          )}
-        </div>
-
-        {/* ── Filter tabs ── */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
-          {FILTERS.map((f) => {
-            const count = f.id === 'all'
-              ? notifications.length
-              : notifications.filter((n) => n.type === f.id).length;
-            const isActive = activeFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {f.label}
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── List ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
-              <Bell size={28} className="mb-2" />
-              <p className="text-xs font-semibold">No notifications</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 max-w-3xl">
-              {filtered.map((n) => (
-                <NotificationCard
-                  key={n.id}
-                  notification={n}
-                  onRead={markRead}
-                  onDelete={dismiss}
-                />
-              ))}
-            </div>
-          )}
         </div>
       </div>
     </div>
