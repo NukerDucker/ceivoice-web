@@ -1,15 +1,7 @@
 import { TicketList, type Ticket } from '@/components/tickets/TicketTable';
 import { apiFetch } from '@/lib/api';
 import { Header } from '@/components/tickets/TicketListHeader';
-
-interface BackendTicket {
-  ticket_id: number;
-  title: string;
-  created_at: string;
-  category: { name: string } | null;
-  status: { name: string } | null;
-  assignee: { full_name: string | null; user_name: string | null } | null;
-}
+import type { ApiTicket } from '@/types/api';
 
 const statusMap: Record<string, Ticket['status']> = {
   Draft: 'submitted', New: 'submitted',
@@ -17,7 +9,7 @@ const statusMap: Record<string, Ticket['status']> = {
   Solved: 'resolved', Failed: 'critical',
 };
 
-function toTicket(t: BackendTicket): Ticket {
+function toTicket(t: ApiTicket): Ticket {
   const displayName = t.assignee?.full_name ?? t.assignee?.user_name ?? null;
   return {
     ticketId: `TD-${String(t.ticket_id).padStart(6, '0')}`,
@@ -32,7 +24,7 @@ function toTicket(t: BackendTicket): Ticket {
 }
 
 export default async function Page() {
-  const raw = await apiFetch<BackendTicket[]>('/tickets/mine');
+  const raw = await apiFetch<ApiTicket[]>('/tickets/mine');
   const tickets = raw.map(toTicket);
 
   return (
