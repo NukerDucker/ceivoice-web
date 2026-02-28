@@ -20,7 +20,7 @@ export default function AuthSuccessPage() {
       .then((user) => {
         if (user.role === "admin") {
           router.replace("/admin/dashboard");
-        } else {
+        } else if (user.role === "user") {
           router.replace("/user/dashboard");
         }
       })

@@ -1,11 +1,11 @@
+// app/(auth)/login/_components/login-form.tsx
 "use client";
-
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/lib/validations/auth";
-import { login } from "@/services/auth";
+import { loginWithEmail, getMe } from "@/services/auth"; // ✅ updated import
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -24,20 +24,16 @@ export function LoginForm() {
 
   const form = useForm({
     resolver: zodResolver(LoginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
-  const onSubmit = async (formData: {
-    email: string;
-    password: string;
-  }) => {
+  const onSubmit = async (formData: { email: string; password: string }) => {
     setLoading(true);
     setError(null);
     try {
-      const user = await login(formData.email, formData.password);
+      await loginWithEmail(formData.email, formData.password); // ✅ sign in
+      const user = await getMe();                              // ✅ get role from JWT
+
       if (!user.onboarding_completed) {
         router.push("/onboarding");
       } else if (user.role === "admin") {
@@ -70,7 +66,6 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-
         <FormField
           control={form.control}
           name="password"
@@ -84,11 +79,7 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-
-        {error && (
-          <p className="text-sm text-red-600 text-center">{error}</p>
-        )}
-
+        {error && <p className="text-sm text-red-600 text-center">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Checking credentials..." : "Login"}
         </Button>
