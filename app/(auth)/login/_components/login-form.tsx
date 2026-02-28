@@ -38,8 +38,12 @@ export function LoginForm() {
     setError(null);
     try {
       const user = await login(formData.email, formData.password);
-      if (user.role === "admin") {
+      if (!user.onboarding_completed) {
+        router.push("/onboarding");
+      } else if (user.role === "admin") {
         router.push("/admin/dashboard");
+      } else if (user.role === "assignee") {
+        router.push("/assignee/dashboard");
       } else {
         router.push("/user/dashboard");
       }

@@ -41,12 +41,8 @@ export function RegisterForm() {
     setLoading(true);
     setError(null);
     try {
-      const user = await registerUser(formData.name, formData.email, formData.password, formData.confirmPassword);
-      if (user.role === "admin") {
-        router.push("/admin/dashboard");
-      } else {
-        router.push("/user/dashboard");
-      }
+      await registerUser(formData.name, formData.email, formData.password, formData.confirmPassword);
+      router.push("/onboarding");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
