@@ -186,7 +186,6 @@ export function TicketDetailModal({
         <div className="flex items-start justify-between px-6 py-5 border-b border-slate-200 shrink-0">
           <div className="flex-1 min-w-0 pr-4">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-slate-400 tracking-wider">{ticket.ticketId}</span>
               <span
                 className="text-[10px] font-bold px-2 py-0.5 rounded-full"
                 style={{ background: cs.bg, color: cs.color }}
