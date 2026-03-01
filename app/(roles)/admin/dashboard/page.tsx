@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { apiFetch } from '@/lib/api-client';
 import { CATEGORY_COLORS, ASSIGNEE_STATUS_STYLE, getCatStyle, BAR_CHART_COLORS } from '@/lib/admin-dashboard-utils';
 
@@ -167,12 +166,15 @@ export default function AdminDashboardPage() {
     setError(null);
     try {
       const [m, d] = await Promise.all([
-        apiFetch<AdminMetrics>(`/api/reporting/admin/metrics?period=${RANGE_PERIOD[r]}`),
-        apiFetch<ApiDraft[]>('/api/admin/drafts'),
+        apiFetch<AdminMetrics>(`/reporting/admin/metrics?period=${RANGE_PERIOD[r]}`),
+        apiFetch<ApiDraft[]>('/admin/drafts'),
       ]);
+      console.debug('[Dashboard] metrics:', m);
+      console.debug('[Dashboard] drafts:', d);
       setMetrics(m);
       setDrafts(d);
-    } catch {
+    } catch (err) {
+      console.error('[Dashboard] fetch error:', err);
       setError('Failed to load dashboard data.');
     } finally {
       setLoading(false);
@@ -189,7 +191,7 @@ export default function AdminDashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-400 text-sm">
+      <div className="flex h-full items-center justify-center bg-slate-50 text-slate-400 text-sm">
         Loading dashboard…
       </div>
     );
@@ -197,7 +199,7 @@ export default function AdminDashboardPage() {
 
   if (error) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50 text-red-500 text-sm flex-col gap-3">
+      <div className="flex h-full items-center justify-center bg-slate-50 text-red-500 text-sm flex-col gap-3">
         <p>{error}</p>
         <button
           onClick={() => fetchData(range)}
@@ -210,11 +212,8 @@ export default function AdminDashboardPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      <Sidebar userRole="admin" userName="Admin" />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto bg-slate-50">
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="flex-1 overflow-y-auto bg-slate-50">
 
           {/* Top bar */}
           <div className="px-8 pt-6 pb-2">
@@ -421,7 +420,6 @@ export default function AdminDashboardPage() {
 
             </div>
           </div>
-        </div>
       </div>
     </div>
   );

@@ -138,9 +138,9 @@ function ReviewTicketInner() {
     setLoading(true);
 
     Promise.all([
-      apiFetch<ApiTicket>(`/api/tickets/${selectedId}`),
-      apiFetch<ApiAssignee[]>('/api/admin/assignees'),
-      apiFetch<ApiCategory[]>('/api/admin/categories'),
+      apiFetch<ApiTicket>(`/tickets/${selectedId}`),
+      apiFetch<ApiAssignee[]>('/admin/assignees'),
+      apiFetch<ApiCategory[]>('/admin/categories'),
     ])
       .then(([t, a, cats]) => {
         if (cancelled) return;
@@ -173,7 +173,7 @@ function ReviewTicketInner() {
       const deadline = deadlineVal
         ? `${deadlineVal}T${deadlineTimeVal || '00:00'}:00.000Z`
         : null;
-      await apiFetch(`/api/admin/drafts/${selectedId}`, {
+      await apiFetch(`/admin/drafts/${selectedId}`, {
         method: 'PUT',
         body: JSON.stringify({
           title: titleVal,
@@ -194,7 +194,7 @@ function ReviewTicketInner() {
   const handleSubmit = async () => {
     setSubmitStatus('submitting');
     try {
-      await apiFetch(`/api/admin/drafts/${selectedId}/approve`, { method: 'POST' });
+      await apiFetch(`/admin/drafts/${selectedId}/approve`, { method: 'POST' });
       setSubmitStatus('done');
       router.push('/admin/tickets');
     } catch {

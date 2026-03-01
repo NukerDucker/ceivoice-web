@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Check, Pencil, ChevronDown, User, Merge, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/TicketTB';
 import { apiFetch } from '@/lib/api-client';
 
@@ -275,11 +274,14 @@ export default function AdminTicketsPage() {
     setError(null);
     try {
       const url = tab === 'all'
-        ? '/api/admin/tickets'
-        : `/api/tickets/status/${TAB_TO_API[tab]}`;
+        ? '/admin/tickets'
+        : `/tickets/status/${TAB_TO_API[tab]}`;
+      console.debug('[Tickets] fetching:', url);
       const data = await apiFetch<ApiTicket[]>(url);
+      console.debug('[Tickets] received:', data.length, 'tickets');
       setTickets(data);
     } catch (err: unknown) {
+      console.error('[Tickets] fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load tickets');
     } finally {
       setLoading(false);
@@ -314,7 +316,7 @@ export default function AdminTicketsPage() {
 
   const handleStatusChange = async (id: number, status: TicketStatus) => {
     try {
-      await apiFetch(`/api/tickets/${id}/status`, {
+      await apiFetch(`/tickets/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ new_status: TAB_TO_API[status] }),
       });
@@ -328,10 +330,7 @@ export default function AdminTicketsPage() {
   const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); };
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Admin" />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
         <Header />
 
         {/* Filter tabs */}
@@ -391,7 +390,6 @@ export default function AdminTicketsPage() {
             </div>
           )}
         </div>
-      </div>
 
       <MergePopup
         selectedIds={Array.from(selectedIds)}

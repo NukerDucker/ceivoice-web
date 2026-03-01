@@ -244,7 +244,7 @@ export default function AdminDraftQueuePage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch<ApiDraft[]>('/api/admin/drafts')
+    apiFetch<ApiDraft[]>('/admin/drafts')
       .then((data) => { if (!cancelled) { setDrafts(data); setLoading(false); } })
       .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
     return () => { cancelled = true; };

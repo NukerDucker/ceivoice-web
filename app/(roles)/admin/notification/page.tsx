@@ -1,16 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Bell, GitMerge, CheckCircle2, XCircle, Clock,
+  Bell, CheckCircle2, Clock,
   Sparkles, ChevronRight, Check, Trash2,
 } from 'lucide-react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/notification';
+import { apiFetch } from '@/lib/api-client';
+import { useRouter } from 'next/navigation';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type NotificationType = 'draft_ready' | 'merge_suggestion' | 'ticket_closed' | 'deadline';
+type NotificationType = 'draft_ready' | 'ticket_closed' | 'deadline';
 
 interface Notification {
   id: string;
@@ -19,85 +20,28 @@ interface Notification {
   description: string;
   timestamp: string;
   read: boolean;
-  ticketId?: string;
+  ticketId?: number;
 }
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
+// ─── API shapes ───────────────────────────────────────────────────────────────
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n-1',
-    type: 'merge_suggestion',
-    title: 'Merge Suggestion — 3 Similar Requests',
-    description: '3 users reported "The 3D printer in our lab is broken!" — the system recommends consolidating into a single draft ticket.',
-    timestamp: '2 minutes ago',
-    read: false,
-    ticketId: 'DFT-042',
-  },
-  {
-    id: 'n-2',
-    type: 'draft_ready',
-    title: 'New Draft Ready for Review',
-    description: 'AI has processed a new request from user@company.com — "Cannot access classroom portal." Draft ticket DFT-043 is awaiting your review.',
-    timestamp: '8 minutes ago',
-    read: false,
-    ticketId: 'DFT-043',
-  },
-  {
-    id: 'n-3',
-    type: 'deadline',
-    title: 'Deadline Approaching — TKT-019',
-    description: 'Ticket TKT-019 "Email server outage" is due in 2 hours and is still In Progress. Assigned to Dana Kim.',
-    timestamp: '15 minutes ago',
-    read: false,
-    ticketId: 'TKT-019',
-  },
-  {
-    id: 'n-4',
-    type: 'draft_ready',
-    title: 'New Draft Ready for Review',
-    description: 'AI has processed a new request from student22@company.com — "Need to reset my database password." Draft ticket DFT-041 is awaiting your review.',
-    timestamp: '1 hour ago',
-    read: true,
-    ticketId: 'DFT-041',
-  },
-  {
-    id: 'n-5',
-    type: 'ticket_closed',
-    title: 'Ticket Solved — TKT-017',
-    description: 'Ticket TKT-017 "VPN access issue" has been marked as Solved by Alex Chen.',
-    timestamp: '2 hours ago',
-    read: true,
-    ticketId: 'TKT-017',
-  },
-  {
-    id: 'n-6',
-    type: 'ticket_closed',
-    title: 'Ticket Failed — TKT-015',
-    description: 'Ticket TKT-015 "Legacy system migration" has been marked as Failed by Sam Rivera. A resolution comment has been logged.',
-    timestamp: '3 hours ago',
-    read: true,
-    ticketId: 'TKT-015',
-  },
-  {
-    id: 'n-7',
-    type: 'deadline',
-    title: 'Deadline Passed — TKT-012',
-    description: 'Ticket TKT-012 "Storage quota exceeded" passed its deadline 1 hour ago and remains Open. Immediate attention required.',
-    timestamp: '4 hours ago',
-    read: true,
-    ticketId: 'TKT-012',
-  },
-  {
-    id: 'n-8',
-    type: 'merge_suggestion',
-    title: 'Merge Suggestion — 2 Similar Requests',
-    description: '2 users reported issues with the HR portal login. The system recommends merging into draft DFT-038.',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'DFT-038',
-  },
-];
+interface ApiDraft {
+  ticket_id: number;
+  title: string | null;
+  created_at: string;
+  category: { name: string } | null;
+  ticket_requests: Array<{ request: { email: string } | null }>;
+}
+
+interface ApiTicket {
+  ticket_id: number;
+  title: string | null;
+  status_id: number;
+  status: { name: string } | null;
+  deadline: string | null;
+  assignee: { full_name: string | null; user_name: string | null } | null;
+  updated_at: string;
+}
 
 // ─── Config per type ──────────────────────────────────────────────────────────
 
@@ -114,13 +58,6 @@ const TYPE_CONFIG: Record<NotificationType, {
     bg: 'bg-blue-50',
     badge: 'bg-blue-100 text-blue-700 border-blue-200',
     label: 'Draft Ready',
-  },
-  merge_suggestion: {
-    icon: <GitMerge size={14} />,
-    color: 'text-violet-600',
-    bg: 'bg-violet-50',
-    badge: 'bg-violet-100 text-violet-700 border-violet-200',
-    label: 'Merge Suggestion',
   },
   ticket_closed: {
     icon: <CheckCircle2 size={14} />,
@@ -141,14 +78,91 @@ const TYPE_CONFIG: Record<NotificationType, {
 // ─── Filter tabs ──────────────────────────────────────────────────────────────
 
 const FILTERS = [
-  { id: 'all',              label: 'All' },
-  { id: 'draft_ready',     label: 'Draft Ready' },
-  { id: 'merge_suggestion', label: 'Merge Suggestions' },
-  { id: 'ticket_closed',   label: 'Ticket Closed' },
-  { id: 'deadline',        label: 'Deadlines' },
+  { id: 'all',            label: 'All' },
+  { id: 'draft_ready',   label: 'Draft Ready' },
+  { id: 'ticket_closed', label: 'Ticket Closed' },
+  { id: 'deadline',      label: 'Deadlines' },
 ] as const;
 
 type FilterId = typeof FILTERS[number]['id'];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function timeAgo(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  < 1)  return 'just now';
+  if (mins  < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
+function buildNotifications(drafts: ApiDraft[], tickets: ApiTicket[]): Notification[] {
+  const list: Notification[] = [];
+
+  // Draft-ready: one notification per draft ticket
+  for (const d of drafts) {
+    const email = d.ticket_requests[0]?.request?.email ?? 'unknown';
+    list.push({
+      id: `draft-${d.ticket_id}`,
+      type: 'draft_ready',
+      title: 'New Draft Ready for Review',
+      description: `AI has processed a request from ${email}. Draft ticket #${d.ticket_id}${d.title ? ` — "${d.title}"` : ''} is awaiting your review.`,
+      timestamp: timeAgo(d.created_at),
+      read: false,
+      ticketId: d.ticket_id,
+    });
+  }
+
+  const now = Date.now();
+
+  for (const t of tickets) {
+    const statusId = t.status_id;
+
+    // Ticket closed: Solved (5) or Failed (6)
+    if (statusId === 5 || statusId === 6) {
+      const label  = statusId === 5 ? 'Solved' : 'Failed';
+      const assigneeName = t.assignee?.full_name ?? t.assignee?.user_name ?? 'Support Team';
+      list.push({
+        id: `closed-${t.ticket_id}`,
+        type: 'ticket_closed',
+        title: `Ticket ${label} — #${t.ticket_id}`,
+        description: `Ticket #${t.ticket_id}${t.title ? ` "${t.title}"` : ''} has been marked as ${label} by ${assigneeName}.`,
+        timestamp: timeAgo(t.updated_at),
+        read: true,
+        ticketId: t.ticket_id,
+      });
+    }
+
+    // Deadline: upcoming (within 7 days) or already passed, for active tickets
+    if (t.deadline && statusId !== 5 && statusId !== 6) {
+      const deadline = new Date(t.deadline);
+      const daysUntil = Math.ceil((deadline.getTime() - now) / 86400000);
+
+      if (daysUntil <= 7) {
+        const isPast = daysUntil < 0;
+        list.push({
+          id: `deadline-${t.ticket_id}`,
+          type: 'deadline',
+          title: isPast
+            ? `Deadline Passed — #${t.ticket_id}`
+            : `Deadline in ${daysUntil}d — #${t.ticket_id}`,
+          description: isPast
+            ? `Ticket #${t.ticket_id}${t.title ? ` "${t.title}"` : ''} passed its deadline ${Math.abs(daysUntil)} day(s) ago and is still ${t.status?.name ?? 'active'}.`
+            : `Ticket #${t.ticket_id}${t.title ? ` "${t.title}"` : ''} is due in ${daysUntil} day(s) and is ${t.status?.name ?? 'active'}.`,
+          timestamp: timeAgo(t.updated_at),
+          read: isPast,
+          ticketId: t.ticket_id,
+        });
+      }
+    }
+  }
+
+  // Sort: unread first, then by id
+  return list.sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1));
+}
 
 // ─── Notification Card ────────────────────────────────────────────────────────
 
@@ -156,10 +170,12 @@ function NotificationCard({
   notification,
   onRead,
   onDelete,
+  onView,
 }: {
   notification: Notification;
   onRead: (id: string) => void;
   onDelete: (id: string) => void;
+  onView: (ticketId: number) => void;
 }) {
   const cfg = TYPE_CONFIG[notification.type];
 
@@ -184,7 +200,7 @@ function NotificationCard({
             {cfg.label}
           </span>
           {notification.ticketId && (
-            <span className="text-[10px] text-gray-400 font-mono">{notification.ticketId}</span>
+            <span className="text-[10px] text-gray-400 font-mono">#{notification.ticketId}</span>
           )}
           <span className="text-[10px] text-gray-400 ml-auto">{notification.timestamp}</span>
         </div>
@@ -210,12 +226,15 @@ function NotificationCard({
         >
           <Trash2 size={13} />
         </button>
-        <button
-          title="View ticket"
-          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-        >
-          <ChevronRight size={13} />
-        </button>
+        {notification.ticketId && (
+          <button
+            onClick={() => onView(notification.ticketId!)}
+            title="View ticket"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <ChevronRight size={13} />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -224,8 +243,32 @@ function NotificationCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminNotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+  const router = useRouter();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activeFilter, setActiveFilter]   = useState<FilterId>('all');
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [drafts, tickets] = await Promise.all([
+          apiFetch<ApiDraft[]>('/admin/drafts'),
+          apiFetch<ApiTicket[]>('/admin/tickets'),
+        ]);
+        console.debug('[Notifications] drafts:', drafts.length, 'tickets:', tickets.length);
+        setNotifications(buildNotifications(drafts, tickets));
+      } catch (err) {
+        console.error('[Notifications] fetch error:', err);
+        setError('Failed to load notifications.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -242,82 +285,90 @@ export default function AdminNotificationsPage() {
   const dismiss = (id: string) =>
     setNotifications((p) => p.filter((n) => n.id !== id));
 
+  const viewTicket = (ticketId: number) =>
+    router.push(`/admin/review-ticket?id=${ticketId}`);
+
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
+    <div className="flex flex-col h-full overflow-hidden bg-gray-50">
+      <Header />
 
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
-
-        {/* ── Page header ── */}
-        <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
-              <Bell size={14} />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-              </p>
-            </div>
+      {/* ── Page header ── */}
+      <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
+            <Bell size={14} />
           </div>
-          {unreadCount > 0 && (
+          <div>
+            <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {loading ? 'Loading…' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+            </p>
+          </div>
+        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+          >
+            <Check size={12} /> Mark all as read
+          </button>
+        )}
+      </div>
+
+      {/* ── Filter tabs ── */}
+      <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
+        {FILTERS.map((f) => {
+          const count = f.id === 'all'
+            ? notifications.length
+            : notifications.filter((n) => n.type === f.id).length;
+          const isActive = activeFilter === f.id;
+          return (
             <button
-              onClick={markAllRead}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                isActive
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+              }`}
             >
-              <Check size={12} /> Mark all as read
+              {f.label}
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
+              }`}>{count}</span>
             </button>
-          )}
-        </div>
+          );
+        })}
+      </div>
 
-        {/* ── Filter tabs ── */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
-          {FILTERS.map((f) => {
-            const count = f.id === 'all'
-              ? notifications.length
-              : notifications.filter((n) => n.type === f.id).length;
-            const isActive = activeFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {f.label}
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── List ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
-              <Bell size={28} className="mb-2" />
-              <p className="text-xs font-semibold">No notifications</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 max-w-3xl">
-              {filtered.map((n) => (
-                <NotificationCard
-                  key={n.id}
-                  notification={n}
-                  onRead={markRead}
-                  onDelete={dismiss}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+      {/* ── List ── */}
+      <div className="flex-1 overflow-y-auto px-8 py-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-48 text-gray-400">
+            <p className="text-xs font-semibold">Loading notifications…</p>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-48 text-red-400">
+            <p className="text-xs font-semibold">{error}</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+            <Bell size={28} className="mb-2" />
+            <p className="text-xs font-semibold">No notifications</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 max-w-3xl">
+            {filtered.map((n) => (
+              <NotificationCard
+                key={n.id}
+                notification={n}
+                onRead={markRead}
+                onDelete={dismiss}
+                onView={viewTicket}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
