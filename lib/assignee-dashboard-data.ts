@@ -44,6 +44,8 @@ export interface AssigneeTicket {
   date:        Date;
   deadline:    Date;
   assignee:    DashboardAssignee;
+  creator:     string;                // name or label of who opened the ticket
+  followers:   DashboardAssignee[];   // people subscribed to ticket updates
   history:     TicketHistoryEntry[];
   comments:    TicketComment[];
 }
@@ -70,7 +72,7 @@ export const OTHER_ASSIGNEES: DashboardAssignee[] = DASHBOARD_ASSIGNEES.filter(
 // ─────────────────────────────────────────────────────────────────────────────
 
 const now = Date.now();
-const daysAgo   = (d: number) => new Date(now - d * 86_400_000);
+const daysAgo    = (d: number) => new Date(now - d * 86_400_000);
 const hoursLater = (h: number) => new Date(now + h * 3_600_000);
 
 // Re-export STATUS_STYLES so the page only needs one import source
@@ -100,84 +102,91 @@ export const getCatStyle = (cat: string) =>
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ACTIVE TICKETS  (assigned to current user, status ≠ solved | failed)
-// Enriched with deadline, history, and comments.
+// Enriched with deadline, history, comments, creator, and followers.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const MY_ACTIVE_TICKETS: AssigneeTicket[] = [
   {
-    // pulled from DASHBOARD_TICKETS TD-001241 (Palm, status: new → elevated to assigned here)
-    ticketId: 'TD-001241',
-    title:    'Database Connection Pool Exhausted',
-    category: 'Database',
-    status:   'assigned',
-    priority: 'high',
-    date:     daysAgo(2),
-    deadline: hoursLater(18),
-    assignee: CURRENT_ASSIGNEE,
+    ticketId:  'TD-001241',
+    title:     'Database Connection Pool Exhausted',
+    category:  'Database',
+    status:    'assigned',
+    priority:  'high',
+    date:      daysAgo(2),
+    deadline:  hoursLater(18),
+    assignee:  CURRENT_ASSIGNEE,
+    creator:   'James Carter',
+    followers: [DASHBOARD_ASSIGNEES[1], DASHBOARD_ASSIGNEES[2]],
     history: [
-      { action: 'Created',       oldStatus: null,       newStatus: 'draft',    by: 'AI System',        timestamp: daysAgo(2.1) },
-      { action: 'Admin Approved',oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',            timestamp: daysAgo(2)   },
-      { action: 'Acknowledged',  oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(1.8) },
+      { action: 'Created',        oldStatus: null,       newStatus: 'draft',    by: 'AI System',           timestamp: daysAgo(2.1) },
+      { action: 'Admin Approved', oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',               timestamp: daysAgo(2)   },
+      { action: 'Acknowledged',   oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(1.8) },
     ],
     comments: [
-      { author: 'Admin',                  type: 'internal', text: 'Peak load suspected. Please check connection leak first.', timestamp: daysAgo(1.9) },
-      { author: CURRENT_ASSIGNEE.name,    type: 'internal', text: 'Acknowledged. Will run a connection audit now.',           timestamp: daysAgo(1.8) },
+      { author: 'Admin',                 type: 'internal', text: 'Peak load suspected. Please check connection leak first.', timestamp: daysAgo(1.9) },
+      { author: CURRENT_ASSIGNEE.name,   type: 'internal', text: 'Acknowledged. Will run a connection audit now.',           timestamp: daysAgo(1.8) },
     ],
   },
   {
-    ticketId: 'TD-001267',
-    title:    'Office 365 License Not Activated',
-    category: 'Email',
-    status:   'assigned',
-    priority: 'low',
-    date:     daysAgo(2),
-    deadline: hoursLater(36),
-    assignee: CURRENT_ASSIGNEE,
+    ticketId:  'TD-001267',
+    title:     'Office 365 License Not Activated',
+    category:  'Email',
+    status:    'assigned',
+    priority:  'low',
+    date:      daysAgo(2),
+    deadline:  hoursLater(36),
+    assignee:  CURRENT_ASSIGNEE,
+    creator:   'Sarah Mitchell',
+    followers: [],
     history: [
-      { action: 'Created',       oldStatus: null,       newStatus: 'draft',    by: 'AI System', timestamp: daysAgo(2.2) },
-      { action: 'Admin Approved',oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',     timestamp: daysAgo(2)   },
-      { action: 'Acknowledged',  oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(1.5) },
+      { action: 'Created',        oldStatus: null,       newStatus: 'draft',    by: 'AI System',           timestamp: daysAgo(2.2) },
+      { action: 'Admin Approved', oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',               timestamp: daysAgo(2)   },
+      { action: 'Acknowledged',   oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(1.5) },
     ],
     comments: [],
   },
   {
-    ticketId: 'TD-001270',
-    title:    'VPN Issue Recurring – London Office',
-    category: 'Network',
-    status:   'solving',
-    priority: 'high',
-    date:     daysAgo(1),
-    deadline: hoursLater(6),
-    assignee: CURRENT_ASSIGNEE,
+    ticketId:  'TD-001270',
+    title:     'VPN Issue Recurring – London Office',
+    category:  'Network',
+    status:    'solving',
+    priority:  'high',
+    date:      daysAgo(1),
+    deadline:  hoursLater(6),
+    assignee:  CURRENT_ASSIGNEE,
+    creator:   'James Carter',
+    followers: [DASHBOARD_ASSIGNEES[3]],
     history: [
-      { action: 'Created',       oldStatus: null,       newStatus: 'draft',    by: 'AI System', timestamp: daysAgo(1.5) },
-      { action: 'Admin Approved',oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',     timestamp: daysAgo(1)   },
-      { action: 'Acknowledged',  oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(0.9) },
-      { action: 'Status Change', oldStatus: 'assigned', newStatus: 'solving',  by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(0.5) },
+      { action: 'Created',        oldStatus: null,       newStatus: 'draft',    by: 'AI System',           timestamp: daysAgo(1.5) },
+      { action: 'Admin Approved', oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',               timestamp: daysAgo(1)   },
+      { action: 'Acknowledged',   oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(0.9) },
+      { action: 'Status Change',  oldStatus: 'assigned', newStatus: 'solving',  by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(0.5) },
     ],
     comments: [
-      { author: CURRENT_ASSIGNEE.name, type: 'internal', text: 'Reproduced the timeout. Checking VPN gateway logs.',              timestamp: daysAgo(0.5) },
+      { author: CURRENT_ASSIGNEE.name, type: 'internal', text: 'Reproduced the timeout. Checking VPN gateway logs.',                                             timestamp: daysAgo(0.5) },
       { author: CURRENT_ASSIGNEE.name, type: 'public',   text: 'Hi James, we have reproduced the issue and are actively working on it. Will update you shortly.', timestamp: daysAgo(0.3) },
     ],
   },
   {
-    ticketId: 'TD-001248',
-    title:    'Slow Query Performance on Reports Table',
-    category: 'Database',
-    status:   'solving',
-    priority: 'medium',
-    date:     daysAgo(5),
-    deadline: hoursLater(3),      // nearly overdue — triggers urgency warning
-    assignee: CURRENT_ASSIGNEE,
+    ticketId:  'TD-001248',
+    title:     'Slow Query Performance on Reports Table',
+    category:  'Database',
+    status:    'solving',
+    priority:  'medium',
+    date:      daysAgo(5),
+    deadline:  hoursLater(3),      // nearly overdue — triggers urgency warning
+    assignee:  CURRENT_ASSIGNEE,
+    creator:   'AI System',
+    followers: [DASHBOARD_ASSIGNEES[1]],
     history: [
-      { action: 'Created',       oldStatus: null,       newStatus: 'draft',    by: 'AI System', timestamp: daysAgo(5.2) },
-      { action: 'Admin Approved',oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',     timestamp: daysAgo(5)   },
-      { action: 'Acknowledged',  oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(4.8) },
-      { action: 'Status Change', oldStatus: 'assigned', newStatus: 'solving',  by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(4)   },
+      { action: 'Created',        oldStatus: null,       newStatus: 'draft',    by: 'AI System',           timestamp: daysAgo(5.2) },
+      { action: 'Admin Approved', oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',               timestamp: daysAgo(5)   },
+      { action: 'Acknowledged',   oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(4.8) },
+      { action: 'Status Change',  oldStatus: 'assigned', newStatus: 'solving',  by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(4)   },
     ],
     comments: [
-      { author: 'Admin',               type: 'internal', text: 'EXPLAIN plan shows a full table scan on reports. Missing index.',       timestamp: daysAgo(4.5) },
-      { author: CURRENT_ASSIGNEE.name, type: 'internal', text: 'Confirmed. Drafting migration script to add composite index.',          timestamp: daysAgo(4)   },
+      { author: 'Admin',               type: 'internal', text: 'EXPLAIN plan shows a full table scan on reports. Missing index.',        timestamp: daysAgo(4.5) },
+      { author: CURRENT_ASSIGNEE.name, type: 'internal', text: 'Confirmed. Drafting migration script to add composite index.',           timestamp: daysAgo(4)   },
       { author: CURRENT_ASSIGNEE.name, type: 'public',   text: 'We have identified the performance bottleneck. Fix is being tested now.', timestamp: daysAgo(1)  },
     ],
   },
