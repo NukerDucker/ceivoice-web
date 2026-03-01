@@ -4,12 +4,13 @@ import React, { useState, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Request';
 import { MOCK_USER_TICKETS, UserTicket } from '@/lib/constants';
-import { Search, ChevronRight, Clock, CheckCircle2, AlertCircle, Loader2, PlusCircle } from 'lucide-react';
+import { Search, ChevronRight, Clock, CheckCircle2, AlertCircle, Loader2, PlusCircle, Sparkles, Bell, UserCheck, Wrench, XCircle, RefreshCw } from 'lucide-react';
 import { CreateTicketModal } from '@/components/tickets/ReplyBox';
+import { TicketDetailModal } from '@/app/(roles)/user/MyRequest/ticketdetail';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Status = 'submitted' | 'in-progress' | 'resolved' | 'critical';
+type Status = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew';
 
 // ─── Status Config ────────────────────────────────────────────────────────────
 
@@ -17,33 +18,51 @@ const STATUS_CONFIG: Record<
   Status,
   { label: string; color: string; bg: string; icon: React.ReactNode }
 > = {
-  submitted: {
-    label: 'Submitted',
+  draft: {
+    label: 'Draft',
+    color: 'text-purple-600',
+    bg: 'bg-purple-50 border-purple-200',
+    icon: <Sparkles size={12} />,
+  },
+  new: {
+    label: 'New',
     color: 'text-blue-600',
     bg: 'bg-blue-50 border-blue-200',
-    icon: <Clock size={12} />,
+    icon: <Bell size={12} />,
   },
-  'in-progress': {
-    label: 'In Progress',
+  assigned: {
+    label: 'Assigned',
+    color: 'text-cyan-600',
+    bg: 'bg-cyan-50 border-cyan-200',
+    icon: <UserCheck size={12} />,
+  },
+  solving: {
+    label: 'Solving',
     color: 'text-amber-600',
     bg: 'bg-amber-50 border-amber-200',
     icon: <Loader2 size={12} className="animate-spin" />,
   },
-  resolved: {
-    label: 'Resolved',
+  solved: {
+    label: 'Solved',
     color: 'text-emerald-600',
     bg: 'bg-emerald-50 border-emerald-200',
     icon: <CheckCircle2 size={12} />,
   },
-  critical: {
-    label: 'Critical',
+  failed: {
+    label: 'Failed',
     color: 'text-red-600',
     bg: 'bg-red-50 border-red-200',
-    icon: <AlertCircle size={12} />,
+    icon: <XCircle size={12} />,
+  },
+  renew: {
+    label: 'Renewed',
+    color: 'text-orange-600',
+    bg: 'bg-orange-50 border-orange-200',
+    icon: <RefreshCw size={12} />,
   },
 };
 
-const ALL_STATUSES: Status[] = ['submitted', 'in-progress', 'resolved', 'critical'];
+const ALL_STATUSES: Status[] = ['draft', 'new', 'assigned', 'solving', 'solved', 'failed', 'renew'];
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
@@ -82,6 +101,7 @@ export default function MyRequestsPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<Status | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     return MOCK_USER_TICKETS.filter((t) => {
@@ -201,6 +221,7 @@ export default function MyRequestsPage() {
                   filtered.map((ticket) => (
                     <tr
                       key={ticket.ticketId}
+                      onClick={() => setSelectedTicketId(ticket.ticketId)}
                       className="hover:bg-orange-50/30 transition-colors cursor-pointer group"
                     >
                       <td className="px-5 py-4 font-mono text-xs text-gray-400">
@@ -226,7 +247,7 @@ export default function MyRequestsPage() {
                         })}
                       </td>
                       <td className="px-5 py-4">
-                        <StatusBadge status={ticket.status} />
+                        <StatusBadge status={ticket.status as Status} />
                       </td>
                       <td className="px-5 py-4">
                         <Avatar
@@ -256,7 +277,7 @@ export default function MyRequestsPage() {
         </div>
       </div>
 
-      {/* Create Ticket Modal — floating popup aligned to the right */}
+      {/* Create Ticket Modal */}
       {isModalOpen && (
         <div
           className="absolute inset-0 z-50 flex items-start justify-end bg-black/20 pt-4 px-4 pb-4"
@@ -276,6 +297,15 @@ export default function MyRequestsPage() {
           </div>
         </div>
       )}
+
+      {/* Ticket Detail Modal */}
+      {selectedTicketId && (
+        <TicketDetailModal
+          ticketId={selectedTicketId}
+          onClose={() => setSelectedTicketId(null)}
+        />
+      )}
+
       <style>{`
         @keyframes popup {
           from { transform: translateY(-8px); opacity: 0; }
