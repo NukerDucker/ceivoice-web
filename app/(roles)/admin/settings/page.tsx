@@ -197,8 +197,6 @@ export default function AdminSettingsPage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 

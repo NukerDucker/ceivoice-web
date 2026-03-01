@@ -285,7 +285,6 @@ export default function AdminDraftQueuePage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Admin" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />

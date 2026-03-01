@@ -1,8 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, LayoutDashboard, Ticket, BarChart2, Bell } from 'lucide-react';
+import { ChevronDown, LayoutDashboard, Ticket, BarChart2, Bell, LogOut } from 'lucide-react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 
 interface SidebarProps {
   userName?: string;
@@ -22,6 +24,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isMinimized, setIsMinimized] = useState(false);
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
 
   return (
     <div className={`relative h-screen bg-linear-to-b from-white to-gray-50 border-r border-gray-200 flex flex-col overflow-hidden transition-all duration-300 ${
@@ -84,9 +93,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         })}
       </nav>
 
-      {/* User Profile */}
-      <div className="relative z-10 px-3 py-4 border-t border-gray-200 bg-white hover:bg-gray-50 transition-colors duration-200 cursor-pointer">
-        <div className="flex items-center justify-center gap-3">
+      {/* User Profile + Logout */}
+      <div className="relative z-10 border-t border-gray-200 bg-white">
+        <div className="flex items-center gap-3 px-3 py-4">
           <div className="w-9 h-9 rounded-full bg-linear-to-br from-orange-500 to-orange-400 flex items-center justify-center shrink-0 shadow-md">
             {userAvatar ? (
               <Image src={userAvatar} alt={userName} width={36} height={36} className="w-full h-full object-cover rounded-full" />
@@ -97,10 +106,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
           </div>
           {!isMinimized && (
-            <div className="flex-1 min-w-0">
-              <span className="text-sm font-semibold text-gray-900 truncate block">{userName}</span>
-            </div>
+            <span className="text-sm font-semibold text-gray-900 truncate flex-1">{userName}</span>
           )}
+          <button
+            onClick={handleLogout}
+            title="Logout"
+            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors duration-200 shrink-0"
+          >
+            <LogOut size={18} />
+          </button>
         </div>
       </div>
     </div>
