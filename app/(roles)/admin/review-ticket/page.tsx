@@ -211,6 +211,20 @@ function ReviewTicketInner() {
     }
   };
 
+  const handleUnlink = async (requestId: number) => {
+    setUnlinkingId(requestId);
+    try {
+      await apiFetch(`/admin/tickets/${selectedId}/requests/${requestId}`, { method: 'DELETE' });
+      const t = await apiFetch<ApiTicket>(`/tickets/id/${selectedId}`);
+      setTicket(t);
+      setSelectedReqIdx(0);
+    } catch {
+      // reset on error
+    } finally {
+      setUnlinkingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-gray-100 text-gray-400 text-sm">
