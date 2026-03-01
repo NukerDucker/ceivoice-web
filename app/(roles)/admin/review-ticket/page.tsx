@@ -138,7 +138,7 @@ function ReviewTicketInner() {
     setLoading(true);
 
     Promise.all([
-      apiFetch<ApiTicket>(`/tickets/${selectedId}`),
+      apiFetch<ApiTicket>(`/tickets/id/${selectedId}`),
       apiFetch<ApiAssignee[]>('/admin/assignees'),
       apiFetch<ApiCategory[]>('/admin/categories'),
     ])

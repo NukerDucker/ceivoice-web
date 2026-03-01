@@ -316,7 +316,7 @@ export default function AdminTicketsPage() {
 
   const handleStatusChange = async (id: number, status: TicketStatus) => {
     try {
-      await apiFetch(`/tickets/${id}/status`, {
+      await apiFetch(`/tickets/id/${id}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ new_status: TAB_TO_API[status] }),
       });

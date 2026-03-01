@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   const { ticketId } = await params;
-  const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
+  const res = await fetch(`${API_URL}/tickets/id/${ticketId}`, {
     headers: { ...await bearerHeader(request) },
   });
   const data = await res.json();
@@ -26,7 +26,7 @@ export async function PATCH(
 ) {
   const { ticketId } = await params;
   const body = await request.json();
-  const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
+  const res = await fetch(`${API_URL}/tickets/id/${ticketId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
@@ -43,7 +43,7 @@ export async function DELETE(
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   const { ticketId } = await params;
-  const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
+  const res = await fetch(`${API_URL}/tickets/id/${ticketId}`, {
     method: 'DELETE',
     headers: { ...await bearerHeader(request) },
   });
