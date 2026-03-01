@@ -1,275 +1,376 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
-import { Header } from '@/components/layout/ReportTB';
 import {
-  DASHBOARD_TICKETS,
-  DASHBOARD_ASSIGNEES,
-  STATUS_STYLES,
-  type TicketStatus,
-  type DashboardAssignee,
-} from '@/lib/admin-dashboard-data';
-import { TicketVolumeModal } from '@/app/(roles)/admin/report/TicketVolumeModal';
-import {
-  BarChart3,
-  TrendingUp,
-  Clock,
-  Users,
-  Shield,
-  Download, 
-  Bot,
-  Layers,
-  ChevronRight,
-  AlertCircle,
-  CheckCircle2,
-  Timer,
-  Flame,
+  Bell, CheckCircle2, Clock, MessageSquare,
+  UserCheck, UserPlus, ChevronRight, Check, Trash2,
+  XCircle, RefreshCw,
 } from 'lucide-react';
+import { Sidebar } from '@/components/layout/AdminSidebar';
+import { Header } from '@/components/layout/notification';
 
-// ─── Derived stats from data ────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const totalTickets = DASHBOARD_TICKETS.length;
-const resolvedTickets = DASHBOARD_TICKETS.filter((t) => t.status === 'resolved').length;
-const criticalTickets = DASHBOARD_TICKETS.filter((t) => t.status === 'critical').length;
-const backlogTickets = DASHBOARD_TICKETS.filter(
-  (t) => t.status === 'submitted' || t.status === 'in-progress'
-).length;
+type NotificationType = 'ticket_assigned' | 'reassignment' | 'new_comment' | 'deadline' | 'status_update' | 'ticket_closed' | 'ticket_renewed';
 
-const categoryMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
-  (acc: Record<string, number>, t: { category: string }) => {
-    acc[t.category] = (acc[t.category] ?? 0) + 1;
-    return acc;
+interface Notification {
+  id: string;
+  type: NotificationType;
+  title: string;
+  description: string;
+  timestamp: string;
+  read: boolean;
+  ticketId?: string;
+}
+
+// ─── Seed data ────────────────────────────────────────────────────────────────
+
+const INITIAL_NOTIFICATIONS: Notification[] = [
+  {
+    id: 'n-1',
+    type: 'ticket_assigned',
+    title: 'New Ticket Assigned — TKT-044',
+    description: 'Ticket TKT-044 "Cannot access classroom portal" has been assigned to you by Admin. Please review and begin resolution.',
+    timestamp: '3 minutes ago',
+    read: false,
+    ticketId: 'TKT-044',
   },
-  {}
-);
-
-const categoryBreakdown: { name: string; count: number; pct: number }[] = Object.entries(
-  categoryMap
-)
-  .sort((a: [string, number], b: [string, number]) => b[1] - a[1])
-  .map(([name, count]: [string, number]) => ({
-    name,
-    count,
-    pct: Math.round((count / totalTickets) * 100),
-  }));
-
-const assigneeMap = DASHBOARD_TICKETS.reduce<Record<string, number>>(
-  (acc: Record<string, number>, t: { assignee: DashboardAssignee }) => {
-    acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
-    return acc;
+  {
+    id: 'n-2',
+    type: 'deadline',
+    title: 'Deadline Approaching — TKT-039',
+    description: 'Ticket TKT-039 "Email server outage" is due in 2 hours and is still In Progress. Immediate attention required.',
+    timestamp: '10 minutes ago',
+    read: false,
+    ticketId: 'TKT-039',
   },
-  {}
-);
-
-const assigneeWorkload: (DashboardAssignee & { count: number })[] = DASHBOARD_ASSIGNEES.map(
-  (a: DashboardAssignee) => ({ ...a, count: assigneeMap[a.name] ?? 0 })
-).sort(
-  (a: DashboardAssignee & { count: number }, b: DashboardAssignee & { count: number }) =>
-    b.count - a.count
-);
-
-const statusLabels: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
-  { status: 'submitted',   label: 'Submitted',   icon: <AlertCircle size={14} /> },
-  { status: 'in-progress', label: 'In Progress',  icon: <Timer size={14} /> },
-  { status: 'resolved',    label: 'Resolved',     icon: <CheckCircle2 size={14} /> },
-  { status: 'critical',    label: 'Critical',     icon: <Flame size={14} /> },
+  {
+    id: 'n-3',
+    type: 'new_comment',
+    title: 'New Public Comment — TKT-037',
+    description: 'user@company.com left a public comment on TKT-037 "VPN access issue": "I\'m still experiencing this problem after the last update."',
+    timestamp: '25 minutes ago',
+    read: false,
+    ticketId: 'TKT-037',
+  },
+  {
+    id: 'n-4',
+    type: 'reassignment',
+    title: 'Ticket Reassigned to You — TKT-035',
+    description: 'Alex Chen has reassigned TKT-035 "Legacy system migration" to you. A resolution comment has been logged by the previous assignee.',
+    timestamp: '1 hour ago',
+    read: false,
+    ticketId: 'TKT-035',
+  },
+  {
+    id: 'n-5',
+    type: 'status_update',
+    title: 'Status Updated — TKT-031',
+    description: 'Dana Kim changed the status of TKT-031 "Storage quota exceeded" from In Progress to Solved. A resolution comment was submitted.',
+    timestamp: '2 hours ago',
+    read: true,
+    ticketId: 'TKT-031',
+  },
+  {
+    id: 'n-6',
+    type: 'ticket_assigned',
+    title: 'New Ticket Assigned — TKT-029',
+    description: 'Ticket TKT-029 "Need to reset my database password" has been assigned to you by Admin. Category: IT Operations.',
+    timestamp: '3 hours ago',
+    read: true,
+    ticketId: 'TKT-029',
+  },
+  {
+    id: 'n-7',
+    type: 'deadline',
+    title: 'Deadline Passed — TKT-025',
+    description: 'Ticket TKT-025 "HR portal login issue" passed its deadline 1 hour ago and remains Open. Please update the status immediately.',
+    timestamp: '4 hours ago',
+    read: true,
+    ticketId: 'TKT-025',
+  },
+  {
+    id: 'n-8',
+    type: 'new_comment',
+    title: 'New Public Comment — TKT-022',
+    description: 'student22@company.com left a public comment on TKT-022 "Printer in lab is broken": "Has there been any progress on this? It\'s been 2 days."',
+    timestamp: 'Yesterday',
+    read: true,
+    ticketId: 'TKT-022',
+  },
+  {
+    id: 'n-9',
+    type: 'ticket_closed',
+    title: 'Ticket Solved — TKT-018',
+    description: 'You marked TKT-018 "VPN configuration issue" as Solved. The user (creator@company.com) has been notified automatically.',
+    timestamp: 'Yesterday',
+    read: true,
+    ticketId: 'TKT-018',
+  },
+  {
+    id: 'n-10',
+    type: 'ticket_closed',
+    title: 'Ticket Failed — TKT-016',
+    description: 'You marked TKT-016 "Legacy database migration" as Failed. Your resolution comment has been logged and the user has been notified.',
+    timestamp: '2 days ago',
+    read: true,
+    ticketId: 'TKT-016',
+  },
+  {
+    id: 'n-11',
+    type: 'ticket_renewed',
+    title: 'Ticket Renewed — TKT-014',
+    description: 'TKT-014 "Email sync issue" has been reopened and reassigned to you. Previous status was Solved. Please review the updated request.',
+    timestamp: '2 days ago',
+    read: true,
+    ticketId: 'TKT-014',
+  },
 ];
 
-// ─── Report cards ─────────────────────────────────────────────────────────────
-// id is used to identify which modal to open
+// ─── Config per type ──────────────────────────────────────────────────────────
 
-const REPORT_CARDS = [
-  { id: 'ticket-volume',        title: 'Ticket Volume Report',    description: 'View ticket volume trends over time with daily, weekly, and monthly breakdowns.',      icon: <BarChart3 size={22} />,  accent: '#3B82F6', accentBg: '#EFF6FF' },
-  { id: 'performance-metrics',  title: 'Performance Metrics',     description: 'Analyze resolution times, response rates, and team performance indicators.',           icon: <TrendingUp size={22} />, accent: '#8B5CF6', accentBg: '#F5F3FF' },
-  { id: 'category-breakdown',   title: 'Category Breakdown',      description: 'Detailed breakdown of tickets by category, priority, and status distribution.',        icon: <Layers size={22} />,     accent: '#06B6D4', accentBg: '#ECFEFF' },
-  { id: 'assignee-performance', title: 'Assignee Performance',    description: 'Compare team member performance, workload distribution, and efficiency metrics.',      icon: <Users size={22} />,      accent: '#F59E0B', accentBg: '#FFFBEB' },
-  { id: 'response-time',        title: 'Response Time Analysis',  description: 'Track first response times, average handling times, and SLA compliance.',             icon: <Clock size={22} />,      accent: '#10B981', accentBg: '#ECFDF5' },
-  { id: 'user-satisfaction',    title: 'User Satisfaction',       description: 'Track satisfaction scores, feedback trends, and improvement areas.',                  icon: <Shield size={22} />,     accent: '#EC4899', accentBg: '#FDF2F8' },
-  { id: 'trend-analysis',       title: 'Trend Analysis',          description: 'Identify patterns, recurring issues, and seasonal trends in ticket data.',            icon: <TrendingUp size={22} />, accent: '#F97316', accentBg: '#FFF7ED' },
-  { id: 'ai-accuracy',          title: 'AI Accuracy Report',      description: 'Measure AI suggestion accuracy, acceptance rates, and improvement areas.',            icon: <Bot size={22} />,        accent: '#6366F1', accentBg: '#EEF2FF' },
-  { id: 'export-data',          title: 'Export Data',             description: 'Export ticket data and reports in various formats (CSV, Excel, PDF).',                icon: <Download size={22} />,   accent: '#64748B', accentBg: '#F8FAFC' },
-];
+const TYPE_CONFIG: Record<NotificationType, {
+  icon: React.ReactNode;
+  color: string;
+  bg: string;
+  badge: string;
+  label: string;
+}> = {
+  ticket_assigned: {
+    icon: <UserCheck size={14} />,
+    color: 'text-blue-600',
+    bg: 'bg-blue-50',
+    badge: 'bg-blue-100 text-blue-700 border-blue-200',
+    label: 'Assigned',
+  },
+  reassignment: {
+    icon: <UserPlus size={14} />,
+    color: 'text-violet-600',
+    bg: 'bg-violet-50',
+    badge: 'bg-violet-100 text-violet-700 border-violet-200',
+    label: 'Reassigned',
+  },
+  new_comment: {
+    icon: <MessageSquare size={14} />,
+    color: 'text-teal-600',
+    bg: 'bg-teal-50',
+    badge: 'bg-teal-100 text-teal-700 border-teal-200',
+    label: 'New Comment',
+  },
+  deadline: {
+    icon: <Clock size={14} />,
+    color: 'text-orange-600',
+    bg: 'bg-orange-50',
+    badge: 'bg-orange-100 text-orange-700 border-orange-200',
+    label: 'Deadline',
+  },
+  status_update: {
+    icon: <CheckCircle2 size={14} />,
+    color: 'text-green-600',
+    bg: 'bg-green-50',
+    badge: 'bg-green-100 text-green-700 border-green-200',
+    label: 'Status Update',
+  },
+  ticket_closed: {
+    icon: <XCircle size={14} />,
+    color: 'text-slate-600',
+    bg: 'bg-slate-50',
+    badge: 'bg-slate-100 text-slate-700 border-slate-200',
+    label: 'Ticket Closed',
+  },
+  ticket_renewed: {
+    icon: <RefreshCw size={14} />,
+    color: 'text-amber-600',
+    bg: 'bg-amber-50',
+    badge: 'bg-amber-100 text-amber-700 border-amber-200',
+    label: 'Ticket Renewed',
+  },
+};
 
-const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
+// ─── Filter tabs ──────────────────────────────────────────────────────────────
 
-// ─── Component ───────────────────────────────────────────────────────────────
+const FILTERS = [
+  { id: 'all',             label: 'All' },
+  { id: 'ticket_assigned', label: 'Assigned' },
+  { id: 'reassignment',    label: 'Reassignments' },
+  { id: 'new_comment',     label: 'Comments' },
+  { id: 'deadline',        label: 'Deadlines' },
+  { id: 'status_update',   label: 'Status Updates' },
+  { id: 'ticket_closed',   label: 'Closed' },
+  { id: 'ticket_renewed',  label: 'Renewed' },
+] as const;
 
-export default function ReportsPage() {
-  const [period, setPeriod] = useState('Last 30 days');
-  const [activeModal, setActiveModal] = useState<string | null>(null);
+type FilterId = typeof FILTERS[number]['id'];
 
-  const openModal = (id: string) => setActiveModal(id);
-  const closeModal = () => setActiveModal(null);
+// ─── Notification Card ────────────────────────────────────────────────────────
+
+function NotificationCard({
+  notification,
+  onRead,
+  onDelete,
+}: {
+  notification: Notification;
+  onRead: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const cfg = TYPE_CONFIG[notification.type];
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
+    <div className={`flex items-start gap-4 px-5 py-4 rounded-2xl border transition-all group ${
+      notification.read
+        ? 'bg-white border-gray-100'
+        : 'bg-blue-50/30 border-blue-100'
+    }`}>
+      {/* Icon */}
+      <div className={`w-8 h-8 rounded-xl ${cfg.bg} ${cfg.color} flex items-center justify-center shrink-0 mt-0.5`}>
+        {cfg.icon}
+      </div>
+
+      {/* Body */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap mb-1">
+          {!notification.read && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+          )}
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${cfg.badge}`}>
+            {cfg.label}
+          </span>
+          {notification.ticketId && (
+            <span className="text-[10px] text-gray-400 font-mono">{notification.ticketId}</span>
+          )}
+          <span className="text-[10px] text-gray-400 ml-auto">{notification.timestamp}</span>
+        </div>
+        <p className="text-xs font-semibold text-gray-800 mb-0.5">{notification.title}</p>
+        <p className="text-[11px] text-gray-500 leading-relaxed">{notification.description}</p>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+        {!notification.read && (
+          <button
+            onClick={() => onRead(notification.id)}
+            title="Mark as read"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <Check size={13} />
+          </button>
+        )}
+        <button
+          onClick={() => onDelete(notification.id)}
+          title="Dismiss"
+          className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+        >
+          <Trash2 size={13} />
+        </button>
+        <button
+          title="View ticket"
+          className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+        >
+          <ChevronRight size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function AssigneeNotificationsPage() {
+  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
+  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
+  const filtered = notifications.filter((n) =>
+    activeFilter === 'all' ? true : n.type === activeFilter
+  );
+
+  const markAllRead = () =>
+    setNotifications((p) => p.map((n) => ({ ...n, read: true })));
+
+  const markRead = (id: string) =>
+    setNotifications((p) => p.map((n) => n.id === id ? { ...n, read: true } : n));
+
+  const dismiss = (id: string) =>
+    setNotifications((p) => p.filter((n) => n.id !== id));
+
+  return (
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto px-6 pb-8">
-
-          {/* Period selector */}
-          <div className="flex items-center justify-between mt-6 mb-5">
+        {/* ── Page header ── */}
+        <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
+              <Bell size={14} />
+            </div>
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Reports Overview</h2>
-              <p className="text-sm text-gray-500 mt-0.5">All metrics are updated in real time</p>
+              <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+              </p>
             </div>
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
-              <span className="text-xs text-gray-500 font-medium">Period</span>
-              <select
-                value={period}
-                onChange={(e) => setPeriod(e.target.value)}
-                className="text-sm font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer"
+          </div>
+          {unreadCount > 0 && (
+            <button
+              onClick={markAllRead}
+              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Check size={12} /> Mark all as read
+            </button>
+          )}
+        </div>
+
+        {/* ── Filter tabs ── */}
+        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0 overflow-x-auto">
+          {FILTERS.map((f) => {
+            const count = f.id === 'all'
+              ? notifications.length
+              : notifications.filter((n) => n.type === f.id).length;
+            const isActive = activeFilter === f.id;
+            return (
+              <button
+                key={f.id}
+                onClick={() => setActiveFilter(f.id)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                  isActive
+                    ? 'bg-gray-900 text-white'
+                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+                }`}
               >
-                {PERIODS.map((p) => <option key={p}>{p}</option>)}
-              </select>
+                {f.label}
+                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
+                }`}>{count}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── List ── */}
+        <div className="flex-1 overflow-y-auto px-8 py-6">
+          {filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+              <Bell size={28} className="mb-2" />
+              <p className="text-xs font-semibold">No notifications</p>
             </div>
-          </div>
-
-          {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
-            {[
-              { label: 'Total Tickets',      value: totalTickets,    sub: 'All time',                                                              color: '#3B82F6' },
-              { label: 'Resolved',           value: resolvedTickets, sub: `${Math.round((resolvedTickets / totalTickets) * 100)}% resolution rate`, color: '#10B981' },
-              { label: 'Average Resolution', value: '3.2 hrs',       sub: 'Per ticket',                                                            color: '#8B5CF6' },
-              { label: 'Backlog',            value: backlogTickets,  sub: `${criticalTickets} critical`,                                           color: '#F43F5E' },
-            ].map((kpi) => (
-              <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
-                <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
-                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
-                <span className="text-sm font-semibold text-gray-700">{kpi.label}</span>
-                <span className="text-xs text-gray-400">{kpi.sub}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Insight panels */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            {/* Status distribution */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="text-sm font-bold text-gray-800 mb-4">Status Distribution</h4>
-              <div className="space-y-3">
-                {statusLabels.map(({ status, label, icon }) => {
-                  const count = DASHBOARD_TICKETS.filter((t) => t.status === status).length;
-                  const pct = Math.round((count / totalTickets) * 100);
-                  const style = STATUS_STYLES[status];
-                  return (
-                    <div key={status}>
-                      <div className="flex items-center justify-between mb-1">
-                        <div className="flex items-center gap-1.5">
-                          <span style={{ color: style.text }}>{icon}</span>
-                          <span className="text-xs font-medium text-gray-700">{label}</span>
-                        </div>
-                        <span className="text-xs font-bold text-gray-800">{count}</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: style.dot }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+          ) : (
+            <div className="flex flex-col gap-2 max-w-3xl">
+              {filtered.map((n) => (
+                <NotificationCard
+                  key={n.id}
+                  notification={n}
+                  onRead={markRead}
+                  onDelete={dismiss}
+                />
+              ))}
             </div>
-
-            {/* Category breakdown */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="text-sm font-bold text-gray-800 mb-4">Top Categories</h4>
-              <div className="space-y-2.5">
-                {categoryBreakdown.slice(0, 5).map((cat, i) => (
-                  <div key={cat.name} className="flex items-center gap-3">
-                    <span className="text-xs text-gray-400 w-4">{i + 1}</span>
-                    <div className="flex-1">
-                      <div className="flex justify-between mb-1">
-                        <span className="text-xs font-medium text-gray-700">{cat.name}</span>
-                        <span className="text-xs text-gray-400">{cat.pct}%</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full bg-orange-400 transition-all duration-500" style={{ width: `${cat.pct}%` }} />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Assignee workload */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-              <h4 className="text-sm font-bold text-gray-800 mb-4">Assignee Workload</h4>
-              <div className="space-y-3">
-                {assigneeWorkload.map((a) => (
-                  <div key={a.name} className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
-                      <span className="text-white text-[10px] font-bold">{a.fallback}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex justify-between">
-                        <span className="text-xs font-medium text-gray-800 truncate">{a.name}</span>
-                        <span className="text-xs font-bold text-gray-600 ml-2">{a.count}</span>
-                      </div>
-                      <span className="text-[10px] text-gray-400">{a.role}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Report Cards */}
-          <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">
-            Available Reports
-          </h3>
-          <div className="grid grid-cols-3 gap-4">
-            {REPORT_CARDS.map((card) => (
-              <div
-                key={card.title}
-                className="group bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col gap-3 hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 cursor-pointer"
-              >
-                <div className="flex items-start justify-between">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: card.accentBg, color: card.accent }}
-                  >
-                    {card.icon}
-                  </div>
-                  <ChevronRight
-                    size={16}
-                    className="text-gray-300 group-hover:text-gray-500 group-hover:translate-x-0.5 transition-all duration-200 mt-1"
-                  />
-                </div>
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">{card.title}</h4>
-                  <p className="text-xs text-gray-500 mt-1 leading-relaxed">{card.description}</p>
-                </div>
-                <div className="border-t border-gray-100 pt-3 flex items-center justify-between">
-                  <span className="text-[10px] text-gray-400 font-medium">Updated · Today</span>
-                  <button
-                    onClick={() => openModal(card.id)}
-                    className="text-xs font-semibold px-3 py-1 rounded-lg border transition-all duration-150 hover:opacity-80 active:scale-95"
-                    style={{
-                      color: card.accent,
-                      borderColor: card.accent + '40',
-                      background: card.accentBg,
-                    }}
-                  >
-                    View Report
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </main>
+          )}
+        </div>
       </div>
-
-      {/* ── Modals ── only Ticket Volume is implemented so far */}
-      <TicketVolumeModal
-        open={activeModal === 'ticket-volume'}
-        onClose={closeModal}
-        period={period}
-      />
     </div>
   );
 }

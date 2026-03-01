@@ -7,9 +7,10 @@ export type Role = 'user' | 'assignee' | 'admin';
 // ─── User ────────────────────────────────────────────────────────────────────
 
 export interface User {
-  user_id: number;
+  user_id: string;
   email: string;
-  name: string | null;
+  user_name: string | null;
+  full_name: string | null;
   role: Role;
   avatar?: string | null;
 }
@@ -27,8 +28,8 @@ export interface Ticket {
   priority?: string;
   createdAt: string;
   updatedAt?: string;
-  submittedBy?: Pick<User, 'user_id' | 'name' | 'email'>;
-  assignee?: Pick<User, 'user_id' | 'name'> & { avatar?: string; fallback: string };
+  submittedBy?: Pick<User, 'user_id' | 'user_name' | 'email'>;
+  assignee?: Pick<User, 'user_id' | 'user_name'> & { avatar?: string; fallback: string };
 }
 
 // ─── Comment / Reply ─────────────────────────────────────────────────────────
@@ -36,7 +37,7 @@ export interface Ticket {
 export interface Comment {
   comment_id: number;
   ticket_id: string;
-  author: Pick<User, 'user_id' | 'name' | 'role'>;
+  author: Pick<User, 'user_id' | 'user_name' | 'role'>;
   content: string;
   createdAt: string;
 }

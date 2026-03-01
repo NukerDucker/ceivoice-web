@@ -1,0 +1,24 @@
+// ceivoice-web/app/auth/callback/route.ts
+import { type NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
+
+export async function GET(request: NextRequest) {
+  const { searchParams, origin } = new URL(request.url);
+  const code = searchParams.get('code');
+
+  if (!code) {
+    return NextResponse.redirect(new URL('/login?error=missing_code', origin));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+  if (error) {
+    return NextResponse.redirect(
+      new URL(`/login?error=${encodeURIComponent(error.message)}`, origin)
+    );
+  }
+
+  // Middleware will handle onboarding/role redirect from here
+  return NextResponse.redirect(new URL('/auth-success', origin));
+}
