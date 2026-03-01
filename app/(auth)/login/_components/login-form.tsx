@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/lib/validations/auth";
-import { loginWithEmail, getMe } from "@/services/auth"; // ✅ updated import
+import { loginWithEmail } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -31,18 +31,8 @@ export function LoginForm() {
     setLoading(true);
     setError(null);
     try {
-      await loginWithEmail(formData.email, formData.password); // ✅ sign in
-      const user = await getMe();                              // ✅ get role from JWT
-
-      if (!user.onboarding_completed) {
-        router.push("/onboarding");
-      } else if (user.role === "admin") {
-        router.push("/admin/dashboard");
-      } else if (user.role === "assignee") {
-        router.push("/assignee/dashboard");
-      } else {
-        router.push("/user/dashboard");
-      }
+      await loginWithEmail(formData.email, formData.password);
+      router.replace("/auth-success");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

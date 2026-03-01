@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RegisterSchema } from "@/lib/validations/auth";
-import { register as registerUser } from "@/services/auth";
+import { registerWithEmail } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -25,7 +25,8 @@ export function RegisterForm() {
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
-      name: "",
+      full_name: "",
+      user_name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -33,7 +34,8 @@ export function RegisterForm() {
   });
 
   const onSubmit = async (formData: {
-    name: string;
+    full_name: string;
+    user_name: string;
     email: string;
     password: string;
     confirmPassword: string;
@@ -41,7 +43,7 @@ export function RegisterForm() {
     setLoading(true);
     setError(null);
     try {
-      await registerUser(formData.name, formData.email, formData.password, formData.confirmPassword);
+      await registerWithEmail(formData.full_name, formData.user_name, formData.email, formData.password);
       router.push("/onboarding");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -55,12 +57,25 @@ export function RegisterForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="name"
+          name="full_name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="John Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="user_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username</FormLabel>
+              <FormControl>
+                <Input placeholder="johndoe_123" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

@@ -12,14 +12,11 @@ import {
   type ManagedUser,
   type UserRole,
 } from '@/lib/admin-dashboard-data';
+import { SCOPE_NAMES } from '@/web-temp/index';
 
 // ─── Scope dropdown options (EP06-ST002) ──────────────────────────────────────
 
-const SCOPE_OPTIONS = [
-  'Network', 'Security', 'Database', 'Email', 'Performance',
-  'Authentication', 'Storage', 'Mobile', 'Facilities',
-  'HR', 'Finance', 'IT Ops', 'Compliance', 'Infrastructure',
-];
+const SCOPE_OPTIONS = SCOPE_NAMES;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

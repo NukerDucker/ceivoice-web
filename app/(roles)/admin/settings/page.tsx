@@ -15,6 +15,7 @@ type TabId = typeof TABS[number]['id'];
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header }  from '@/components/layout/settingTB';
 import { DASHBOARD_ASSIGNEES } from '@/lib/admin-dashboard-data';
+import { SCOPE_NAMES } from '@/web-temp/index';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -40,11 +41,7 @@ const SCOPE_COLORS = [
   'bg-cyan-100 text-cyan-700 border-cyan-200',
 ];
 
-const INITIAL_SCOPES: ScopeCategory[] = [
-  'Network', 'Security', 'Database', 'Email', 'Performance',
-  'Authentication', 'Storage', 'Mobile', 'Facilities',
-  'HR', 'Finance', 'IT Ops', 'Compliance', 'Infrastructure',
-].map((label, i) => ({
+const INITIAL_SCOPES: ScopeCategory[] = SCOPE_NAMES.map((label, i) => ({
   id: `scope-${i}`,
   label,
   color: SCOPE_COLORS[i % SCOPE_COLORS.length],

@@ -7,12 +7,12 @@ export const loginWithEmail = async (email: string, password: string) => {
   if (error) throw new Error(error.message);
 };
 
-export const registerWithEmail = async (email: string, password: string, name: string) => {
+export const registerWithEmail = async (full_name: string, user_name: string, email: string, password: string) => {
   const supabase = createClient();
   const { error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name } },
+    options: { data: { full_name, user_name, onboarding_completed: true } },
   });
   if (error) throw new Error(error.message);
 };

@@ -18,10 +18,13 @@ export default function AuthSuccessPage() {
   useEffect(() => {
     getMe()
       .then((user) => {
-        if (user.role === "admin") {
+        if (!user.onboarding_completed) {
+          router.replace("/onboarding");
+        } else if (user.role === "admin") {
           router.replace("/admin/dashboard");
-        } else if (user.role === "user") {
-          console.log("User", user);
+        } else if (user.role === "assignee") {
+          router.replace("/assignee/dashboard");
+        } else {
           router.replace("/user/dashboard");
         }
       })

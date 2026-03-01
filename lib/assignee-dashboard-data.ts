@@ -5,13 +5,15 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import {
-  DASHBOARD_TICKETS,
-  DASHBOARD_ASSIGNEES,
-  STATUS_STYLES,
+  MOCK_TICKETS as DASHBOARD_TICKETS,
+  MOCK_ASSIGNEES as DASHBOARD_ASSIGNEES,
   type DashboardAssignee,
   type TicketStatus,
   type TicketPriority,
-} from '@/lib/admin-dashboard-data';
+} from '@/web-temp/index';
+
+// Re-export STATUS_STYLES from admin-dashboard-data (UI config)
+export { STATUS_STYLES } from '@/lib/admin-dashboard-data';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TYPES
@@ -74,9 +76,6 @@ export const OTHER_ASSIGNEES: DashboardAssignee[] = DASHBOARD_ASSIGNEES.filter(
 const now = Date.now();
 const daysAgo    = (d: number) => new Date(now - d * 86_400_000);
 const hoursLater = (h: number) => new Date(now + h * 3_600_000);
-
-// Re-export STATUS_STYLES so the page only needs one import source
-export { STATUS_STYLES };
 
 export const PRIORITY_STYLE: Record<TicketPriority, { bg: string; color: string; dot: string }> = {
   critical: { bg: '#fee2e2', color: '#b91c1c', dot: '#ef4444' },
