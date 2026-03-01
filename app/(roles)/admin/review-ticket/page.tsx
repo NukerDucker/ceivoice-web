@@ -44,6 +44,11 @@ interface ApiAssignee {
   assigned_tickets?: unknown[];
 }
 
+interface ApiCategory {
+  category_id: number;
+  name: string;
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(dateStr: string): string {
@@ -109,12 +114,13 @@ function ReviewTicketInner() {
   // API state
   const [ticket,     setTicket]     = useState<ApiTicket | null>(null);
   const [assignees,  setAssignees]  = useState<ApiAssignee[]>([]);
+  const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [notFound,   setNotFound]   = useState(false);
 
   // Form state
   const [titleVal,        setTitleVal]        = useState('');
-  const [categoryVal,     setCategoryVal]     = useState('');
+  const [categoryId,      setCategoryId]      = useState<number | null>(null);
   const [summaryVal,      setSummaryVal]      = useState('');
   const [solutionVal,     setSolutionVal]     = useState('');
   const [assigneeId,      setAssigneeId]      = useState<string>('');
@@ -134,14 +140,16 @@ function ReviewTicketInner() {
     Promise.all([
       apiFetch<ApiTicket>(`/api/tickets/${selectedId}`),
       apiFetch<ApiAssignee[]>('/api/admin/assignees'),
+      apiFetch<ApiCategory[]>('/api/admin/categories'),
     ])
-      .then(([t, a]) => {
+      .then(([t, a, cats]) => {
         if (cancelled) return;
         setTicket(t);
         setAssignees(a);
+        setCategories(cats);
         // Pre-fill form from API data
         setTitleVal(t.title ?? '');
-        setCategoryVal(t.category?.name ?? '');
+        setCategoryId(t.category?.category_id ?? (cats[0]?.category_id ?? null));
         setSummaryVal(t.summary ?? '');
         setSolutionVal(t.suggested_solution ?? '');
         setAssigneeId(t.assignee?.user_id ?? (a[0]?.user_id ?? ''));
@@ -171,6 +179,7 @@ function ReviewTicketInner() {
           title: titleVal,
           summary: summaryVal,
           suggested_solution: solutionVal,
+          ...(categoryId ? { category_id: categoryId } : {}),
           ...(deadline ? { deadline } : {}),
         }),
       });
@@ -287,11 +296,18 @@ function ReviewTicketInner() {
               </Field>
 
               <Field label="Category">
-                <input
-                  value={categoryVal}
-                  onChange={(e) => setCategoryVal(e.target.value)}
+                <select
+                  value={categoryId ?? ''}
+                  onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
                   className={inputClass}
-                />
+                >
+                  <option value="">— Select category —</option>
+                  {categories.map((c) => (
+                    <option key={c.category_id} value={c.category_id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
               </Field>
 
               <Field label="Summary">

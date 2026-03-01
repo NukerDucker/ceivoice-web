@@ -1,22 +1,48 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Check, Pencil, ChevronDown, User, Merge, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/TicketTB';
-import {
-  DASHBOARD_TICKETS,
-  type DashboardTicket,
-  type TicketStatus,
-} from '@/lib/admin-dashboard-data';
+import { apiFetch } from '@/lib/api-client';
+
+// ─── API types ────────────────────────────────────────────────────────────────
+
+interface ApiUser {
+  user_id: string;
+  full_name: string | null;
+  user_name: string | null;
+  email: string;
+}
+
+interface ApiTicket {
+  ticket_id: number;
+  title: string | null;
+  created_at: string;
+  status_id: number;
+  status: { name: string } | null;
+  category: { name: string } | null;
+  assignee: ApiUser | null;
+}
+
+type TicketStatus = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew';
+
+// Map backend status names (Title-case) → frontend keys (lowercase)
+const STATUS_NAME_MAP: Record<string, TicketStatus> = {
+  Draft: 'draft', New: 'new', Assigned: 'assigned',
+  Solving: 'solving', Solved: 'solved', Failed: 'failed', Renew: 'renew',
+};
+
+// Map frontend tab value → backend status name (Title-case)
+const TAB_TO_API: Record<string, string> = {
+  draft: 'Draft', new: 'New', assigned: 'Assigned',
+  solving: 'Solving', solved: 'Solved', failed: 'Failed', renew: 'Renew',
+};
 
 // ─── Status config ────────────────────────────────────────────────────────────
 
-const STATUS_CONFIG: Record<
-  TicketStatus,
-  { label: string; borderColor: string; badgeBorder: string; badgeText: string }
-> = {
+const STATUS_CONFIG: Record<TicketStatus, { label: string; borderColor: string; badgeBorder: string; badgeText: string }> = {
   draft:    { label: 'DRAFT',    borderColor: 'border-l-gray-400',   badgeBorder: 'border-gray-400',   badgeText: 'text-gray-500'   },
   new:      { label: 'NEW',      borderColor: 'border-l-blue-400',   badgeBorder: 'border-blue-500',   badgeText: 'text-blue-600'   },
   assigned: { label: 'ASSIGNED', borderColor: 'border-l-indigo-400', badgeBorder: 'border-indigo-500', badgeText: 'text-indigo-600' },
@@ -41,13 +67,7 @@ const STATUS_TABS: { label: string; value: TicketStatus | 'all' }[] = [
 
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({
-  status,
-  onChange,
-}: {
-  status: TicketStatus;
-  onChange: (s: TicketStatus) => void;
-}) {
+function StatusBadge({ status, onChange }: { status: TicketStatus; onChange: (s: TicketStatus) => void }) {
   const [open, setOpen] = useState(false);
   const cfg = STATUS_CONFIG[status];
 
@@ -94,20 +114,25 @@ function TicketRow({
   ticket,
   checked,
   onCheck,
+  onStatusChange,
 }: {
-  ticket: DashboardTicket;
+  ticket: ApiTicket;
   checked: boolean;
-  onCheck: (id: string, val: boolean) => void;
+  onCheck: (id: number, val: boolean) => void;
+  onStatusChange: (id: number, status: TicketStatus) => void;
 }) {
-  const router = useRouter();
-  const [status, setStatus] = useState<TicketStatus>(ticket.status);
-  const cfg = STATUS_CONFIG[status];
+  const router     = useRouter();
+  const rawStatus  = ticket.status?.name ?? 'Draft';
+  const initStatus = STATUS_NAME_MAP[rawStatus] ?? 'draft';
+  const [status, setStatus] = useState<TicketStatus>(initStatus);
+  const cfg     = STATUS_CONFIG[status];
+  const created = new Date(ticket.created_at);
 
-  const formattedDate = ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-  const formattedTime = ticket.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
+  const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
-  const handleTitleClick = () => {
-    router.push(`/admin/reviewticket?id=${ticket.ticketId}`);
+  const handleStatusChange = (s: TicketStatus) => {
+    setStatus(s);
+    onStatusChange(ticket.ticket_id, s);
   };
 
   return (
@@ -116,32 +141,36 @@ function TicketRow({
 
         {/* ID + checkbox + time */}
         <div className="flex flex-col gap-0.5 w-[120px] shrink-0">
-          <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
+          <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
           <input
             type="checkbox"
             checked={checked}
-            onChange={(e) => onCheck(ticket.ticketId, e.target.checked)}
+            onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
             className="w-4 h-4 rounded border-gray-300 accent-gray-900 my-1"
           />
-          <span className="text-xs text-gray-500">{formattedTime}</span>
-          <span className="text-xs text-gray-400">{formattedDate}</span>
+          <span className="text-xs text-gray-500">
+            {created.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+          </span>
+          <span className="text-xs text-gray-400">
+            {created.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+          </span>
         </div>
 
         {/* Title + details */}
         <div className="flex-1 min-w-0">
           <button
-            onClick={handleTitleClick}
+            onClick={handleReview}
             className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
           >
-            {ticket.title}
+            {ticket.title ?? '(Untitled)'}
           </button>
 
           <div className="grid grid-cols-4 gap-4">
             {[
-              { label: 'Category',  value: ticket.category },
-              { label: 'Priority',  value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) },
-              { label: 'Assignee',  value: ticket.assignee.name },
-              { label: 'Ticket-Id', value: `#${ticket.ticketId}` },
+              { label: 'Category',  value: ticket.category?.name ?? '—' },
+              { label: 'Priority',  value: 'N/A'                        },
+              { label: 'Assignee',  value: ticket.assignee?.full_name ?? ticket.assignee?.user_name ?? 'Unassigned' },
+              { label: 'Ticket-Id', value: `#${ticket.ticket_id}`       },
             ].map(({ label, value }) => (
               <div key={label} className="flex flex-col gap-0.5">
                 <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
@@ -157,17 +186,17 @@ function TicketRow({
             <User size={13} className="text-gray-400" />
             Client note
           </button>
-          <StatusBadge status={status} onChange={setStatus} />
+          <StatusBadge status={status} onChange={handleStatusChange} />
           <div className="flex flex-col gap-1">
             <button
-              onClick={() => setStatus('solved')}
+              onClick={() => handleStatusChange('solved')}
               className="text-gray-300 hover:text-gray-900 transition-colors"
               title="Mark as solved"
             >
               <Check size={14} />
             </button>
             <button
-              onClick={handleTitleClick}
+              onClick={handleReview}
               className="text-gray-300 hover:text-gray-900 transition-colors"
               title="Review ticket"
             >
@@ -186,15 +215,7 @@ function TicketRow({
 
 // ─── Merge Popup ──────────────────────────────────────────────────────────────
 
-function MergePopup({
-  selectedIds,
-  onClear,
-  onMerge,
-}: {
-  selectedIds: string[];
-  onClear: () => void;
-  onMerge: () => void;
-}) {
+function MergePopup({ selectedIds, onClear, onMerge }: { selectedIds: number[]; onClear: () => void; onMerge: () => void }) {
   if (selectedIds.length < 2) return null;
 
   return (
@@ -243,20 +264,47 @@ function MergePopup({
 
 export default function AdminTicketsPage() {
   const [activeTab,        setActiveTab]        = useState<TicketStatus | 'all'>('all');
-  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set());
+  const [tickets,          setTickets]          = useState<ApiTicket[]>([]);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState<string | null>(null);
+  const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set());
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
 
-  const filtered = useMemo<DashboardTicket[]>(() => {
-    return DASHBOARD_TICKETS.filter((t) => activeTab === 'all' || t.status === activeTab);
-  }, [activeTab]);
-
-  const counts = useMemo(() => {
-    const map: Record<string, number> = { all: DASHBOARD_TICKETS.length };
-    DASHBOARD_TICKETS.forEach((t) => { map[t.status] = (map[t.status] ?? 0) + 1; });
-    return map;
+  const fetchTickets = useCallback(async (tab: TicketStatus | 'all') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const url = tab === 'all'
+        ? '/api/admin/tickets'
+        : `/api/tickets/status/${TAB_TO_API[tab]}`;
+      const data = await apiFetch<ApiTicket[]>(url);
+      setTickets(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load tickets');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleCheck = (id: string, val: boolean) => {
+  useEffect(() => {
+    fetchTickets(activeTab);
+  }, [activeTab, fetchTickets]);
+
+  const counts = useMemo(() => {
+    const map: Record<string, number> = { all: tickets.length };
+    tickets.forEach((t) => {
+      const s = STATUS_NAME_MAP[t.status?.name ?? ''] ?? 'draft';
+      map[s] = (map[s] ?? 0) + 1;
+    });
+    return map;
+  }, [tickets]);
+
+  const handleTabChange = (tab: TicketStatus | 'all') => {
+    setActiveTab(tab);
+    setSelectedIds(new Set());
+  };
+
+  const handleCheck = (id: number, val: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       val ? next.add(id) : next.delete(id);
@@ -264,12 +312,24 @@ export default function AdminTicketsPage() {
     });
   };
 
+  const handleStatusChange = async (id: number, status: TicketStatus) => {
+    try {
+      await apiFetch(`/api/tickets/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ new_status: TAB_TO_API[status] }),
+      });
+      fetchTickets(activeTab);
+    } catch {
+      // Row's local state already updated; next fetch will correct it
+    }
+  };
+
   const handleMerge = () => setShowMergeConfirm(true);
   const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userRole="admin" userName="Palm Pollapat" />
+      <Sidebar userRole="admin" userName="Admin" />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -282,7 +342,7 @@ export default function AdminTicketsPage() {
             return (
               <button
                 key={tab.value}
-                onClick={() => setActiveTab(tab.value)}
+                onClick={() => handleTabChange(tab.value)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
                   isActive ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
                 }`}
@@ -291,7 +351,7 @@ export default function AdminTicketsPage() {
                 <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
                   isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
                 }`}>
-                  {count}
+                  {loading ? '…' : count}
                 </span>
               </button>
             );
@@ -300,24 +360,36 @@ export default function AdminTicketsPage() {
 
         {/* Ticket list */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          <div className="flex flex-col gap-2">
-            {filtered.length > 0 ? (
-              filtered.map((ticket) => (
-                <TicketRow
-                  key={ticket.ticketId}
-                  ticket={ticket}
-                  checked={selectedIds.has(ticket.ticketId)}
-                  onCheck={handleCheck}
-                />
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                <Search size={32} className="mb-3 opacity-30" />
-                <p className="text-sm font-medium">No tickets found</p>
-                <p className="text-xs mt-1 opacity-60">Try adjusting your filter</p>
-              </div>
-            )}
-          </div>
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+              <p className="text-sm font-medium">Loading tickets…</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-20 text-red-400">
+              <p className="text-sm font-medium">Failed to load tickets</p>
+              <p className="text-xs mt-1 opacity-60">{error}</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {tickets.length > 0 ? (
+                tickets.map((ticket) => (
+                  <TicketRow
+                    key={ticket.ticket_id}
+                    ticket={ticket}
+                    checked={selectedIds.has(ticket.ticket_id)}
+                    onCheck={handleCheck}
+                    onStatusChange={handleStatusChange}
+                  />
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                  <Search size={32} className="mb-3 opacity-30" />
+                  <p className="text-sm font-medium">No tickets found</p>
+                  <p className="text-xs mt-1 opacity-60">No tickets in this category</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -338,11 +410,11 @@ export default function AdminTicketsPage() {
             </p>
             <div className="flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
               {Array.from(selectedIds).map((id) => {
-                const ticket = DASHBOARD_TICKETS.find((t) => t.ticketId === id);
+                const t = tickets.find((tk) => tk.ticket_id === id);
                 return (
                   <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                     <span className="text-xs font-mono text-gray-400">#{id}</span>
-                    <span className="text-sm text-gray-700 truncate">{ticket?.title}</span>
+                    <span className="text-sm text-gray-700 truncate">{t?.title ?? '(Untitled)'}</span>
                   </div>
                 );
               })}

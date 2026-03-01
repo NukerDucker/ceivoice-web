@@ -95,7 +95,7 @@ function DraftRow({
   const catStyle = getCategoryStyle(catName);
 
   const handleReview = () => {
-    router.push(`/admin/reviewticket?id=${ticket.ticket_id}`);
+    router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
   };
 
   return (
