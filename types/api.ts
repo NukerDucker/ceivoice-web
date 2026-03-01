@@ -30,7 +30,7 @@ export interface ApiTicket {
   title: string;
   summary: string | null;
   suggested_solution: string | null;
-  priority: 'Low' | 'Medium' | 'High' | 'Critical' | 'Urgent';
+  priority: 'Low' | 'Medium' | 'High' | 'Critical';
   created_at: string;
   updated_at: string;
   activated_at: string | null;
@@ -52,8 +52,9 @@ export interface ApiComment {
   ticket_id: number;
   user_id: string;
   content: string;
-  is_internal: boolean;
+  visibility: 'PUBLIC' | 'PRIVATE';
   created_at: string;
+  user?: ApiUser;
 }
 
 export interface ApiAdminStats {

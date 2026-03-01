@@ -7,9 +7,10 @@ export type Role = 'user' | 'assignee' | 'admin';
 // ─── User ────────────────────────────────────────────────────────────────────
 
 export interface User {
-  user_id: number;
+  user_id: string;
   email: string;
-  name: string | null;
+  user_name: string | null;
+  full_name: string | null;
   role: Role;
   avatar?: string | null;
 }

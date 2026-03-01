@@ -14,7 +14,7 @@ export async function GET(
 ) {
   const { ticketId } = await params;
   const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
-    headers: { ...bearerHeader(request) },
+    headers: { ...await bearerHeader(request) },
   });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
@@ -30,7 +30,7 @@ export async function PATCH(
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
-      ...bearerHeader(request),
+      ...await bearerHeader(request),
     },
     body: JSON.stringify(body),
   });
@@ -45,7 +45,7 @@ export async function DELETE(
   const { ticketId } = await params;
   const res = await fetch(`${API_URL}/tickets/${ticketId}`, {
     method: 'DELETE',
-    headers: { ...bearerHeader(request) },
+    headers: { ...await bearerHeader(request) },
   });
   const data = await res.json();
   return NextResponse.json(data, { status: res.status });
