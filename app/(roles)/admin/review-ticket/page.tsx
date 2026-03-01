@@ -245,7 +245,11 @@ function ReviewTicketInner() {
     );
   }
 
-  const request = ticket.ticket_requests[0]?.request ?? null;
+  const linkedRequests = ticket.ticket_requests
+    .map((tr) => tr.request)
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+  const activeRequest = linkedRequests[selectedReqIdx] ?? null;
+  const canUnlink     = linkedRequests.length > 1;
   const subtitle = `Draft #${ticket.ticket_id} · created ${timeAgo(ticket.created_at)}`;
 
   return (
@@ -261,14 +265,54 @@ function ReviewTicketInner() {
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2.5 rounded-t-xl">
               <span className="text-base">✉️</span>
               <span className="text-[13.5px] font-semibold text-gray-700">Original request</span>
+              {linkedRequests.length > 0 && (
+                <span className="ml-auto text-[10.5px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
+                  {linkedRequests.length} linked
+                </span>
+              )}
             </div>
+
+            {/* Request tabs (only when multiple linked) */}
+            {linkedRequests.length > 1 && (
+              <div className="flex gap-1 px-4 pt-3 pb-2 flex-wrap border-b border-gray-100">
+                {linkedRequests.map((r, i) => (
+                  <button
+                    key={r.request_id}
+                    onClick={() => setSelectedReqIdx(i)}
+                    className={`px-3 py-1 rounded-full text-[11.5px] font-semibold transition-colors ${
+                      selectedReqIdx === i
+                        ? 'bg-gray-800 text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    }`}
+                  >
+                    #{r.request_id}
+                  </button>
+                ))}
+              </div>
+            )}
+
             <div className="p-5 flex-1 overflow-y-auto">
-              {request ? (
+              {activeRequest ? (
                 <>
-                  <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide mb-2.5">
-                    From: {request.email}
+                  <div className="flex items-center justify-between mb-2.5 gap-2">
+                    <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">
+                      From: {activeRequest.email}
+                    </div>
+                    {canUnlink && (
+                      <button
+                        onClick={() => handleUnlink(activeRequest.request_id)}
+                        disabled={unlinkingId === activeRequest.request_id}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border border-red-200 transition-colors ${
+                          unlinkingId === activeRequest.request_id
+                            ? 'opacity-50 cursor-not-allowed bg-red-50 text-red-400'
+                            : 'bg-red-50 text-red-500 hover:bg-red-100 cursor-pointer'
+                        }`}
+                      >
+                        {unlinkingId === activeRequest.request_id ? 'Unlinking…' : '✕ Unlink'}
+                      </button>
+                    )}
                   </div>
-                  <MarkdownContent content={request.message ?? '(No message body)'} />
+                  <MarkdownContent content={activeRequest.message ?? '(No message body)'} />
                 </>
               ) : (
                 <div className="flex flex-col gap-2">
