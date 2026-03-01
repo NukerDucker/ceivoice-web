@@ -4,10 +4,7 @@ import React, { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   ChevronDown,
-  PlusCircle,
   ClipboardList,
-  Bookmark,
-  MessageSquare,
   Bell,
   User,
   LogOut,
@@ -29,41 +26,13 @@ interface UserNavItem {
   description: string;
 }
 
-// Nav items mapped to requirements:
-// New Request    → EP01-ST001: User submits a request form
-// My Requests    → EP01-ST003: User tracks status of submitted requests
-// Following      → EP03-ST006 / EP05-ST001-ST002: Follower role on linked tickets
-// Comments       → EP05-ST001 / ST002: See and reply to comments on tickets
-// Notifications  → EP01-ST005: Email/system notifications on updates
-// My Profile     → EP01-ST004 / UAT-SUB-002: Google-provisioned account info
 const USER_ITEMS: UserNavItem[] = [
-  {
-    id: 'new-request',
-    label: 'New Request',
-    icon: PlusCircle,
-    path: '/requests/new',
-    description: 'EP01-ST001',
-  },
   {
     id: 'my-requests',
     label: 'My Requests',
     icon: ClipboardList,
     path: '/requests',
     description: 'EP01-ST003',
-  },
-  {
-    id: 'following',
-    label: 'Following',
-    icon: Bookmark,
-    path: '/following',
-    description: 'EP03-ST006',
-  },
-  {
-    id: 'comments',
-    label: 'Comments',
-    icon: MessageSquare,
-    path: '/comments',
-    description: 'EP05-ST001',
   },
   {
     id: 'notifications',
@@ -98,7 +67,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const activeId =
     USER_ITEMS.find(
       (item) => pathname === item.path || pathname.startsWith(item.path + '/')
-    )?.id ?? 'new-request';
+    )?.id ?? 'my-requests';
 
   return (
     <div

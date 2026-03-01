@@ -4,7 +4,8 @@ import React, { useState, useMemo } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Request';
 import { MOCK_USER_TICKETS, UserTicket } from '@/lib/constants';
-import { Search, ChevronRight, Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
+import { Search, ChevronRight, Clock, CheckCircle2, AlertCircle, Loader2, PlusCircle } from 'lucide-react';
+import { CreateTicketModal } from '@/components/tickets/ReplyBox';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -63,14 +64,14 @@ function StatusBadge({ status }: { status: Status }) {
 function Avatar({ name, fallback, avatar }: { name: string; fallback: string; avatar?: string }) {
   return (
     <div className="flex items-center gap-2">
-      <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+      <div className="w-7 h-7 rounded-full bg-linear-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
         {avatar ? (
           <img src={avatar} alt={name} className="w-full h-full object-cover rounded-full" />
         ) : (
           <span className="text-white text-xs font-semibold">{fallback}</span>
         )}
       </div>
-      <span className="text-sm text-gray-600 truncate max-w-[120px]">{name}</span>
+      <span className="text-sm text-gray-600 truncate max-w-30">{name}</span>
     </div>
   );
 }
@@ -80,6 +81,7 @@ function Avatar({ name, fallback, avatar }: { name: string; fallback: string; av
 export default function MyRequestsPage() {
   const [search, setSearch] = useState('');
   const [activeStatus, setActiveStatus] = useState<Status | 'all'>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const filtered = useMemo(() => {
     return MOCK_USER_TICKETS.filter((t) => {
@@ -104,7 +106,17 @@ export default function MyRequestsPage() {
       <Sidebar />
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+        <Header
+          rightContent={
+            <button
+              onClick={() => setIsModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
+            >
+              <PlusCircle size={16} />
+              Create New Request
+            </button>
+          }
+        />
 
         {/* Summary Pills */}
         <div className="px-6 pt-4 flex items-center gap-3 flex-wrap">
@@ -243,6 +255,36 @@ export default function MyRequestsPage() {
           )}
         </div>
       </div>
+
+      {/* Create Ticket Modal — floating popup aligned to the right */}
+      {isModalOpen && (
+        <div
+          className="absolute inset-0 z-50 flex items-start justify-end bg-black/20 pt-4 px-4 pb-4"
+          onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
+        >
+          <div className="relative w-full max-w-2xl bg-white flex flex-col shadow-2xl rounded-2xl overflow-hidden animate-popup" style={{ height: 'calc(100% - 24px)' }}>
+            <button
+              onClick={() => setIsModalOpen(false)}
+              className="absolute top-4 right-4 z-10 w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-700 transition-colors text-lg"
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <div className="flex-1 flex flex-col min-h-0 overflow-auto">
+              <CreateTicketModal />
+            </div>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes popup {
+          from { transform: translateY(-8px); opacity: 0; }
+          to   { transform: translateY(0);    opacity: 1; }
+        }
+        .animate-popup {
+          animation: popup 0.2s ease-out;
+        }
+      `}</style>
     </div>
   );
 }
