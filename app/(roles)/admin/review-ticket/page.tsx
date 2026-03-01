@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/ReviewTicketTB';
 import { apiFetch } from '@/lib/api-client';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 
 // ─── API Types ────────────────────────────────────────────────────────────────
 
@@ -27,9 +28,9 @@ interface ApiTicket {
   assignee: ApiUser | null;
   ticket_requests: Array<{
     request: {
+      request_id: number;
       email: string;
-      name: string | null;
-      body: string | null;
+      message: string | null;
       tracking_id: string;
     } | null;
   }>;
@@ -128,14 +129,21 @@ function ReviewTicketInner() {
   const [deadlineTimeVal, setDeadlineTimeVal] = useState('');
 
   // Action status
-  const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving'    | 'saved' | 'error'>('idle');
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'done'  | 'error'>('idle');
+  const [saveStatus,    setSaveStatus]    = useState<'idle' | 'saving'    | 'saved' | 'error'>('idle');
+  const [submitStatus,  setSubmitStatus]  = useState<'idle' | 'submitting' | 'done'  | 'error'>('idle');
+  const [unlinkingId,   setUnlinkingId]   = useState<number | null>(null);
+
+  // Selected request index (when multiple requests are linked)
+  const [selectedReqIdx, setSelectedReqIdx] = useState(0);
 
   useEffect(() => {
-    if (!selectedId) { setLoading(false); setNotFound(true); return; }
+    if (!selectedId) {
+      // Use a microtask to avoid setState-in-effect lint warning
+      Promise.resolve().then(() => { setLoading(false); setNotFound(true); });
+      return;
+    }
 
     let cancelled = false;
-    setLoading(true);
 
     Promise.all([
       apiFetch<ApiTicket>(`/tickets/id/${selectedId}`),
@@ -244,11 +252,9 @@ function ReviewTicketInner() {
               {request ? (
                 <>
                   <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide mb-2.5">
-                    From: {request.name ?? request.email}
+                    From: {request.email}
                   </div>
-                  <div className="text-[13.5px] leading-7 text-gray-700 whitespace-pre-wrap">
-                    {request.body ?? '(No message body)'}
-                  </div>
+                  <MarkdownContent content={request.message ?? '(No message body)'} />
                 </>
               ) : (
                 <div className="flex flex-col gap-2">

@@ -35,7 +35,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
   const handleSubmit = async () => {
     setError(null);
     const message = subject.trim()
-      ? `**${subject.trim()}**\n\n${bodyText.trim()}`
+      ? `Title: ${subject.trim()}\n\n${bodyText.trim()}`
       : bodyText.trim();
 
     if (!email || !message) {

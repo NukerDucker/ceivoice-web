@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Merge, X, Bot } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
@@ -19,8 +19,7 @@ interface ApiDraft {
   ticket_requests: Array<{
     request: {
       email: string;
-      name: string | null;
-      body: string | null;
+      message: string | null;
       tracking_id: string;
     } | null;
   }>;
@@ -140,7 +139,7 @@ function DraftRow({
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Original Email</span>
               <span className="text-xs text-gray-600 font-medium truncate">
-                {request?.name ?? request?.email ?? '—'}
+                {request?.email ?? '—'}
               </span>
             </div>
             <div className="flex flex-col gap-0.5">
@@ -233,14 +232,17 @@ function MergePopup({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminDraftQueuePage() {
+  const router = useRouter();
   const [drafts,           setDrafts]           = useState<ApiDraft[]>([]);
   const [loading,          setLoading]          = useState(true);
   const [error,            setError]            = useState<string | null>(null);
   const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set());
   const [showMergeConfirm, setShowMergeConfirm] = useState(false);
+  const [merging,          setMerging]          = useState(false);
+  const [mergeError,       setMergeError]       = useState<string | null>(null);
   const [search,           setSearch]           = useState('');
 
-  useEffect(() => {
+  const loadDrafts = useCallback(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -250,6 +252,8 @@ export default function AdminDraftQueuePage() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => loadDrafts(), [loadDrafts]);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return drafts;
     const q = search.toLowerCase();
@@ -257,7 +261,6 @@ export default function AdminDraftQueuePage() {
       (t) =>
         (t.title ?? '').toLowerCase().includes(q) ||
         (t.category?.name ?? '').toLowerCase().includes(q) ||
-        (t.ticket_requests[0]?.request?.name ?? '').toLowerCase().includes(q) ||
         (t.ticket_requests[0]?.request?.email ?? '').toLowerCase().includes(q)
     );
   }, [drafts, search]);
@@ -278,8 +281,29 @@ export default function AdminDraftQueuePage() {
     }
   };
 
-  const handleMerge = () => setShowMergeConfirm(true);
-  const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); };
+  const handleMerge = () => { setMergeError(null); setShowMergeConfirm(true); };
+  const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); setMergeError(null); };
+
+  const handleConfirmMerge = async () => {
+    const ids = Array.from(selectedIds).sort((a, b) => a - b);
+    const [parentId, ...childIds] = ids;
+    setMerging(true);
+    setMergeError(null);
+    try {
+      await apiFetch(`/admin/${parentId}/merge`, {
+        method: 'POST',
+        body: JSON.stringify({ child_ticket_ids: childIds }),
+      });
+      setShowMergeConfirm(false);
+      setSelectedIds(new Set());
+      loadDrafts();
+      router.push(`/admin/review-ticket?id=${parentId}`);
+    } catch (err: unknown) {
+      setMergeError(err instanceof Error ? err.message : 'Merge failed');
+    } finally {
+      setMerging(false);
+    }
+  };
 
   const allChecked = filtered.length > 0 && selectedIds.size === filtered.length;
 
@@ -390,23 +414,28 @@ export default function AdminDraftQueuePage() {
                     <span className="text-xs font-mono text-gray-400">#{id}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm text-gray-700 truncate">{ticket?.title}</p>
-                      {req?.name && (
-                        <p className="text-[10px] text-gray-400 truncate">from {req.name}</p>
+                      {req?.email && (
+                        <p className="text-[10px] text-gray-400 truncate">from {req.email}</p>
                       )}
                     </div>
                   </div>
                 );
               })}
             </div>
+            {mergeError && (
+              <p className="text-xs text-red-600 mb-3">{mergeError}</p>
+            )}
             <div className="flex gap-3">
               <button
-                onClick={handleClear}
-                className="flex-1 bg-gray-900 hover:bg-gray-800 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
+                onClick={handleConfirmMerge}
+                disabled={merging}
+                className="flex-1 bg-gray-900 hover:bg-gray-800 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition-colors text-sm"
               >
-                Confirm Merge
+                {merging ? 'Merging…' : 'Confirm Merge'}
               </button>
               <button
                 onClick={() => setShowMergeConfirm(false)}
+                disabled={merging}
                 className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm"
               >
                 Cancel

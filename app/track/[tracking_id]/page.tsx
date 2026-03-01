@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { MarkdownContent } from '@/components/ui/MarkdownContent';
 import { Clock, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react';
 
 interface Comment {
@@ -98,7 +99,7 @@ export default async function TrackPage({ params }: Props) {
               </div>
 
               {data.ticket.summary && (
-                <p className="mt-3 text-sm text-gray-600 leading-relaxed">{data.ticket.summary}</p>
+                <MarkdownContent content={data.ticket.summary} className="mt-3" />
               )}
 
               <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-400">
@@ -114,9 +115,7 @@ export default async function TrackPage({ params }: Props) {
             {data.ticket.suggested_solution && (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                 <h3 className="text-sm font-semibold text-gray-700 mb-2">Suggested Solution</h3>
-                <p className="text-sm text-gray-600 whitespace-pre-line leading-relaxed">
-                  {data.ticket.suggested_solution}
-                </p>
+                <MarkdownContent content={data.ticket.suggested_solution} />
               </div>
             )}
 
@@ -139,7 +138,7 @@ export default async function TrackPage({ params }: Props) {
                             {new Date(c.created_at).toLocaleDateString()}
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600 leading-relaxed">{c.content}</p>
+                        <MarkdownContent content={c.content} />
                       </div>
                     </div>
                   ))}
