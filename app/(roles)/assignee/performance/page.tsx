@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { Sidebar } from '@/components/layout/AssigneeSidebar';
 import { Header } from '@/components/layout/PerformanceTB';
 import {
   MY_ACTIVE_TICKETS,
@@ -50,10 +49,7 @@ export default function AssigneePerformancePage() {
   const failedCount = resolvedInPeriod.filter((t) => t.status === 'failed').length;
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userName={CURRENT_ASSIGNEE.name} />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
         <main className="flex-1 overflow-y-auto px-6 pb-8">
@@ -186,7 +182,6 @@ export default function AssigneePerformancePage() {
 
           </div>
         </main>
-      </div>
     </div>
   );
 }

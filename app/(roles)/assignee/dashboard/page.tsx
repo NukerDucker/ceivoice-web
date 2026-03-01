@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { ClipboardList, ChevronRight } from "lucide-react";
-import { Sidebar } from "@/components/layout/AssigneeSidebar";
 import { Header } from "@/components/layout/Navbar";
 import { apiFetch } from "@/lib/api-client";
 import { TicketDetailModal } from "./Ticketdetailmodal";
@@ -120,14 +119,8 @@ export default function AssigneeDashboardPage() {
   const criticalCount = tickets.filter((t) => t.priority === 'critical' || t.priority === 'high').length;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50">
-
-      <div className="flex flex-col h-screen shrink-0">
-        <Sidebar userName="Assignee" />
-      </div>
-
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-1 overflow-y-auto">
+    <>
+      <div className="flex-1 overflow-y-auto">
           <Header />
 
           <div className="px-8 py-6 space-y-5">
@@ -230,7 +223,6 @@ export default function AssigneeDashboardPage() {
 
           </div>
         </div>
-      </div>
 
       {selectedId !== null && (
         <TicketDetailModal
@@ -239,6 +231,6 @@ export default function AssigneeDashboardPage() {
           onUpdate={loadTickets}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -6,7 +6,6 @@ import {
   UserCheck, UserPlus, ChevronRight, Check, Trash2,
   XCircle, RefreshCw,
 } from 'lucide-react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/notification';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -295,10 +294,7 @@ export default function AssigneeNotificationsPage() {
     setNotifications((p) => p.filter((n) => n.id !== id));
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar />
-
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
         {/* ── Page header ── */}
@@ -371,6 +367,5 @@ export default function AssigneeNotificationsPage() {
           )}
         </div>
       </div>
-    </div>
   );
 }

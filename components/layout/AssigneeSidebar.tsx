@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ChevronDown, LayoutDashboard, Ticket, BarChart2, Bell, LogOut } from 'lucide-react';
+import { ChevronDown, LayoutDashboard, BarChart2, Bell, LogOut, LucideIcon } from 'lucide-react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 
 interface SidebarProps {
@@ -11,20 +11,30 @@ interface SidebarProps {
   userAvatar?: string | null;
 }
 
-const menuItems = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'my-tickets', label: 'My Tickets', icon: Ticket },
-  { id: 'my-performance', label: 'My Performance', icon: BarChart2 },
-  { id: 'notification', label: 'Notification', icon: Bell },
+interface NavItem {
+  id: string;
+  label: string;
+  icon: LucideIcon;
+  path: string;
+}
+
+const ASSIGNEE_ITEMS: NavItem[] = [
+  { id: 'dashboard',    label: 'Dashboard',      icon: LayoutDashboard, path: '/assignee/dashboard'    },
+  { id: 'performance',  label: 'My Performance', icon: BarChart2,       path: '/assignee/performance'  },
+  { id: 'notification', label: 'Notification',   icon: Bell,            path: '/assignee/notification' },
 ];
 
 export const Sidebar: React.FC<SidebarProps> = ({
-  userName = 'Palm Pollapat',
-  userAvatar = null
+  userName = 'Assignee',
+  userAvatar = null,
 }) => {
-  const [activeMenu, setActiveMenu] = useState('dashboard');
   const [isMinimized, setIsMinimized] = useState(false);
-  const router = useRouter();
+  const pathname = usePathname();
+  const router   = useRouter();
+
+  const activeId = ASSIGNEE_ITEMS.find(
+    (item) => pathname === item.path || pathname.startsWith(item.path + '/'),
+  )?.id ?? 'dashboard';
 
   const handleLogout = async () => {
     const supabase = createClient();
@@ -54,36 +64,33 @@ export const Sidebar: React.FC<SidebarProps> = ({
           className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200 shrink-0"
           title={isMinimized ? 'Expand' : 'Minimize'}
         >
-          {isMinimized ? (
-            <ChevronDown size={20} className="text-gray-600 -rotate-90" />
-          ) : (
-            <ChevronDown size={20} className="text-gray-600 rotate-90" />
-          )}
+          <ChevronDown
+            size={20}
+            className={`text-gray-600 transition-transform ${isMinimized ? '-rotate-90' : 'rotate-90'}`}
+          />
         </button>
       </div>
 
       {/* Navigation Menu */}
       <nav className="relative z-10 flex-1 px-2 py-2 flex flex-col gap-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent">
-        {menuItems.map((item) => {
-          const Icon = item.icon;
-          const isActive = activeMenu === item.id;
+        {ASSIGNEE_ITEMS.map((item) => {
+          const Icon     = item.icon;
+          const isActive = activeId === item.id;
 
           return (
             <button
               key={item.id}
-              onClick={() => setActiveMenu(item.id)}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-250 relative overflow-hidden group ${
+              onClick={() => router.push(item.path)}
+              title={isMinimized ? item.label : undefined}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 relative overflow-hidden group ${
                 isActive
                   ? 'bg-linear-to-r from-gray-900 to-gray-800 text-white shadow-lg'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
-              title={isMinimized ? item.label : undefined}
             >
-              {/* Hover background */}
               {!isActive && (
-                <div className="absolute inset-0 bg-linear-to-r from-orange-500/8 to-orange-400/8 opacity-0 group-hover:opacity-100 transition-opacity duration-250 rounded-lg" />
+                <div className="absolute inset-0 bg-linear-to-r from-orange-500/8 to-orange-400/8 opacity-0 group-hover:opacity-100 transition-opacity duration-200 rounded-lg" />
               )}
-
               <Icon size={20} className="relative z-10 shrink-0" />
               {!isMinimized && (
                 <span className="relative z-10 text-sm font-medium truncate">{item.label}</span>
