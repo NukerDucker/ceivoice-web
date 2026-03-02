@@ -12,15 +12,11 @@ import {
 } from '@/lib/admin-dashboard-data';
 import { SCOPE_NAMES } from '@/web-temp/index';
 import { apiFetch } from '@/lib/api-client';
+import type { ApiScope } from '@/types/api';
 
 // ─── API types ────────────────────────────────────────────────────────────────
 
-interface ApiScope {
-  scope_id: number;
-  assignee_id: string;
-  scope_name: string;
-}
-
+/** Extended user shape returned by admin/users endpoint (includes stats). */
 interface ApiUser {
   user_id:              string;
   full_name:            string;

@@ -8,28 +8,7 @@ import { apiFetch } from '@/lib/api-client';
 import { Search, ChevronRight, CheckCircle2, Loader2, PlusCircle, Sparkles, Bell, UserCheck, XCircle, RefreshCw } from 'lucide-react';
 import { CreateTicketModal } from '@/components/tickets/ReplyBox';
 import { TicketDetailModal } from '@/app/(roles)/user/MyRequest/ticketdetail';
-
-// ─── API shapes ───────────────────────────────────────────────────────────────
-
-interface ApiUser {
-  user_id?: string;
-  full_name: string | null;
-  user_name: string | null;
-  email?: string | null;
-}
-
-interface ApiTicketRaw {
-  ticket_id: number;
-  title: string | null;
-  status:   { name: string } | null;
-  category: { name: string } | null;
-  created_at: string;
-  updated_at: string;
-  deadline: string | null;
-  assignee: ApiUser | null;
-  creator:  ApiUser | null;
-  description?: string | null;
-}
+import type { ApiUser, ApiTicket as ApiTicketRaw } from '@/types/api';
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────
 

@@ -6,16 +6,11 @@ import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/ReviewTicketTB';
 import { apiFetch } from '@/lib/api-client';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
+import type { ApiUser, ApiCategory } from '@/types/api';
 
 // ─── API Types ────────────────────────────────────────────────────────────────
 
-interface ApiUser {
-  user_id: string;
-  full_name: string | null;
-  user_name: string | null;
-  email: string;
-}
-
+/** Ticket detail shape — kept local because ticket_requests includes request_id. */
 interface ApiTicket {
   ticket_id: number;
   title: string | null;
@@ -36,19 +31,8 @@ interface ApiTicket {
   }>;
 }
 
-interface ApiAssignee {
-  user_id: string;
-  full_name: string | null;
-  user_name: string | null;
-  email: string;
-  role: string;
-  assigned_tickets?: unknown[];
-}
-
-interface ApiCategory {
-  category_id: number;
-  name: string;
-}
+/** ApiUser extended with assignee-specific optional field. */
+type ApiAssignee = ApiUser & { assigned_tickets?: unknown[] };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

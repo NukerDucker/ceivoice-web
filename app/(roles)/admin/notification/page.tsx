@@ -8,6 +8,7 @@ import {
 import { Header } from '@/components/layout/notification';
 import { apiFetch } from '@/lib/api-client';
 import { useRouter } from 'next/navigation';
+import type { ApiDraft, ApiTicket } from '@/types/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,26 +22,6 @@ interface Notification {
   timestamp: string;
   read: boolean;
   ticketId?: number;
-}
-
-// ─── API shapes ───────────────────────────────────────────────────────────────
-
-interface ApiDraft {
-  ticket_id: number;
-  title: string | null;
-  created_at: string;
-  category: { name: string } | null;
-  ticket_requests: Array<{ request: { email: string } | null }>;
-}
-
-interface ApiTicket {
-  ticket_id: number;
-  title: string | null;
-  status_id: number;
-  status: { name: string } | null;
-  deadline: string | null;
-  assignee: { full_name: string | null; user_name: string | null } | null;
-  updated_at: string;
 }
 
 // ─── Config per type ──────────────────────────────────────────────────────────

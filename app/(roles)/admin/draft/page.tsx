@@ -6,24 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/DraftTB';
 import { apiFetch } from '@/lib/api-client';
-
-// ─── API types ────────────────────────────────────────────────────────────────
-
-interface ApiDraft {
-  ticket_id: number;
-  title: string | null;
-  summary: string | null;
-  created_at: string;
-  status: { name: string } | null;
-  category: { category_id: number; name: string } | null;
-  ticket_requests: Array<{
-    request: {
-      email: string;
-      message: string | null;
-      tracking_id: string;
-    } | null;
-  }>;
-}
+import type { ApiDraft } from '@/types/api';
 
 // ─── Category badge color map ─────────────────────────────────────────────────
 

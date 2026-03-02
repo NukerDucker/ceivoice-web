@@ -7,6 +7,7 @@ import {
   UserTicket,
 } from '@/lib/constants';
 import { apiFetch } from '@/lib/api-client';
+import type { ApiComment } from '@/types/api';
 import {
   X,
   Sparkles,
@@ -109,15 +110,7 @@ function Comment({ comment, isLast }: { comment: TicketComment; isLast: boolean 
   );
 }
 
-// ─── API shapes ───────────────────────────────────────────────────────────────
-
-interface ApiComment {
-  comment_id: number;
-  content: string;
-  visibility: 'PUBLIC' | 'INTERNAL';
-  created_at: string;
-  user: { full_name: string | null; user_name: string | null; email?: string | null } | null;
-}
+// ─── API shapes (→ @/types/api) ───────────────────────────────────────────────────────────
 
 function mapApiComment(c: ApiComment, ticketId: string): TicketComment {
   const name     = c.user?.full_name ?? c.user?.user_name ?? c.user?.email ?? 'Support';
@@ -128,7 +121,7 @@ function mapApiComment(c: ApiComment, ticketId: string): TicketComment {
     author:     { name, fallback } as Person,
     body:       c.content,
     createdAt:  new Date(c.created_at),
-    isInternal: c.visibility === 'INTERNAL',
+    isInternal: c.visibility === 'PRIVATE',
   };
 }
 

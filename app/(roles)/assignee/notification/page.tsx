@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Header } from '@/components/layout/notification';
 import { apiFetch } from '@/lib/api-client';
+import type { ApiTicket } from '@/types/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,19 +22,6 @@ interface Notification {
   timestamp: string;
   read: boolean;
   ticketId?: string;
-}
-
-// ─── API shapes ───────────────────────────────────────────────────────────────
-
-interface ApiTicket {
-  ticket_id: number;
-  title: string | null;
-  status: { name: string } | null;
-  category: { name: string } | null;
-  created_at: string;
-  updated_at: string;
-  deadline: string | null;
-  creator: { full_name: string | null; user_name: string | null } | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

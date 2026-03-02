@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
 import { CATEGORY_COLORS, ASSIGNEE_STATUS_STYLE, getCatStyle, BAR_CHART_COLORS } from '@/lib/admin-dashboard-utils';
+import type { ApiDraft } from '@/types/api';
 
 // ─── API Types ────────────────────────────────────────────────────────────────
 
@@ -17,16 +18,6 @@ interface AdminMetrics {
     current_backlog: number;
     assignee_workload: Array<{ assignee_id: string; assignee_name: string; active_tickets: number }>;
   };
-}
-
-interface ApiDraft {
-  ticket_id: number;
-  title: string | null;
-  created_at: string;
-  category: { category_id: number; name: string } | null;
-  ticket_requests: Array<{
-    request: { email: string; name: string | null } | null;
-  }>;
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────

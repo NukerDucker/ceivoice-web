@@ -5,25 +5,7 @@ import { Search, Check, Pencil, ChevronDown, User, Merge, X } from 'lucide-react
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/TicketTB';
 import { apiFetch } from '@/lib/api-client';
-
-// ─── API types ────────────────────────────────────────────────────────────────
-
-interface ApiUser {
-  user_id: string;
-  full_name: string | null;
-  user_name: string | null;
-  email: string;
-}
-
-interface ApiTicket {
-  ticket_id: number;
-  title: string | null;
-  created_at: string;
-  status_id: number;
-  status: { name: string } | null;
-  category: { name: string } | null;
-  assignee: ApiUser | null;
-}
+import type { ApiUser, ApiTicket } from '@/types/api';
 
 type TicketStatus = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew';
 
