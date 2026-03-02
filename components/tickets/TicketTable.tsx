@@ -21,7 +21,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { ArrowUpDown } from 'lucide-react';
-import { MOCK_TABLE_TICKETS } from '@/web-temp/index';
 
 interface User {
   name: string;
@@ -42,7 +41,7 @@ interface TicketListProps {
   data?: Ticket[];
 }
 
-export function TicketList({ data = MOCK_TABLE_TICKETS }: TicketListProps) {
+export function TicketList({ data = [] }: TicketListProps) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState({});
 

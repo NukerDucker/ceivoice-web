@@ -35,7 +35,7 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
   const kpis = useMemo(() => {
     if (!metrics) return null;
     const total          = metrics.total_tickets;
-    const solvedStatusId = STATUS_NAME_TO_ID['solved'] ?? 5;
+    const solvedStatusId = STATUS_NAME_TO_ID['Solved'] ?? 5;
     const solvedCount    = metrics.tickets_by_status.find((s) => s.status_id === solvedStatusId)?.count ?? 0;
     const avgResolution  = metrics.avg_resolution_time_hours;
     const resolutionRate = total > 0 ? Math.round((solvedCount / total) * 100) : 0;

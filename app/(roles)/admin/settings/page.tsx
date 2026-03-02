@@ -14,8 +14,7 @@ const TABS = [
 type TabId = typeof TABS[number]['id'];
 import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header }  from '@/components/layout/settingTB';
-import { DASHBOARD_ASSIGNEES } from '@/lib/admin-dashboard-data';
-import { SCOPE_NAMES } from '@/web-temp/index';
+import { SCOPE_NAMES } from '@/lib/config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -45,7 +44,7 @@ const INITIAL_SCOPES: ScopeCategory[] = SCOPE_NAMES.map((label, i) => ({
   id: `scope-${i}`,
   label,
   color: SCOPE_COLORS[i % SCOPE_COLORS.length],
-  assigneeCount: DASHBOARD_ASSIGNEES.filter((_, idx) => idx % (i + 2) === 0).length,
+  assigneeCount: 0,
 }));
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────

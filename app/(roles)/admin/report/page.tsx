@@ -2,10 +2,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from '@/components/layout/ReportTB';
-import {
-  STATUS_STYLES,
-  type TicketStatus,
-} from '@/lib/admin-dashboard-data';
+import { STATUS_STYLES } from '@/lib/config';
+import type { TicketStatus } from '@/types';
 import { apiFetch } from '@/lib/api-client';
 import {
   type ApiMetrics,
@@ -13,12 +11,12 @@ import {
   periodToApiParam,
   nameFallback,
 } from '@/types/api';
-import { TicketVolumeModal }        from './TicketVolumeModal';
-import { BacklogSummaryModal }      from './BacklogSummaryModal';
-import { PerformanceMetricsModal }  from './PerformanceMetricsModal';
-import { CategoryBreakdownModal }   from './CategoryBreakdownModal';
-import { AssigneePerformanceModal } from './AssigneePerformanceModal';
-import { AIAccuracyModal }          from './AIAccuracyModal';
+import { TicketVolumeModal }        from './_components/TicketVolumeModal';
+import { BacklogSummaryModal }      from './_components/BacklogSummaryModal';
+import { PerformanceMetricsModal }  from './_components/PerformanceMetricsModal';
+import { CategoryBreakdownModal }   from './_components/CategoryBreakdownModal';
+import { AssigneePerformanceModal } from './_components/AssigneePerformanceModal';
+import { AIAccuracyModal }          from './_components/AIAccuracyModal';
 import {
   BarChart3, TrendingUp, Users, Bot,
   Layers, ChevronRight, FileEdit, Sparkles, UserCheck,

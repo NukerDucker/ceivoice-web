@@ -1,11 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import {
-  TicketComment,
-  Person,
-  UserTicket,
-} from '@/lib/constants';
+import type { TicketComment, Person, UserTicket } from '@/types';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiComment } from '@/types/api';
 import {

@@ -1,7 +1,7 @@
 // ceivoice-web/app/api/tickets/route.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { bearerHeader } from '@/lib/utils/auth-cookies';
+import { bearerHeader } from '@/lib/auth-cookies';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api';
 

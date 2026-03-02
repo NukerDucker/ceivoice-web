@@ -8,13 +8,14 @@ import {
   AlertTriangle,
   Clock,
 } from 'lucide-react';
-import {
-  STATUS_STYLES,
-  BACKLOG_STATUS_META,
-  BACKLOG_PERIODS,
-  type TicketStatus,
-} from '@/lib/admin-dashboard-data';
-import { type ApiMetrics, STATUS_NAME_TO_ID, nameFallback } from '@/types/api';
+import { STATUS_STYLES, BACKLOG_STATUS_META, REPORT_PERIODS as BACKLOG_PERIODS } from '@/lib/config';
+import type { TicketStatus } from '@/types';
+import { type ApiMetrics, type ApiStatusName, STATUS_NAME_TO_ID, nameFallback } from '@/types/api';
+
+/** Capitalise a lowercase TicketStatus to match ApiStatusName keys. */
+function toApiStatusName(s: TicketStatus): ApiStatusName {
+  return (s.charAt(0).toUpperCase() + s.slice(1)) as ApiStatusName;
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -61,7 +62,7 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
 
   // Status rows from metrics.tickets_by_status
   const statusRows = (Object.keys(BACKLOG_STATUS_META) as TicketStatus[]).map((status) => {
-    const statusId = STATUS_NAME_TO_ID[status] ?? -1;
+    const statusId = STATUS_NAME_TO_ID[toApiStatusName(status)] ?? -1;
     const entry    = metrics?.tickets_by_status.find((s) => s.status_id === statusId);
     const count    = entry?.count ?? 0;
     return {

@@ -3,11 +3,11 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Request';
-import { UserTicket } from '@/lib/constants';
+import type { UserTicket } from '@/types';
 import { apiFetch } from '@/lib/api-client';
 import { Search, ChevronRight, CheckCircle2, Loader2, PlusCircle, Sparkles, Bell, UserCheck, XCircle, RefreshCw } from 'lucide-react';
 import { CreateTicketModal } from '@/components/tickets/ReplyBox';
-import { TicketDetailModal } from '@/app/(roles)/user/MyRequest/ticketdetail';
+import { TicketDetailModal } from './_components/ticket-detail';
 import type { ApiUser, ApiTicket as ApiTicketRaw } from '@/types/api';
 
 // ─── Mapper ───────────────────────────────────────────────────────────────────

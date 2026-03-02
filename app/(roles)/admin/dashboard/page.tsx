@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { apiFetch } from '@/lib/api-client';
-import { CATEGORY_COLORS, ASSIGNEE_STATUS_STYLE, getCatStyle, BAR_CHART_COLORS } from '@/lib/admin-dashboard-utils';
+import { CATEGORY_COLORS, ASSIGNEE_STATUS_STYLES as ASSIGNEE_STATUS_STYLE, BAR_CHART_COLORS } from '@/lib/config';
+import { getCatStyle } from '@/lib/utils';
 import type { ApiDraft } from '@/types/api';
 
 // ─── API Types ────────────────────────────────────────────────────────────────
@@ -266,7 +267,7 @@ export default function AdminDashboardPage() {
               ) : (
                 <div className="divide-y divide-slate-100">
                   {drafts.slice(0, 5).map((t) => {
-                    const req        = t.ticket_requests[0]?.request ?? null;
+                    const req        = t.ticket_requests?.[0]?.request ?? null;
                     const sender     = req?.email ?? '—';
                     const catStyle   = getCatStyle(t.category?.name ?? '');
                     const initials   = sender.slice(0, 2).toUpperCase();

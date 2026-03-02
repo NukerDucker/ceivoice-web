@@ -4,7 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { ClipboardList, ChevronRight } from "lucide-react";
 import { Header } from "@/components/layout/Navbar";
 import { apiFetch } from "@/lib/api-client";
-import { TicketDetailModal } from "./Ticketdetailmodal";
+import { TicketDetailModal } from './_components/ticket-detail-modal';
 
 // ─── API types ────────────────────────────────────────────────────────────────
 

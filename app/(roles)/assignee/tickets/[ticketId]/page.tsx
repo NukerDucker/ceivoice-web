@@ -11,15 +11,16 @@ import { Sidebar } from '@/components/layout/AssigneeSidebar';
 import { Header } from '@/components/layout/TicketTB';
 import { apiFetch } from '@/lib/api-client';
 import { createClient } from '@/lib/supabase/client';
-import {
-  PRIORITY_STYLE,
-  getCatStyle,
-  type AssigneeTicket,
-  type ResolvedTicket,
-  type TicketComment,
-  type TicketHistoryEntry,
-} from '@/lib/assignee-dashboard-data';
-import { type TicketStatus, type DashboardAssignee } from '@/lib/admin-dashboard-data';
+import { PRIORITY_STYLES as PRIORITY_STYLE } from '@/lib/config';
+import { getCatStyle } from '@/lib/utils';
+import type {
+  AssigneeTicket,
+  AssigneeResolvedTicket as ResolvedTicket,
+  AssigneeTicketComment as TicketComment,
+  TicketHistoryEntry,
+  TicketStatus,
+  DashboardAssignee,
+} from '@/types';
 import type { ApiUser, ApiTicket as ApiTicketRaw, ApiComment, ApiHistoryEntry } from '@/types/api';
 
 // ─── Backend API types ────────────────────────────────────────────────────────

@@ -6,11 +6,8 @@ import {
   Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle,
 } from 'lucide-react';
 import { Header }  from '@/components/layout/UserManagementTB';
-import {
-  type ManagedUser,
-  type UserRole,
-} from '@/lib/admin-dashboard-data';
-import { SCOPE_NAMES } from '@/web-temp/index';
+import type { ManagedUser, UserRole } from '@/types';
+import { SCOPE_NAMES } from '@/lib/config';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiScope } from '@/types/api';
 
