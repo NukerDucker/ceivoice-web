@@ -44,7 +44,6 @@ const onSubmit = async (e: React.FormEvent) => {
     console.log("Supabase Client Created")
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error("Not authenticated");
-  console.log("Get User: ", { data: { user } })
     const { error: dbError } = await supabase
       .from("users")
       .update({
@@ -60,9 +59,7 @@ const onSubmit = async (e: React.FormEvent) => {
     const { error: passwordError } = await supabase.auth.updateUser({
       password: form.password,
     });
-    if (passwordError) throw new Error(passwordError.message);
-    console.log('Onboarding Done')
-    // 4. Let middleware handle the redirect
+    if (passwordError) throw new Error(passwordError.message);    // 4. Let middleware handle the redirect
     await supabase.auth.refreshSession();
 
 // Get updated session to know the role
@@ -71,10 +68,7 @@ const onSubmit = async (e: React.FormEvent) => {
       ? JSON.parse(atob(newSession.access_token.split('.')[1]))
       : {};
     const appRole = jwt.app_role ?? 'user';
-    console.log(appRole);
-    console.log("Boarding Done");
-    // router.push(`/${appRole}/dashboard`);
-    router.push("/auth-test");
+    router.push(`/${appRole}/dashboard`);
   } catch (err: unknown) {
     setError(err instanceof Error ? err.message : "Something went wrong");
   } finally {
