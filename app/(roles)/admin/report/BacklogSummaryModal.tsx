@@ -9,13 +9,12 @@ import {
   Clock,
 } from 'lucide-react';
 import {
-  DASHBOARD_TICKETS,
-  DASHBOARD_ASSIGNEES,
   STATUS_STYLES,
   BACKLOG_STATUS_META,
   BACKLOG_PERIODS,
   type TicketStatus,
 } from '@/lib/admin-dashboard-data';
+import { type ApiMetrics, STATUS_NAME_TO_ID, nameFallback } from './report-types';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -23,19 +22,7 @@ interface BacklogSummaryModalProps {
   open: boolean;
   onClose: () => void;
   period: string;
-}
-
-// ─── Period → timestamp cutoff ────────────────────────────────────────────────
-
-function periodToCutoff(p: string): number {
-  const now = Date.now();
-  switch (p) {
-    case 'Last 7 days':  return now - 7  * 24 * 60 * 60 * 1000;
-    case 'Last 30 days': return now - 30 * 24 * 60 * 60 * 1000;
-    case 'Last 90 days': return now - 90 * 24 * 60 * 60 * 1000;
-    case 'This year':    return new Date(new Date().getFullYear(), 0, 1).getTime();
-    default:             return 0;
-  }
+  metrics: ApiMetrics | null;
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -55,7 +42,7 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
-export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryModalProps) {
+export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogSummaryModalProps) {
   const [localPeriod, setLocalPeriod] = useState(period);
 
   useEffect(() => { setLocalPeriod(period); }, [period]);
@@ -67,45 +54,16 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose]);
 
-  // ── Filter tickets by selected period ────────────────────────────────────
+  // ── Derive from API metrics ───────────────────────────────────────────────
 
-  const cutoff          = periodToCutoff(localPeriod);
-  const filteredTickets = DASHBOARD_TICKETS.filter(
-    (t) => new Date(t.date).getTime() >= cutoff,
-  );
+  const total        = metrics?.total_tickets ?? 0;
+  const totalBacklog = metrics?.current_backlog ?? 0;
 
-  const total = filteredTickets.length;
-
-  // Backlog = anything not yet finalized (not solved or failed)
-  const backlog = filteredTickets.filter(
-    (t) => t.status !== 'solved' && t.status !== 'failed',
-  );
-
-  const totalBacklog = backlog.length;
-
-  // Breakdown by Category — worst status priority: failed > solving > assigned > new > renew > draft
-  const STATUS_PRIORITY: TicketStatus[] = ['failed', 'solving', 'assigned', 'new', 'renew', 'draft'];
-
-  const categoryMap = backlog.reduce<Record<string, { tickets: typeof backlog }>>(
-    (acc, t) => {
-      if (!acc[t.category]) acc[t.category] = { tickets: [] };
-      acc[t.category].tickets.push(t);
-      return acc;
-    },
-    {},
-  );
-
-  const categoryRows = Object.entries(categoryMap)
-    .sort((a, b) => b[1].tickets.length - a[1].tickets.length)
-    .map(([name, { tickets }]) => {
-      const worstStatus: TicketStatus =
-        STATUS_PRIORITY.find((s) => tickets.some((t) => t.status === s)) ?? 'draft';
-      return { name, total: tickets.length, status: worstStatus };
-    });
-
-  // Breakdown by current Status
+  // Status rows from metrics.tickets_by_status
   const statusRows = (Object.keys(BACKLOG_STATUS_META) as TicketStatus[]).map((status) => {
-    const count = filteredTickets.filter((t) => t.status === status).length;
+    const statusId = STATUS_NAME_TO_ID[status] ?? -1;
+    const entry    = metrics?.tickets_by_status.find((s) => s.status_id === statusId);
+    const count    = entry?.count ?? 0;
     return {
       status,
       count,
@@ -115,18 +73,26 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
     };
   });
 
-  // Assignee load — open = not solved/failed, resolved = solved
-  const assigneeRows = DASHBOARD_ASSIGNEES.map((a) => {
-    const open     = backlog.filter((t) => t.assignee.name === a.name).length;
-    const resolved = filteredTickets.filter(
-      (t) => t.assignee.name === a.name && t.status === 'solved',
-    ).length;
-    const capacity  = total > 0 ? Math.round((open / total) * 100) : 0;
+  // Category rows from metrics.top_categories
+  const categoryRows = (metrics?.top_categories ?? []).map((c) => ({
+    name:  c.category_name,
+    total: c.count,
+  }));
+
+  // Assignee rows from metrics.assignee_workload
+  const assigneeRows = (metrics?.assignee_workload ?? []).map((a) => {
+    const capacity  = total > 0 ? Math.round((a.active_tickets / total) * 100) : 0;
     const loadColor =
       capacity >= 40 ? STATUS_STYLES.failed.dot
       : capacity >= 20 ? STATUS_STYLES.solving.dot
       : STATUS_STYLES.solved.dot;
-    return { ...a, open, resolved, capacity, loadColor };
+    return {
+      name:     a.assignee_name,
+      fallback: nameFallback(a.assignee_name),
+      open:     a.active_tickets,
+      capacity,
+      loadColor,
+    };
   }).sort((a, b) => b.open - a.open);
 
   if (!open) return null;
@@ -225,7 +191,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                     <table className="w-full">
                       <thead>
                         <tr className="bg-gray-50 border-b border-gray-100">
-                          {['Category', 'Total Tickets', 'Status'].map((h) => (
+                          {['Category', 'Total Tickets'].map((h) => (
                             <th
                               key={h}
                               className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"
@@ -243,7 +209,6 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                           >
                             <td className="px-4 py-2.5 text-xs font-semibold text-gray-800">{row.name}</td>
                             <td className="px-4 py-2.5 text-xs text-gray-700">{row.total}</td>
-                            <td className="px-4 py-2.5"><StatusBadge status={row.status} /></td>
                           </tr>
                         ))}
                       </tbody>
@@ -299,7 +264,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                   <table className="w-full">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-100">
-                        {['Assignee', 'Department', 'Open Tickets', 'Solved', 'Load'].map((h) => (
+                        {['Assignee', 'Active Tickets', 'Load'].map((h) => (
                           <th
                             key={h}
                             className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"
@@ -326,19 +291,7 @@ export function BacklogSummaryModal({ open, onClose, period }: BacklogSummaryMod
                               <span className="text-xs font-semibold text-gray-800">{a.name}</span>
                             </div>
                           </td>
-                          <td className="px-4 py-2.5 text-xs text-gray-500">{a.department}</td>
                           <td className="px-4 py-2.5 text-xs font-semibold text-gray-800">{a.open}</td>
-                          <td className="px-4 py-2.5">
-                            <span
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
-                              style={{
-                                background: STATUS_STYLES.solved.bg,
-                                color:      STATUS_STYLES.solved.text,
-                              }}
-                            >
-                              {a.resolved}
-                            </span>
-                          </td>
                           <td className="px-4 py-2.5 min-w-[100px]">
                             <div className="flex items-center gap-2">
                               <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">

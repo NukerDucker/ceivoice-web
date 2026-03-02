@@ -2,32 +2,13 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { X, Download, Layers } from "lucide-react";
-import { DASHBOARD_TICKETS } from "@/lib/admin-dashboard-data";
-import type { TicketPriority } from "@/lib/admin-dashboard-data";
+import { type ApiMetrics } from './report-types';
 
 // ─── Period helper ────────────────────────────────────────────────────────────
 
 const PERIODS = ["Last 7 days", "Last 30 days", "Last 90 days", "This year"];
 
-function periodToCutoff(p: string): number {
-  const now = Date.now();
-  switch (p) {
-    case "Last 7 days":  return now - 7  * 24 * 60 * 60 * 1000;
-    case "Last 30 days": return now - 30 * 24 * 60 * 60 * 1000;
-    case "Last 90 days": return now - 90 * 24 * 60 * 60 * 1000;
-    case "This year":    return new Date(new Date().getFullYear(), 0, 1).getTime();
-    default:             return 0;
-  }
-}
-
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  critical: "#F87171",
-  high:     "#FBBF24",
-  medium:   "#60A5FA",
-  low:      "#34D399",
-};
 
 const PIE_COLORS = [
   "#6366F1", "#F59E0B", "#10B981", "#EF4444",
@@ -35,15 +16,6 @@ const PIE_COLORS = [
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function avg(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return nums.reduce((a, b) => a + b, 0) / nums.length;
-}
-
-function round1(n: number): string {
-  return n.toFixed(1);
-}
 
 // ─── Donut chart ──────────────────────────────────────────────────────────────
 
@@ -174,6 +146,7 @@ interface Props {
   open: boolean;
   onClose: () => void;
   period: string;
+  metrics: ApiMetrics | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
@@ -246,12 +219,6 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
   // ── Stat cards ────────────────────────────────────────────────────────────
   const mostCommon = categoryRows[0] ?? null;
 
-  const fastestCategory = useMemo(() => {
-    const withRes = categoryRows.filter((r) => r.avgRes > 0);
-    if (withRes.length === 0) return null;
-    return withRes.reduce((best, r) => (r.avgRes < best.avgRes ? r : best));
-  }, [categoryRows]);
-
   const categoriesActive = categoryRows.length;
 
   const now          = new Date();
@@ -309,7 +276,7 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
             </button>
           </div>
 
-          {tickets.length === 0 ? (
+          {total === 0 ? (
             <p className="text-sm text-gray-400 text-center py-12">No tickets in this period.</p>
           ) : (
             <>
@@ -348,19 +315,6 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
                     </span>
                   </div>
 
-                  {/* Fastest Resolution */}
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-1">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
-                      Fastest Resolution
-                    </span>
-                    <span className="text-2xl font-bold text-gray-900 mt-1">
-                      {fastestCategory ? `${round1(fastestCategory.avgRes)}h` : "—"}
-                    </span>
-                    <span className="text-xs text-gray-400">
-                      {fastestCategory ? `${fastestCategory.category} average` : "No resolved tickets"}
-                    </span>
-                  </div>
-
                   {/* Categories Active */}
                   <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col gap-1">
                     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">
@@ -383,7 +337,7 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-gray-50">
-                      {["Category", "Total", "Percentage", "Priority Distribution", "Avg Time", "Status"].map((h) => (
+                      {["Category", "Total", "Percentage"].map((h) => (
                         <th
                           key={h}
                           className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide"
@@ -396,12 +350,8 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
                   <tbody className="divide-y divide-gray-50">
                     {categoryRows.map((row, i) => {
                       const color = PIE_COLORS[i % PIE_COLORS.length];
-                      // Priority distribution — stacked segments
-                      const priorities: TicketPriority[] = ["critical", "high", "medium", "low"];
                       return (
                         <tr key={row.category} className="hover:bg-gray-50 transition-colors">
-
-                          {/* Category badge */}
                           <td className="px-4 py-3.5">
                             <span
                               className="text-[10px] font-bold px-2.5 py-1 rounded-full border uppercase tracking-wide"
@@ -410,46 +360,8 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
                               {row.category}
                             </span>
                           </td>
-
-                          {/* Total */}
                           <td className="px-4 py-3.5 text-gray-700 font-medium">{row.count}</td>
-
-                          {/* Percentage */}
                           <td className="px-4 py-3.5 text-gray-600">{row.pct}%</td>
-
-                          {/* Priority distribution stacked bar */}
-                          <td className="px-4 py-3.5">
-                            <div className="h-3 rounded-full overflow-hidden flex w-36 bg-gray-100">
-                              {priorities.map((p) => {
-                                const segPct = row.count > 0
-                                  ? (row.priorityCounts[p] / row.count) * 100
-                                  : 0;
-                                if (segPct === 0) return null;
-                                return (
-                                  <div
-                                    key={p}
-                                    className="h-full"
-                                    style={{
-                                      width: `${segPct}%`,
-                                      background: PRIORITY_COLORS[p],
-                                    }}
-                                    title={`${p}: ${row.priorityCounts[p]}`}
-                                  />
-                                );
-                              })}
-                            </div>
-                          </td>
-
-                          {/* Avg Time */}
-                          <td className="px-4 py-3.5 text-gray-600">
-                            {row.avgRes > 0 ? `${round1(row.avgRes)}h` : "—"}
-                          </td>
-
-                          {/* Status */}
-                          <td className="px-4 py-3.5 text-gray-600">
-                            {row.resRate}% resolved
-                          </td>
-
                         </tr>
                       );
                     })}

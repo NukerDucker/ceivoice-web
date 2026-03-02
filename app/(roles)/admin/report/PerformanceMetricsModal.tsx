@@ -2,49 +2,15 @@
 
 import React, { useMemo, useState } from "react";
 import { X, Download, TrendingUp } from "lucide-react";
-import { DASHBOARD_TICKETS } from "@/lib/admin-dashboard-data";
-import type { TicketPriority } from "@/lib/admin-dashboard-data";
+import { type ApiMetrics, STATUS_NAME_TO_ID } from './report-types';
 
 // ─── Period helper ────────────────────────────────────────────────────────────
 
 const PERIODS = ["Last 7 days", "Last 30 days", "Last 90 days", "This year"];
 
-function periodToCutoff(p: string): number {
-  const now = Date.now();
-  switch (p) {
-    case "Last 7 days":  return now - 7  * 24 * 60 * 60 * 1000;
-    case "Last 30 days": return now - 30 * 24 * 60 * 60 * 1000;
-    case "Last 90 days": return now - 90 * 24 * 60 * 60 * 1000;
-    case "This year":    return new Date(new Date().getFullYear(), 0, 1).getTime();
-    default:             return 0;
-  }
-}
-
-// ─── Utility ──────────────────────────────────────────────────────────────────
-
-function avg(nums: number[]): number {
-  if (nums.length === 0) return 0;
-  return nums.reduce((a, b) => a + b, 0) / nums.length;
-}
-
 function round1(n: number): string {
   return n.toFixed(1);
 }
-
-function perfBadge(rate: number): { label: string; bg: string; color: string; border: string } {
-  if (rate >= 90) return { label: "EXCELLENT", bg: "#F0FDF4", color: "#15803D", border: "#86EFAC" };
-  if (rate >= 75) return { label: "GOOD",      bg: "#EFF6FF", color: "#1D4ED8", border: "#93C5FD" };
-  if (rate >= 60) return { label: "FAIR",      bg: "#FFF7ED", color: "#C2410C", border: "#FDBA74" };
-  return               { label: "POOR",      bg: "#FFF1F2", color: "#BE123C", border: "#FCA5A5" };
-}
-
-const PRIORITY_ORDER: TicketPriority[] = ["critical", "high", "medium", "low"];
-const PRIORITY_COLORS: Record<TicketPriority, string> = {
-  critical: "#F87171",
-  high:     "#FBBF24",
-  medium:   "#60A5FA",
-  low:      "#34D399",
-};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -52,11 +18,12 @@ interface Props {
   open: boolean;
   onClose: () => void;
   period: string;
+  metrics: ApiMetrics | null;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function PerformanceMetricsModal({ open, onClose, period: externalPeriod }: Props) {
+export function PerformanceMetricsModal({ open, onClose, period: externalPeriod, metrics }: Props) {
   const [localPeriod, setLocalPeriod] = useState(externalPeriod);
 
   // Sync local period whenever the parent period changes
@@ -64,56 +31,24 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod 
     setLocalPeriod(externalPeriod);
   }, [externalPeriod]);
 
-  // ── Filter tickets by period ───────────────────────────────────────────────
-  const tickets = useMemo(() => {
-    const cutoff = periodToCutoff(localPeriod);
-    return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
-  }, [localPeriod]);
-
-  // ── KPI derivations ───────────────────────────────────────────────────────
+  // ── KPI derivations from API metrics ─────────────────────────────────────
   const kpis = useMemo(() => {
-    const total    = tickets.length;
-    const resolved = tickets.filter((t) => t.status === "resolved");
+    if (!metrics) return null;
+    const total          = metrics.total_tickets;
+    const solvedStatusId = STATUS_NAME_TO_ID['solved'] ?? 5;
+    const solvedCount    = metrics.tickets_by_status.find((s) => s.status_id === solvedStatusId)?.count ?? 0;
+    const avgResolution  = metrics.avg_resolution_time_hours;
+    const resolutionRate = total > 0 ? Math.round((solvedCount / total) * 100) : 0;
+    return { avgResolution, resolutionRate, solvedCount, total };
+  }, [metrics]);
 
-    const avgResolution   = avg(resolved.map((t) => t.resolutionHours ?? 0));
-    const avgFirstResp    = avg(tickets.map((t) => t.firstResponseHours));
-    const resolutionRate  = total > 0 ? Math.round((resolved.length / total) * 100) : 0;
-    const slaCompliant    = tickets.filter((t) => !t.slaBreached).length;
-    const slaCompliance   = total > 0 ? Math.round((slaCompliant / total) * 100) : 0;
-
-    return { avgResolution, avgFirstResp, resolutionRate, slaCompliance };
-  }, [tickets]);
-
-  // ── Category table ────────────────────────────────────────────────────────
+  // ── Category table from top_categories ───────────────────────────────────
   const categoryRows = useMemo(() => {
-    const map: Record<string, { all: typeof tickets; resolved: typeof tickets }> = {};
-
-    tickets.forEach((t) => {
-      if (!map[t.category]) map[t.category] = { all: [], resolved: [] };
-      map[t.category].all.push(t);
-      if (t.status === "resolved") map[t.category].resolved.push(t);
-    });
-
-    return Object.entries(map)
-      .map(([category, { all, resolved }]) => {
-        const resRate  = all.length > 0 ? Math.round((resolved.length / all.length) * 100) : 0;
-        const avgRes   = avg(resolved.map((t) => t.resolutionHours ?? 0));
-        return { category, totalTickets: all.length, avgRes, resRate };
-      })
-      .sort((a, b) => b.totalTickets - a.totalTickets);
-  }, [tickets]);
-
-  // ── Priority bars ─────────────────────────────────────────────────────────
-  const priorityRows = useMemo(() => {
-    return PRIORITY_ORDER.map((priority) => {
-      const group   = tickets.filter((t) => t.priority === priority && t.resolutionHours !== undefined);
-      const avgRes  = avg(group.map((t) => t.resolutionHours!));
-      return { priority, avgRes, count: group.length };
-    }).filter((r) => r.count > 0);
-  }, [tickets]);
-
-  // Max hours for bar width scaling
-  const maxPriorityHours = Math.max(...priorityRows.map((r) => r.avgRes), 1);
+    return (metrics?.top_categories ?? []).map((c) => ({
+      category:     c.category_name,
+      totalTickets: c.count,
+    }));
+  }, [metrics]);
 
   const now          = new Date();
   const updatedLabel = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -171,11 +106,11 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod 
           </div>
 
           {/* ── KPI Cards ── */}
-          {tickets.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-8">No tickets in this period.</p>
+          {!kpis ? (
+            <p className="text-sm text-gray-400 text-center py-8">No data available for this period.</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {[
                   {
                     label: "Average resolution time",
@@ -184,22 +119,10 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod 
                     subColor: "#8B5CF6",
                   },
                   {
-                    label: "First response time",
-                    value: `${round1(kpis.avgFirstResp)}h`,
-                    sub: "Across all tickets",
-                    subColor: "#3B82F6",
-                  },
-                  {
                     label: "Resolution Rate",
                     value: `${kpis.resolutionRate}%`,
-                    sub: `${tickets.filter((t) => t.status === "resolved").length} of ${tickets.length} resolved`,
+                    sub: `${kpis.solvedCount} of ${kpis.total} resolved`,
                     subColor: "#10B981",
-                  },
-                  {
-                    label: "SLA Compliance",
-                    value: `${kpis.slaCompliance}%`,
-                    sub: `${tickets.filter((t) => t.slaBreached).length} breach${tickets.filter((t) => t.slaBreached).length !== 1 ? "es" : ""}`,
-                    subColor: kpis.slaCompliance >= 90 ? "#10B981" : "#F43F5E",
                   },
                 ].map((kpi) => (
                   <div
@@ -226,7 +149,7 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod 
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-gray-50">
-                        {["Category", "Total Tickets", "Avg Resolution", "Resolution Rate", "Performance"].map((h) => (
+                        {["Category", "Total Tickets"].map((h) => (
                           <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
                             {h}
                           </th>
@@ -234,67 +157,17 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod 
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {categoryRows.map((row) => {
-                        const badge = perfBadge(row.resRate);
-                        return (
-                          <tr key={row.category} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-5 py-3.5 font-medium text-gray-800">{row.category}</td>
-                            <td className="px-5 py-3.5 text-gray-600">{row.totalTickets}</td>
-                            <td className="px-5 py-3.5 text-gray-600">
-                              {row.avgRes > 0 ? `${round1(row.avgRes)}h` : "—"}
-                            </td>
-                            <td className="px-5 py-3.5 text-gray-600">{row.resRate}%</td>
-                            <td className="px-5 py-3.5">
-                              <span
-                                className="text-[10px] font-bold px-2.5 py-1 rounded-full border"
-                                style={{ background: badge.bg, color: badge.color, borderColor: badge.border }}
-                              >
-                                {badge.label}
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
+                      {categoryRows.map((row) => (
+                        <tr key={row.category} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-5 py-3.5 font-medium text-gray-800">{row.category}</td>
+                          <td className="px-5 py-3.5 text-gray-600">{row.totalTickets}</td>
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 )}
               </div>
 
-              {/* ── Average Resolution Time by Priority ── */}
-              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
-                <h3 className="text-sm font-bold text-gray-800 mb-4">
-                  Average Resolution Time by Priority
-                </h3>
-                {priorityRows.length === 0 ? (
-                  <p className="text-xs text-gray-400 text-center py-4">
-                    No resolved tickets in this period.
-                  </p>
-                ) : (
-                  <div className="space-y-4">
-                    {priorityRows.map((row) => (
-                      <div key={row.priority}>
-                        <div className="flex justify-between items-center mb-1.5">
-                          <span className="text-xs font-medium text-gray-600 capitalize">
-                            {row.priority}
-                          </span>
-                          <span className="text-xs font-bold text-gray-700">
-                            {round1(row.avgRes)} hours
-                          </span>
-                        </div>
-                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{
-                              width: `${Math.round((row.avgRes / maxPriorityHours) * 100)}%`,
-                              background: PRIORITY_COLORS[row.priority],
-                            }}
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </>
           )}
         </div>
