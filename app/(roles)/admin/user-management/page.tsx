@@ -1,18 +1,60 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search, ChevronDown, ChevronUp,
   Shield, User, Briefcase, X, TicketCheck, Tag,
 } from 'lucide-react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header }  from '@/components/layout/UserManagementTB';
 import {
-  MANAGED_USERS,
   type ManagedUser,
   type UserRole,
 } from '@/lib/admin-dashboard-data';
 import { SCOPE_NAMES } from '@/web-temp/index';
+import { apiFetch } from '@/lib/api-client';
+
+// ─── API types ────────────────────────────────────────────────────────────────
+
+interface ApiScope {
+  scope_id: number;
+  assignee_id: string;
+  scope_name: string;
+}
+
+interface ApiUser {
+  user_id:              string;
+  full_name:            string;
+  email:                string;
+  role:                 string; // 'ADMIN' | 'ASSIGNEE' | 'USER'
+  created_at:           string;
+  scopes:               ApiScope[];
+  active_ticket_count:  number;
+  resolved_count:       number;
+  submitted_count:      number;
+}
+
+type ManagedUserEx = ManagedUser & { rawScopes: ApiScope[] };
+
+function mapApiUser(u: ApiUser): ManagedUserEx {
+  const role      = u.role.toLowerCase() as UserRole;
+  const rawScopes = u.scopes ?? [];
+  const words     = (u.full_name ?? '').trim().split(/\s+/);
+  const fallback  = (words[0]?.[0] ?? '') + (words[1]?.[0] ?? '');
+  return {
+    id:            u.user_id,
+    name:          u.full_name,
+    email:         u.email,
+    fallback:      fallback.toUpperCase() || '?',
+    role,
+    status:        'active',
+    scopes:        rawScopes.map((s) => s.scope_name),
+    rawScopes,
+    joinedAt:      new Date(u.created_at),
+    ticketCount:   role === 'assignee' ? u.active_ticket_count : u.submitted_count,
+    resolvedCount: u.resolved_count,
+    lastActive:    new Date(),
+  };
+}
 
 // ─── Scope dropdown options (EP06-ST002) ──────────────────────────────────────
 
@@ -288,9 +330,24 @@ function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminUserManagementPage() {
-  const [users,      setUsers]      = useState<ManagedUser[]>(MANAGED_USERS);
+  const [users,      setUsers]      = useState<ManagedUserEx[]>([]);
   const [search,     setSearch]     = useState('');
   const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
+  const [loading,    setLoading]    = useState(true);
+  const [error,      setError]      = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data: ApiUser[] = await apiFetch('/admin/users');
+        setUsers(data.map(mapApiUser));
+      } catch (e) {
+        setError('Failed to load users');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
 
   const filtered = useMemo(() => users.filter((u) => {
     if (filterRole !== 'all' && u.role !== filterRole) return false;
@@ -308,12 +365,57 @@ export default function AdminUserManagementPage() {
     user:     users.filter((u) => u.role === 'user').length,
   }), [users]);
 
-  const handleRoleChange  = (id: string, role: UserRole) =>
-    setUsers((p) => p.map((u) => u.id === id ? { ...u, role, scopes: role === 'user' ? [] : u.scopes } : u));
-  const handleScopeAdd    = (id: string, scope: string) =>
-    setUsers((p) => p.map((u) => u.id === id ? { ...u, scopes: [...u.scopes, scope] } : u));
-  const handleScopeRemove = (id: string, scope: string) =>
-    setUsers((p) => p.map((u) => u.id === id ? { ...u, scopes: u.scopes.filter((s) => s !== scope) } : u));
+  const handleRoleChange = async (id: string, role: UserRole) => {
+    try {
+      await apiFetch(`/admin/users/${id}/role`, {
+        method: 'PATCH',
+        body:   JSON.stringify({ role: role.toUpperCase() }),
+      });
+      setUsers((p) => p.map((u) =>
+        u.id === id
+          ? { ...u, role, scopes: role === 'user' ? [] : u.scopes, rawScopes: role === 'user' ? [] : u.rawScopes }
+          : u
+      ));
+    } catch {
+      // silently revert — could add a toast here
+    }
+  };
+
+  const handleScopeAdd = async (id: string, scope: string) => {
+    try {
+      const res: { scope: ApiScope } = await apiFetch(
+        `/admin/assignees/${id}/scopes`,
+        { method: 'POST', body: JSON.stringify({ scope_name: scope }) },
+      );
+      setUsers((p) => p.map((u) =>
+        u.id === id
+          ? { ...u, scopes: [...u.scopes, scope], rawScopes: [...u.rawScopes, res.scope] }
+          : u
+      ));
+    } catch {
+      // silently handle
+    }
+  };
+
+  const handleScopeRemove = async (id: string, scope: string) => {
+    const user      = users.find((u) => u.id === id);
+    const rawScope  = user?.rawScopes.find((s) => s.scope_name === scope);
+    if (!rawScope) return;
+    try {
+      await apiFetch(`/admin/assignees/${id}/scopes/${rawScope.scope_id}`, { method: 'DELETE' });
+      setUsers((p) => p.map((u) =>
+        u.id === id
+          ? {
+              ...u,
+              scopes:    u.scopes.filter((s) => s !== scope),
+              rawScopes: u.rawScopes.filter((s) => s.scope_id !== rawScope.scope_id),
+            }
+          : u
+      ));
+    } catch {
+      // silently handle
+    }
+  };
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -374,7 +476,15 @@ export default function AdminUserManagementPage() {
         {/* ── User list ── */}
         <div className="flex-1 overflow-y-auto px-8 py-4">
           <div className="flex flex-col gap-2">
-            {filtered.length > 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center py-20 text-gray-400">
+                <p className="text-sm">Loading users…</p>
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center py-20 text-red-400">
+                <p className="text-sm">{error}</p>
+              </div>
+            ) : filtered.length > 0 ? (
               filtered.map((user) => (
                 <UserRow
                   key={user.id}
