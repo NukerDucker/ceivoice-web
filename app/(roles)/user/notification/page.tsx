@@ -6,7 +6,6 @@ import {
   UserCheck, ChevronRight, Check, Trash2,
   XCircle, RefreshCw, Sparkles, Wrench,
 } from 'lucide-react';
-import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/notification';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiTicket } from '@/types/api';

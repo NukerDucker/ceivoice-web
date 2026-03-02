@@ -2,7 +2,6 @@
 
 import React, { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/ReviewTicketTB';
 import { apiFetch } from '@/lib/api-client';
 import { MarkdownContent } from '@/components/ui/MarkdownContent';
@@ -220,7 +219,6 @@ function ReviewTicketInner() {
   if (notFound || !ticket) {
     return (
       <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
-        <Sidebar role="admin" userName="Admin" />
         <main className="flex-1 flex flex-col overflow-hidden">
           <Header title="Review and Edit Draft Ticket" />
           <NotFound id={selectedId || '(none)'} />

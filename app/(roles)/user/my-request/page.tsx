@@ -2,7 +2,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Request';
 import type { UserTicket } from '@/types';
 import { apiFetch } from '@/lib/api-client';

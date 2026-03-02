@@ -7,7 +7,6 @@ import {
   Send, Eye, EyeOff, Users, BarChart2, ArrowRight,
   History, UserCheck, GitBranch, Loader2,
 } from 'lucide-react';
-import { Sidebar } from '@/components/layout/AssigneeSidebar';
 import { Header } from '@/components/layout/TicketTB';
 import { apiFetch } from '@/lib/api-client';
 import { createClient } from '@/lib/supabase/client';
@@ -1223,7 +1222,6 @@ export default function AssigneeTicketsPage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar role="assignee" userName={currentUserName} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />

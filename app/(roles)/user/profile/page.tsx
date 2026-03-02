@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Sidebar } from '@/components/layout/Sidebar';
 import {
   User, Mail, AtSign, Save, Loader2,
   CheckCircle2, AlertCircle, Lock, Eye, EyeOff,
