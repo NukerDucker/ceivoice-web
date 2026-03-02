@@ -45,11 +45,18 @@ export const getMe = async () => {
     ? JSON.parse(atob(session.access_token.split('.')[1]))
     : {};
 
+  // onboarding_completed lives in the DB, not the JWT — query it directly
+  const { data: dbUser } = await supabase
+    .from('users')
+    .select('onboarding_completed')
+    .eq('user_id', user.id)
+    .single();
+
   return {
     user_id: user.id,
     email: user.email ?? '',
     role: (jwt.app_role ?? 'user') as string,
-    onboarding_completed: (jwt.onboarding_completed ?? false) as boolean,
+    onboarding_completed: (dbUser?.onboarding_completed ?? false) as boolean,
   };
 };
 
