@@ -5,7 +5,6 @@ import { X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type {
   ApiUser,
-  ApiComment,
   ApiStatusHistory,
   ApiAssignmentHistory,
   ApiTicketDetail,

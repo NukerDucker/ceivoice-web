@@ -3,7 +3,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Merge, X, Bot } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header } from '@/components/layout/DraftTB';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiDraft } from '@/types/api';
@@ -251,7 +250,7 @@ export default function AdminDraftQueuePage() {
   const handleCheck = (id: number, val: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      val ? next.add(id) : next.delete(id);
+      if (val) next.add(id); else next.delete(id);
       return next;
     });
   };

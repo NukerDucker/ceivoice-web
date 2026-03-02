@@ -366,7 +366,7 @@ export default function AdminUserManagementPage() {
       try {
         const data: ApiUser[] = await apiFetch('/admin/users');
         setUsers(data.map(mapApiUser));
-      } catch (e) {
+      } catch {
         setError('Failed to load users');
       } finally {
         setLoading(false);

@@ -129,7 +129,7 @@ export function TicketList({ data = defaultTickets }: TicketListProps) {
   const toggle = (ticketId: string, val: boolean) => {
     setSelected(prev => {
       const next = new Set(prev);
-      val ? next.add(ticketId) : next.delete(ticketId);
+      if (val) next.add(ticketId); else next.delete(ticketId);
       return next;
     });
   };

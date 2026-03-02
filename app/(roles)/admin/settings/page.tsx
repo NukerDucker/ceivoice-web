@@ -12,7 +12,6 @@ const TABS = [
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
-import { Sidebar } from '@/components/layout/AdminSidebar';
 import { Header }  from '@/components/layout/settingTB';
 import { SCOPE_NAMES } from '@/lib/config';
 

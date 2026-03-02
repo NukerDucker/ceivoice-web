@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { X, Download, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
-import { type ApiMetrics, periodToApiParam } from '@/types/api';
+import type { ApiMetrics } from '@/types/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -161,7 +161,7 @@ export function TicketVolumeModal({ open, onClose, period, metrics }: TicketVolu
   const now = new Date();
   const updatedAt = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-  const trendIcon = (trend: WeekRow['trend'], change: number) => {
+  const trendIcon = (trend: WeekRow['trend'], _change: number) => {
     if (trend === 'Increasing') return <TrendingUp size={13} className="text-emerald-500" />;
     if (trend === 'Decreasing') return <TrendingDown size={13} className="text-red-400" />;
     return <Minus size={13} className="text-gray-400" />;

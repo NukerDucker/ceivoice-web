@@ -291,7 +291,7 @@ export default function AdminTicketsPage() {
   const handleCheck = (id: number, val: boolean) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
-      val ? next.add(id) : next.delete(id);
+      if (val) next.add(id); else next.delete(id);
       return next;
     });
   };
