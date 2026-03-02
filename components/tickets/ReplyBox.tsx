@@ -67,9 +67,10 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
     }
   };
 
-  // Form content shared between inline and modal renders
+  // Form content — stretches to fill available height
   const formContent = (
-    <div className="space-y-4 flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 gap-4">
+
       {/* Email Field */}
       <div className="flex-shrink-0">
         <label className="block text-sm font-bold mb-2">Email</label>
@@ -82,7 +83,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
         />
       </div>
 
-      {/* Describe Issues Section */}
+      {/* Describe Issues Section — grows to fill remaining space */}
       <div className="flex-1 flex flex-col min-h-0">
         <label className="block text-sm font-bold mb-2">
           Describe your issues or request
@@ -90,7 +91,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
 
         <div className="border rounded-lg flex flex-col flex-1 min-h-0 overflow-hidden">
           {/* Subject Line */}
-          <div className="p-3 border-b shrink-0">
+          <div className="px-4 py-3 border-b shrink-0">
             <Input
               placeholder="Subject"
               value={subject}
@@ -99,7 +100,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
             />
           </div>
 
-          {/* Markdown Editor */}
+          {/* Markdown Editor — fills remaining space */}
           <div className="flex-1 overflow-hidden" data-color-mode="light">
             <MDEditor
               value={bodyText}
@@ -107,7 +108,7 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
               preview="edit"
               hideToolbar={false}
               height="100%"
-              style={{ border: 'none', boxShadow: 'none' }}
+              style={{ border: 'none', boxShadow: 'none', height: '100%' }}
             />
           </div>
 
@@ -143,20 +144,27 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
     </div>
   );
 
-  // Inline (standalone) mode — rendered directly on a page
+  // Inline mode — fills the entire parent container height
   if (open === undefined) {
     return (
-      <div className="max-w-2xl bg-white rounded-xl border shadow-sm p-6 flex flex-col" style={{ minHeight: 520 }}>
-        <div className="flex items-center gap-2 mb-4">
-          <div className="p-1 border rounded">
-            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-              <line x1="9" y1="3" x2="9" y2="21"/>
-            </svg>
+      <div className="h-full flex flex-col bg-white">
+        {/* Panel Header */}
+        <div className="px-6 py-4 border-b flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="p-1 border rounded">
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <line x1="9" y1="3" x2="9" y2="21"/>
+              </svg>
+            </div>
+            <span className="text-xs font-semibold uppercase tracking-wide">Create New Ticket</span>
           </div>
-          <span className="text-xs font-semibold uppercase tracking-wide">Create New Ticket</span>
         </div>
-        {formContent}
+
+        {/* Form — px-6 on all sides, flex-1 so it fills remaining height */}
+        <div className="flex-1 flex flex-col min-h-0 px-6 py-5">
+          {formContent}
+        </div>
       </div>
     );
   }
@@ -165,8 +173,6 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-[540px] h-[720px] p-0 overflow-hidden !fixed !right-4 !top-1/2 !-translate-y-1/2 !left-auto !translate-x-0 flex flex-col bg-white">
-
-        {/* Header */}
         <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="p-1 border rounded">
@@ -176,13 +182,9 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
               </svg>
             </div>
             <DialogTitle className="sr-only">Create New Ticket</DialogTitle>
-            <span className="text-xs font-semibold uppercase tracking-wide">
-              CREATE NEW TICKET
-            </span>
+            <span className="text-xs font-semibold uppercase tracking-wide">CREATE NEW TICKET</span>
           </div>
         </DialogHeader>
-
-        {/* Content Area */}
         <div className="px-6 pt-4 pb-4 flex-1 flex flex-col min-h-0">
           {formContent}
         </div>
