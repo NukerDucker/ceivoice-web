@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { X, Download, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
-import { DASHBOARD_TICKETS } from '@/lib/admin-dashboard-data';
+import { apiFetch } from '@/lib/api-client';
+import { type ApiMetrics, periodToApiParam } from './report-types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -15,9 +16,10 @@ interface WeekRow {
 }
 
 interface TicketVolumeModalProps {
-  open: boolean;
-  onClose: () => void;
-  period: string;
+  open:     boolean;
+  onClose:  () => void;
+  period:   string;
+  metrics:  ApiMetrics | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -26,96 +28,113 @@ function formatPct(n: number): string {
   return (n > 0 ? '+' : '') + n.toFixed(1) + '%';
 }
 
-function computeStats(tickets: typeof DASHBOARD_TICKETS) {
-  const now = Date.now();
-  const DAY = 86400000;
-  const WEEK = 7 * DAY;
-  const total = tickets.length;
+// ─── Stats computation from API trend data ───────────────────────────────────
 
-  // Split into older half vs newer half to compute real growth %
-  const sorted = [...tickets].sort((a, b) => a.date.getTime() - b.date.getTime());
-  const mid = Math.floor(sorted.length / 2);
-  const prevHalf = sorted.slice(0, mid);
-  const currHalf = sorted.slice(mid);
+type TrendData = Record<string, Record<string, number>>; // category → date → count
 
-  const totalGrowthPct =
-    prevHalf.length === 0
-      ? 0
-      : Math.round(((currHalf.length - prevHalf.length) / prevHalf.length) * 1000) / 10;
-
-  // Group all tickets by day
+function computeStatsFromTrends(trends: TrendData, totalFromMetrics: number) {
+  // Collapse all categories to a single day→count map
   const byDay: Record<string, number> = {};
-  tickets.forEach((t) => {
-    const day = t.date.toISOString().slice(0, 10);
-    byDay[day] = (byDay[day] ?? 0) + 1;
+  Object.values(trends).forEach(catDays => {
+    Object.entries(catDays).forEach(([date, count]) => {
+      byDay[date] = (byDay[date] ?? 0) + count;
+    });
   });
-  const dayCounts = Object.values(byDay);
+
+  const total = totalFromMetrics || Object.values(byDay).reduce((s, n) => s + n, 0);
+  const sortedDays = Object.keys(byDay).sort();
+  const dayCounts  = sortedDays.map(d => byDay[d]);
+
   const avgPerDay = dayCounts.length
     ? Math.round((dayCounts.reduce((s, n) => s + n, 0) / dayCounts.length) * 10) / 10
     : 0;
 
-  // Daily avg growth: prev half vs curr half
-  const avgOf = (ts: typeof DASHBOARD_TICKETS) => {
-    const map: Record<string, number> = {};
-    ts.forEach((t) => { const d = t.date.toISOString().slice(0, 10); map[d] = (map[d] ?? 0) + 1; });
-    const vals = Object.values(map);
-    return vals.length ? vals.reduce((s, n) => s + n, 0) / vals.length : 0;
-  };
-  const prevAvgDay = avgOf(prevHalf);
-  const currAvgDay = avgOf(currHalf);
-  const avgGrowthPct =
-    prevAvgDay === 0
-      ? 0
-      : Math.round(((currAvgDay - prevAvgDay) / prevAvgDay) * 1000) / 10;
+  const mid      = Math.floor(sortedDays.length / 2);
+  const prevHalf = sortedDays.slice(0, mid).map(d => byDay[d]);
+  const currHalf = sortedDays.slice(mid).map(d => byDay[d]);
 
-  const peakEntry = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0];
+  const sumOf = (arr: number[]) => arr.reduce((s, n) => s + n, 0);
+  const avgOf = (arr: number[]) => arr.length ? sumOf(arr) / arr.length : 0;
+
+  const totalGrowthPct = prevHalf.length === 0 ? 0
+    : Math.round(((sumOf(currHalf) - sumOf(prevHalf)) / sumOf(prevHalf)) * 1000) / 10;
+  const avgGrowthPct = avgOf(prevHalf) === 0 ? 0
+    : Math.round(((avgOf(currHalf) - avgOf(prevHalf)) / avgOf(prevHalf)) * 1000) / 10;
+
+  const peakEntry   = Object.entries(byDay).sort((a, b) => b[1] - a[1])[0];
   const lowestEntry = Object.entries(byDay).sort((a, b) => a[1] - b[1])[0];
-
-  const formatDay = (iso: string) =>
+  const fmtDate = (iso: string) =>
     new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  // Weekly breakdown — last 5 weeks
+  // Last 5 weeks
+  const now  = Date.now();
+  const DAY  = 86400000;
+  const WEEK = 7 * DAY;
   const weeks: WeekRow[] = [];
   for (let w = 4; w >= 0; w--) {
-    const endMs = now - w * WEEK;
+    const endMs   = now - w * WEEK;
     const startMs = endMs - WEEK;
-    const start = new Date(startMs);
-    const end = new Date(endMs);
-    const inRange = tickets.filter((t) => t.date.getTime() >= startMs && t.date.getTime() < endMs);
-    const weekTotal = inRange.length;
-    const days = Math.max(Math.round((Math.min(endMs, now) - startMs) / DAY), 1);
+    const inRange = sortedDays
+      .filter(d => { const t = new Date(d).getTime(); return t >= startMs && t < endMs; })
+      .map(d => byDay[d]);
+    const weekTotal    = sumOf(inRange);
+    const prevInRange  = sortedDays
+      .filter(d => { const t = new Date(d).getTime(); return t >= startMs - WEEK && t < startMs; })
+      .map(d => byDay[d]);
+    const prevWeekTotal = sumOf(prevInRange);
+    const days     = Math.max(Math.round((Math.min(endMs, now) - startMs) / DAY), 1);
     const dailyAvg = Math.round((weekTotal / days) * 10) / 10;
-    const prevWeekTotal = tickets.filter(
-      (t) => t.date.getTime() >= startMs - WEEK && t.date.getTime() < startMs
-    ).length;
-    const changePct =
-      prevWeekTotal === 0
-        ? 0
-        : Math.round(((weekTotal - prevWeekTotal) / prevWeekTotal) * 1000) / 10;
+    const changePct = prevWeekTotal === 0 ? 0
+      : Math.round(((weekTotal - prevWeekTotal) / prevWeekTotal) * 1000) / 10;
     const trend: WeekRow['trend'] =
       changePct > 2 ? 'Increasing' : changePct < -2 ? 'Decreasing' : 'Stable';
+    const start = new Date(startMs);
+    const end   = new Date(endMs);
     const label = `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${
       w === 0 ? 'Present' : end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
     }`;
     weeks.push({ label, total: weekTotal, dailyAvg, trend, change: changePct });
   }
 
+  // Category split (pass-through from trend keys)
+  const categorySplit = Object.entries(
+    Object.fromEntries(
+      Object.entries(trends).map(([cat, days]) => [cat, sumOf(Object.values(days))])
+    )
+  ).sort((a, b) => b[1] - a[1]);
+
   return {
-    total, totalGrowthPct,
-    avgPerDay, avgGrowthPct,
-    peakDay: peakEntry ? peakEntry[1] : 0,
-    peakDate: peakEntry ? formatDay(peakEntry[0]) : '—',
-    lowestDay: lowestEntry ? lowestEntry[1] : 0,
-    lowestDate: lowestEntry ? formatDay(lowestEntry[0]) : '—',
-    weeks,
+    total, totalGrowthPct, avgPerDay, avgGrowthPct,
+    peakDay:     peakEntry   ? peakEntry[1]   : 0,
+    peakDate:    peakEntry   ? fmtDate(peakEntry[0])   : '—',
+    lowestDay:   lowestEntry ? lowestEntry[1] : 0,
+    lowestDate:  lowestEntry ? fmtDate(lowestEntry[0]) : '—',
+    weeks, categorySplit,
   };
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TicketVolumeModal({ open, onClose, period }: TicketVolumeModalProps) {
+export function TicketVolumeModal({ open, onClose, period, metrics }: TicketVolumeModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null);
-  const stats = computeStats(DASHBOARD_TICKETS);
+  const [trends,    setTrends]    = useState<TrendData | null>(null);
+  const [trendsLoading, setTrendsLoading] = useState(false);
+
+  // Fetch trend data (per-day per-category) whenever modal opens
+  useEffect(() => {
+    if (!open) return;
+    setTrendsLoading(true);
+    const daysParam = period === 'Last 7 days' ? 7 : period === 'Last 90 days' ? 90 : 30;
+    apiFetch(`/reporting/admin/category-trends?days=${daysParam}`)
+      .then((res: { trends: TrendData }) => setTrends(res.trends))
+      .catch(() => setTrends(null))
+      .finally(() => setTrendsLoading(false));
+  }, [open, period]);
+
+  const stats = useMemo(() => {
+    if (!trends) return null;
+    return computeStatsFromTrends(trends, metrics?.total_tickets ?? 0);
+  }, [trends, metrics]);
 
   // Close on Escape
   useEffect(() => {
@@ -194,6 +213,12 @@ export function TicketVolumeModal({ open, onClose, period }: TicketVolumeModalPr
         <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
 
           {/* KPI row */}
+          {trendsLoading || !stats ? (
+            <p className="text-xs text-gray-400 text-center py-10">
+              {trendsLoading ? 'Loading trend data…' : 'No trend data available for this period.'}
+            </p>
+          ) : (
+            <>
           <div className="grid grid-cols-4 gap-3">
             {[
               {
@@ -232,8 +257,7 @@ export function TicketVolumeModal({ open, onClose, period }: TicketVolumeModalPr
             ))}
           </div>
 
-          {/* Weekly breakdown table */}
-          <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+            <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
             <div className="px-5 py-3 border-b border-gray-100">
               <h4 className="text-sm font-bold text-gray-800">Weekly Breakdown</h4>
             </div>
@@ -278,33 +302,26 @@ export function TicketVolumeModal({ open, onClose, period }: TicketVolumeModalPr
           <div className="bg-gray-50 rounded-xl border border-gray-100 px-5 py-4">
             <h4 className="text-sm font-bold text-gray-800 mb-3">Volume by Category</h4>
             <div className="space-y-2.5">
-              {(() => {
-                const catMap = DASHBOARD_TICKETS.reduce<Record<string, number>>((acc, t) => {
-                  acc[t.category] = (acc[t.category] ?? 0) + 1;
-                  return acc;
-                }, {});
-                return Object.entries(catMap)
-                  .sort((a, b) => b[1] - a[1])
-                  .map(([name, count]) => {
-                    const pct = Math.round((count / stats.total) * 100);
-                    return (
-                      <div key={name} className="flex items-center gap-3">
-                        <span className="text-xs text-gray-500 w-28 truncate">{name}</span>
-                        <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-blue-400 rounded-full transition-all duration-500"
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold text-gray-700 w-6 text-right">
-                          {count}
-                        </span>
-                      </div>
-                    );
-                  });
-              })()}
+              {stats.categorySplit.map(([name, count]) => {
+                const pct = stats.total > 0 ? Math.round((count / stats.total) * 100) : 0;
+                return (
+                  <div key={name} className="flex items-center gap-3">
+                    <span className="text-xs text-gray-500 w-28 truncate">{name}</span>
+                    <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-400 rounded-full transition-all duration-500"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-semibold text-gray-700 w-6 text-right">
+                      {count}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
+          </>)}
         </div>
       </div>
 

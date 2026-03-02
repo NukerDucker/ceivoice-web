@@ -1,15 +1,18 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
-import { Sidebar } from '@/components/layout/AdminSidebar';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Header } from '@/components/layout/ReportTB';
 import {
-  DASHBOARD_TICKETS,
-  DASHBOARD_ASSIGNEES,
   STATUS_STYLES,
   type TicketStatus,
-  type DashboardAssignee,
 } from '@/lib/admin-dashboard-data';
+import { apiFetch } from '@/lib/api-client';
+import {
+  type ApiMetrics,
+  STATUS_ID_MAP,
+  periodToApiParam,
+  nameFallback,
+} from './report-types';
 import { TicketVolumeModal }        from './TicketVolumeModal';
 import { BacklogSummaryModal }      from './BacklogSummaryModal';
 import { PerformanceMetricsModal }  from './PerformanceMetricsModal';
@@ -22,18 +25,7 @@ import {
   Wrench, CheckCircle2, XCircle, RefreshCw,
 } from 'lucide-react';
 
-// ─── Period filter helper ─────────────────────────────────────────────────────
-
-function periodToCutoff(p: string): number {
-  const now = Date.now();
-  switch (p) {
-    case 'Last 7 days':  return now - 7  * 24 * 60 * 60 * 1000;
-    case 'Last 30 days': return now - 30 * 24 * 60 * 60 * 1000;
-    case 'Last 90 days': return now - 90 * 24 * 60 * 60 * 1000;
-    case 'This year':    return new Date(new Date().getFullYear(), 0, 1).getTime();
-    default:             return 0;
-  }
-}
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
 
@@ -59,47 +51,58 @@ const REPORT_CARDS = [
 // ─── Page component ───────────────────────────────────────────────────────────
 
 export default function ReportsPage() {
-  const [period, setPeriod]           = useState('Last 30 days');
+  const [period,      setPeriod]      = useState('Last 30 days');
   const [activeModal, setActiveModal] = useState<string | null>(null);
+  const [metrics,     setMetrics]     = useState<ApiMetrics | null>(null);
+  const [loading,     setLoading]     = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    setMetrics(null);
+    const param = periodToApiParam(period);
+    const url   = param ? `/reporting/admin/metrics?period=${param}` : '/reporting/admin/metrics';
+    apiFetch(url)
+      .then((res: { metrics: ApiMetrics }) => setMetrics(res.metrics))
+      .catch(() => setMetrics(null))
+      .finally(() => setLoading(false));
+  }, [period]);
 
   const openModal  = (id: string) => setActiveModal(id);
   const closeModal = ()           => setActiveModal(null);
 
-  const filteredTickets = useMemo(() => {
-    const cutoff = periodToCutoff(period);
-    return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
-  }, [period]);
+  // ── Derived values from real API metrics ──────────────────────────────────
+  const totalTickets   = metrics?.total_tickets ?? 0;
+  const solvedTickets  = metrics?.tickets_by_status.find(s => s.status_id === 5)?.count ?? 0;
+  const failedTickets  = metrics?.tickets_by_status.find(s => s.status_id === 6)?.count ?? 0;
+  const backlogTickets = metrics?.current_backlog ?? 0;
+  const avgResolution  = metrics?.avg_resolution_time_hours ?? 0;
 
-  const totalTickets   = filteredTickets.length;
-  const solvedTickets  = filteredTickets.filter((t) => t.status === 'solved').length;
-  const failedTickets  = filteredTickets.filter((t) => t.status === 'failed').length;
-  // Backlog = tickets not yet resolved (everything except solved/failed)
-  const backlogTickets = filteredTickets.filter(
-    (t) => t.status === 'draft' || t.status === 'new' || t.status === 'assigned' || t.status === 'solving' || t.status === 'renew',
-  ).length;
+  const statusCounts = useMemo<Partial<Record<TicketStatus, number>>>(() => {
+    const map: Partial<Record<TicketStatus, number>> = {};
+    metrics?.tickets_by_status.forEach(s => {
+      const status = STATUS_ID_MAP[s.status_id] as TicketStatus | undefined;
+      if (status) map[status] = s.count;
+    });
+    return map;
+  }, [metrics]);
 
   const categoryBreakdown = useMemo(() => {
-    const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
-      acc[t.category] = (acc[t.category] ?? 0) + 1;
-      return acc;
-    }, {});
-    return Object.entries(map)
-      .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({
-        name, count,
-        pct: totalTickets > 0 ? Math.round((count / totalTickets) * 100) : 0,
-      }));
-  }, [filteredTickets, totalTickets]);
+    if (!metrics) return [];
+    return metrics.top_categories.map(c => ({
+      name:  c.category_name,
+      count: c.count,
+      pct:   totalTickets > 0 ? Math.round((c.count / totalTickets) * 100) : 0,
+    }));
+  }, [metrics, totalTickets]);
 
   const assigneeWorkload = useMemo(() => {
-    const map = filteredTickets.reduce<Record<string, number>>((acc, t) => {
-      acc[t.assignee.name] = (acc[t.assignee.name] ?? 0) + 1;
-      return acc;
-    }, {});
-    return DASHBOARD_ASSIGNEES.map((a: DashboardAssignee) => ({
-      ...a, count: map[a.name] ?? 0,
+    return (metrics?.assignee_workload ?? []).map(a => ({
+      name:     a.assignee_name,
+      fallback: nameFallback(a.assignee_name),
+      role:     'Support',
+      count:    a.active_tickets,
     })).sort((a, b) => b.count - a.count);
-  }, [filteredTickets]);
+  }, [metrics]);
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans overflow-hidden">
@@ -113,7 +116,9 @@ export default function ReportsPage() {
             <div>
               <h2 className="text-xl font-bold text-gray-900">Reports Overview</h2>
               <p className="text-sm text-gray-500 mt-0.5">
-                Showing {totalTickets} ticket{totalTickets !== 1 ? 's' : ''} for {period.toLowerCase()}
+                {loading
+                  ? 'Loading metrics…'
+                  : `Showing ${totalTickets} ticket${totalTickets !== 1 ? 's' : ''} for ${period.toLowerCase()}`}
               </p>
             </div>
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
@@ -131,10 +136,10 @@ export default function ReportsPage() {
           {/* KPI Cards */}
           <div className="grid grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Tickets',      value: totalTickets,   sub: period.toLowerCase(),                                                                                              color: '#3B82F6' },
-              { label: 'Solved',             value: solvedTickets,  sub: totalTickets > 0 ? `${Math.round((solvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
-              { label: 'Average Resolution', value: '3.2 hrs',      sub: 'Per ticket',                                                                                                     color: '#8B5CF6' },
-              { label: 'Backlog',            value: backlogTickets, sub: `${failedTickets} failed`,                                                                                        color: '#F43F5E' },
+              { label: 'Total Tickets',      value: loading ? '—' : totalTickets,   sub: period.toLowerCase(),                                                                                              color: '#3B82F6' },
+              { label: 'Solved',             value: loading ? '—' : solvedTickets,  sub: totalTickets > 0 ? `${Math.round((solvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
+              { label: 'Average Resolution', value: loading ? '—' : avgResolution > 0 ? `${avgResolution.toFixed(1)} hrs` : '—', sub: 'Per resolved ticket',                             color: '#8B5CF6' },
+              { label: 'Backlog',            value: loading ? '—' : backlogTickets, sub: `${failedTickets} failed`,                                                                                        color: '#F43F5E' },
             ].map((kpi) => (
               <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
                 <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
@@ -154,8 +159,8 @@ export default function ReportsPage() {
               ) : (
                 <div className="space-y-3">
                   {STATUS_LABELS.map(({ status, label, icon }) => {
-                    const count = filteredTickets.filter((t) => t.status === status).length;
-                    const pct   = Math.round((count / totalTickets) * 100);
+                    const count = statusCounts[status] ?? 0;
+                    const pct   = totalTickets > 0 ? Math.round((count / totalTickets) * 100) : 0;
                     const style = STATUS_STYLES[status];
                     return (
                       <div key={status}>
@@ -265,31 +270,37 @@ export default function ReportsPage() {
         open={activeModal === 'ticket-volume'}
         onClose={closeModal}
         period={period}
+        metrics={metrics}
       />
       <PerformanceMetricsModal
         open={activeModal === 'performance-metrics'}
         onClose={closeModal}
         period={period}
+        metrics={metrics}
       />
       <CategoryBreakdownModal
         open={activeModal === 'category-breakdown'}
         onClose={closeModal}
         period={period}
+        metrics={metrics}
       />
       <AssigneePerformanceModal
         open={activeModal === 'assignee-performance'}
         onClose={closeModal}
         period={period}
+        metrics={metrics}
       />
       <BacklogSummaryModal
         open={activeModal === 'backlog-summary'}
         onClose={closeModal}
         period={period}
+        metrics={metrics}
       />
       <AIAccuracyModal
         open={activeModal === 'ai-accuracy'}
         onClose={closeModal}
         period={period}
+        metrics={metrics}
       />
     </div>
   );
