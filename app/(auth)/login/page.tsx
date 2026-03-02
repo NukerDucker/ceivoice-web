@@ -3,7 +3,9 @@
 import { LoginForm } from "./_components/login-form";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { SiGoogle, SiGithub } from "@icons-pack/react-simple-icons";
+import { SiGoogle } from "@icons-pack/react-simple-icons";
+
+import { loginWithGoogle } from "@/services/auth";
 
 export default function LoginPage() {
   return (
@@ -23,7 +25,7 @@ export default function LoginPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        <Button variant="outline" className="flex items-center justify-center gap-2">
+        <Button variant="outline" className="flex items-center justify-center gap-2" onClick={loginWithGoogle}>
           <SiGoogle size={20} />
           Google
         </Button>

@@ -1,68 +1,45 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Dependencies
+node_modules/
 
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
+# Next.js
 /.next/
 /out/
 
-# production
-/build
-/dist
-
-# misc
-.DS_Store
-*.pem
-Thumbs.db
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
+# Environment variables (.env.example is committed, .env files are not)
 .env
 .env.local
 .env.*.local
-.env.production.local
+.env.production
 
-# IDE
-.vscode
-.idea
+# Build output
+/build
+/dist
+*.tsbuildinfo
+
+# Testing
+/coverage
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE / Editor
+.vscode/
+.idea/
 *.swp
 *.swo
-*.sublime-project
-*.sublime-workspace
+
+# OS files
 .DS_Store
+Thumbs.db
 
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
+# TypeScript
 next-env.d.ts
 
-# OS
-.AppleDouble
-.LSOverride
-._*
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
+# Vercel
+.vercel
+
+# Misc
+*.pem

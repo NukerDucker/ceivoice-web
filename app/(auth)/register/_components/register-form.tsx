@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RegisterSchema } from "@/lib/validations/auth";
+import { registerWithEmail } from "@/services/auth";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -16,12 +18,15 @@ import {
 import { Input } from "@/components/ui/input";
 
 export function RegisterForm() {
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const form = useForm({
     resolver: zodResolver(RegisterSchema),
     defaultValues: {
-      name: "",
+      full_name: "",
+      user_name: "",
       email: "",
       password: "",
       confirmPassword: "",
@@ -29,21 +34,19 @@ export function RegisterForm() {
   });
 
   const onSubmit = async (formData: {
-    name: string;
+    full_name: string;
+    user_name: string;
     email: string;
     password: string;
     confirmPassword: string;
   }) => {
     setLoading(true);
+    setError(null);
     try {
-      // TODO: Replace with actual register API call
-      console.log("Registering user:", formData);
-      await new Promise((res) => setTimeout(res, 1500));
-      // TODO: Show success toast or redirect to login
-      // router.push('/login')
-    } catch (err: Error | unknown) {
-      // TODO: Show error toast
-      console.error(err);
+      await registerWithEmail(formData.full_name, formData.user_name, formData.email, formData.password);
+      router.push("/onboarding");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
       setLoading(false);
     }
@@ -54,12 +57,25 @@ export function RegisterForm() {
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <FormField
           control={form.control}
-          name="name"
+          name="full_name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Full Name</FormLabel>
               <FormControl>
                 <Input placeholder="John Doe" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="user_name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Username</FormLabel>
+              <FormControl>
+                <Input placeholder="johndoe_123" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -104,6 +120,10 @@ export function RegisterForm() {
             </FormItem>
           )}
         />
+
+        {error && (
+          <p className="text-sm text-red-600 text-center">{error}</p>
+        )}
 
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Creating account..." : "Create Account"}
