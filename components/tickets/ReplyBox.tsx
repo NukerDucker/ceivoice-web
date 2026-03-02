@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
@@ -31,6 +31,11 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
   const [bodyText, setBodyText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Sync email when the parent resolves the logged-in user asynchronously
+  useEffect(() => {
+    if (defaultEmail) setEmail(defaultEmail);
+  }, [defaultEmail]);
 
   const handleSubmit = async () => {
     setError(null);

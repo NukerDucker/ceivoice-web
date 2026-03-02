@@ -44,7 +44,7 @@ export function RegisterForm() {
     setError(null);
     try {
       await registerWithEmail(formData.full_name, formData.user_name, formData.email, formData.password);
-      router.push("/onboarding");
+      router.push("/user/my-request");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
