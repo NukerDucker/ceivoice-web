@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
+import Image from 'next/image';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Request';
 import type { UserTicket } from '@/types';
@@ -120,7 +121,7 @@ function Avatar({ name, fallback, avatar }: { name: string; fallback: string; av
     <div className="flex items-center gap-2">
       <div className="w-7 h-7 rounded-full bg-linear-to-br from-orange-400 to-orange-500 flex items-center justify-center shrink-0 shadow-sm">
         {avatar ? (
-          <img src={avatar} alt={name} className="w-full h-full object-cover rounded-full" />
+          <Image src={avatar} alt={name} width={28} height={28} className="w-full h-full object-cover rounded-full" />
         ) : (
           <span className="text-white text-xs font-semibold">{fallback}</span>
         )}

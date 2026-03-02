@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import Image from 'next/image';
 import type { TicketComment, Person, UserTicket } from '@/types';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiComment } from '@/types/api';
@@ -59,7 +60,7 @@ function Avatar({ person, size = 'md' }: { person: Person; size?: 'sm' | 'md' })
   return (
     <div className={`${dim} rounded-full bg-gradient-to-br ${avatarColor(person.name)} flex items-center justify-center shrink-0`}>
       {person.avatar
-        ? <img src={person.avatar} alt={person.name} className="w-full h-full object-cover rounded-full" />
+        ? <Image src={person.avatar} alt={person.name} width={32} height={32} className="w-full h-full object-cover rounded-full" />
         : <span className="text-gray-600 font-semibold">{person.fallback}</span>
       }
     </div>
