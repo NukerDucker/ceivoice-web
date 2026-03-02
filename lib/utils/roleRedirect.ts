@@ -4,7 +4,7 @@
  * Used after login / OAuth callback to send users to the right landing page.
  */
 
-export type Role = 'user' | 'assignee' | 'admin';
+import type { Role } from '@/types';
 
 const ROLE_HOME: Record<Role, string> = {
   user:     '/user/dashboard',

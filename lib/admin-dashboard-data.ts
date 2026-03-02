@@ -25,14 +25,7 @@ export {
   type AssigneeTicket,
   type ResolvedTicket,
   type MockTableTicket,
-  // Mock data
-  MOCK_ASSIGNEES as DASHBOARD_ASSIGNEES,
-  MOCK_TICKETS as DASHBOARD_TICKETS,
-  MOCK_AI_SUGGESTIONS as AI_SUGGESTIONS,
-  MOCK_ORIGINAL_MESSAGES as ORIGINAL_MESSAGES,
-  MOCK_MANAGED_USERS as MANAGED_USERS,
-  MOCK_ACTIVE_TICKETS,
-  SCOPE_NAMES,
+  // Mock data,
 } from '@/web-temp/index';
 
 // ─────────────────────────────────────────────────────────────────────────────

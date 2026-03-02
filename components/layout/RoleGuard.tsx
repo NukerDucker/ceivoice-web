@@ -5,8 +5,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-
-type Role = 'user' | 'assignee' | 'admin';
+import type { Role } from '@/types';
 
 interface RoleGuardProps {
   allowedRoles: Role[];

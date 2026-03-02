@@ -14,7 +14,7 @@ import {
   BACKLOG_PERIODS,
   type TicketStatus,
 } from '@/lib/admin-dashboard-data';
-import { type ApiMetrics, STATUS_NAME_TO_ID, nameFallback } from './report-types';
+import { type ApiMetrics, STATUS_NAME_TO_ID, nameFallback } from '@/types/api';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 

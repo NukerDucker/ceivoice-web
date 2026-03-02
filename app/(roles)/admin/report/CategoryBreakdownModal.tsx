@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { X, Download, Layers } from "lucide-react";
-import { type ApiMetrics } from './report-types';
+import { type ApiMetrics } from '@/types/api';
 
 // ─── Period helper ────────────────────────────────────────────────────────────
 
@@ -151,52 +151,25 @@ interface Props {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }: Props) {
+export function CategoryBreakdownModal({ open, onClose, period: externalPeriod, metrics }: Props) {
   const [localPeriod, setLocalPeriod] = useState(externalPeriod);
 
   useEffect(() => {
     setLocalPeriod(externalPeriod);
   }, [externalPeriod]);
 
-  // ── Filter by period ──────────────────────────────────────────────────────
-  const tickets = useMemo(() => {
-    const cutoff = periodToCutoff(localPeriod);
-    return DASHBOARD_TICKETS.filter((t) => new Date(t.date).getTime() >= cutoff);
-  }, [localPeriod]);
-
-  const total = tickets.length;
-
-  // ── Category rows ─────────────────────────────────────────────────────────
+  // ── Category rows from API ───────────────────────────────────────────────
   const categoryRows = useMemo(() => {
-    const map: Record<string, {
-      all: typeof tickets;
-      resolved: typeof tickets;
-      priorityCounts: Record<TicketPriority, number>;
-    }> = {};
+    if (!metrics?.top_categories) return [];
+    const catTotal = metrics.top_categories.reduce((s: number, c) => s + c.count, 0);
+    return metrics.top_categories.map((c) => ({
+      category: c.category_name,
+      count: c.count,
+      pct: catTotal > 0 ? Math.round((c.count / catTotal) * 100) : 0,
+    }));
+  }, [metrics]);
 
-    tickets.forEach((t) => {
-      if (!map[t.category]) {
-        map[t.category] = {
-          all: [],
-          resolved: [],
-          priorityCounts: { critical: 0, high: 0, medium: 0, low: 0 },
-        };
-      }
-      map[t.category].all.push(t);
-      if (t.status === "resolved") map[t.category].resolved.push(t);
-      map[t.category].priorityCounts[t.priority] += 1;
-    });
-
-    return Object.entries(map)
-      .map(([category, { all, resolved, priorityCounts }]) => {
-        const count   = all.length;
-        const pct     = total > 0 ? Math.round((count / total) * 100) : 0;
-        const avgRes  = avg(resolved.map((t) => t.resolutionHours ?? 0));
-        const resRate = count > 0 ? Math.round((resolved.length / count) * 100) : 0;
-        return { category, count, pct, avgRes, resRate, priorityCounts };
-      })
-      .sort((a, b) => b.count - a.count);
-  }, [tickets, total]);
+  const total = metrics?.total_tickets ?? 0;
 
   // ── Pie slices ────────────────────────────────────────────────────────────
   const pieSlices: PieSlice[] = useMemo(() => {
@@ -215,6 +188,7 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
       return slice;
     });
   }, [categoryRows]);
+// (pieSlices derived from API-backed categoryRows)
 
   // ── Stat cards ────────────────────────────────────────────────────────────
   const mostCommon = categoryRows[0] ?? null;
@@ -276,7 +250,7 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod }
             </button>
           </div>
 
-          {total === 0 ? (
+          {categoryRows.length === 0 ? (
             <p className="text-sm text-gray-400 text-center py-12">No tickets in this period.</p>
           ) : (
             <>

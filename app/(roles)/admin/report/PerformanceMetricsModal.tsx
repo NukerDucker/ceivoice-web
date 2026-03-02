@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState } from "react";
 import { X, Download, TrendingUp } from "lucide-react";
-import { type ApiMetrics, STATUS_NAME_TO_ID } from './report-types';
+import { type ApiMetrics, STATUS_NAME_TO_ID } from '@/types/api';
 
 // ─── Period helper ────────────────────────────────────────────────────────────
 

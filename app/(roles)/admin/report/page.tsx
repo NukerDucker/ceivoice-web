@@ -12,7 +12,7 @@ import {
   STATUS_ID_MAP,
   periodToApiParam,
   nameFallback,
-} from './report-types';
+} from '@/types/api';
 import { TicketVolumeModal }        from './TicketVolumeModal';
 import { BacklogSummaryModal }      from './BacklogSummaryModal';
 import { PerformanceMetricsModal }  from './PerformanceMetricsModal';

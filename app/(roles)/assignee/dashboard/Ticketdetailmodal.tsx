@@ -3,68 +3,16 @@
 import { useState, useEffect } from "react";
 import { X } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
+import type {
+  ApiUser,
+  ApiComment,
+  ApiStatusHistory,
+  ApiAssignmentHistory,
+  ApiTicketDetail,
+  ApiAssignee,
+} from '@/types/api';
 
-// ─── API types ────────────────────────────────────────────────────────────────
-
-interface ApiUser {
-  user_id: string;
-  full_name: string | null;
-  user_name: string | null;
-  email: string;
-}
-
-interface ApiComment {
-  comment_id: number;
-  content: string;
-  created_at: string;
-  is_internal: boolean;
-  user: ApiUser;
-}
-
-interface ApiStatusHistory {
-  history_id: number;
-  changed_at: string;
-  old_status:  { name: string } | null;
-  new_status:  { name: string };
-  changed_by:  ApiUser;
-}
-
-interface ApiAssignmentHistory {
-  history_id:   number;
-  changed_at:   string;
-  old_assignee: ApiUser | null;
-  new_assignee: ApiUser | null;
-  changed_by:   ApiUser;
-}
-
-interface ApiTicketDetail {
-  ticket_id:          number;
-  title:              string | null;
-  summary:            string | null;
-  suggested_solution: string | null;
-  priority:           string;
-  deadline:           string | null;
-  created_at:         string;
-  category:           { category_id: number; name: string } | null;
-  status:             { name: string } | null;
-  assignee:           ApiUser | null;
-  creator:            ApiUser | null;
-  comments:           ApiComment[];
-  status_history:     ApiStatusHistory[];
-  assignment_history: ApiAssignmentHistory[];
-  followers:          Array<{ user: ApiUser }>;
-  ticket_requests:    Array<{ request: { email: string; message: string | null; tracking_id: string } | null }>;
-}
-
-interface ApiAssignee {
-  user_id:    string;
-  full_name:  string | null;
-  user_name:  string | null;
-  email:      string;
-}
-
-// ─── Props ────────────────────────────────────────────────────────────────────
-
+// Re-export TicketDetailModalProps so callers can import it from here
 export interface TicketDetailModalProps {
   ticketId: number;
   onClose:  () => void;
@@ -521,16 +469,16 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                         <div
                           key={c.comment_id}
                           className={`rounded-xl p-3 border ${
-                            c.is_internal ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
+                            c.visibility === 'PRIVATE' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
                           }`}
                         >
                           <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-bold text-slate-800">{userName(c.user)}</span>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                c.is_internal ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'
+                                c.visibility === 'PRIVATE' ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'
                               }`}>
-                                {c.is_internal ? '🔒 INTERNAL' : '🌐 PUBLIC'}
+                                {c.visibility === 'PRIVATE' ? '🔒 INTERNAL' : '🌐 PUBLIC'}
                               </span>
                             </div>
                             <span className="text-[10px] text-slate-400">{timeAgo(c.created_at)}</span>

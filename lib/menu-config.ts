@@ -10,6 +10,7 @@ import {
   MessageSquare,
   LucideIcon,
 } from 'lucide-react';
+import type { Role } from '@/types';
 
 export interface MenuItem {
   id: string;
@@ -20,9 +21,10 @@ export interface MenuItem {
   submenu?: MenuItem[];
 }
 
-export type UserRole = 'user' | 'admin' | 'assignee';
+/** @deprecated Use Role from '@/types' instead */
+export type UserRole = Role;
 
-export const menuConfig: Record<UserRole, MenuItem[]> = {
+export const menuConfig: Record<Role, MenuItem[]> = {
   user: [
     {
       id: 'dashboard',

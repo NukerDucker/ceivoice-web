@@ -1,10 +1,33 @@
-// Centralised type definitions for CeiVoice
+/**
+ * types/index.ts — Single source of truth for domain-level types.
+ *
+ * For API response shapes (what the backend returns as JSON), see types/api.ts.
+ * Import from '@/types' or '@/types/api' instead of defining inline types in pages.
+ */
 
-// ─── Roles ──────────────────────────────────────────────────────────────────
+// ─── Roles ───────────────────────────────────────────────────────────────────
 
 export type Role = 'user' | 'assignee' | 'admin';
 
-// ─── User ────────────────────────────────────────────────────────────────────
+/** Alias kept for compatibility with lib/menu-config and components. */
+export type UserRole = Role;
+
+// ─── Ticket status ────────────────────────────────────────────────────────────
+
+/**
+ * Real ticket status names — matches the DB `ticket_statuses` table exactly.
+ * For status_id lookups use STATUS_ID_MAP from '@/types/api'.
+ */
+export type TicketStatus =
+  | 'Draft'
+  | 'New'
+  | 'Assigned'
+  | 'Solving'
+  | 'Solved'
+  | 'Failed'
+  | 'Renew';
+
+// ─── User ─────────────────────────────────────────────────────────────────────
 
 export interface User {
   user_id: string;
@@ -15,34 +38,20 @@ export interface User {
   avatar?: string | null;
 }
 
-// ─── Ticket ──────────────────────────────────────────────────────────────────
+// ─── Comment ─────────────────────────────────────────────────────────────────
 
-export type TicketStatus = 'submitted' | 'in-progress' | 'resolved' | 'critical';
-
-export interface Ticket {
-  ticketId: string;
-  title: string;
-  description?: string;
-  category: string | null;
-  status: TicketStatus;
-  priority?: string;
-  createdAt: string;
-  updatedAt?: string;
-  submittedBy?: Pick<User, 'user_id' | 'user_name' | 'email'>;
-  assignee?: Pick<User, 'user_id' | 'user_name'> & { avatar?: string; fallback: string };
-}
-
-// ─── Comment / Reply ─────────────────────────────────────────────────────────
+export type CommentVisibility = 'PUBLIC' | 'PRIVATE';
 
 export interface Comment {
   comment_id: number;
-  ticket_id: string;
+  ticket_id: number | string;
   author: Pick<User, 'user_id' | 'user_name' | 'role'>;
   content: string;
+  visibility: CommentVisibility;
   createdAt: string;
 }
 
-// ─── API response wrappers ───────────────────────────────────────────────────
+// ─── Pagination ───────────────────────────────────────────────────────────────
 
 export interface PaginatedResponse<T> {
   data: T[];

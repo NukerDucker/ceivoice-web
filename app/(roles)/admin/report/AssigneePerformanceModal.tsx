@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { X, Download, Users } from "lucide-react";
-import { type ApiMetrics, nameFallback } from './report-types';
+import { type ApiMetrics, nameFallback } from '@/types/api';
 
 // ─── Period helper ────────────────────────────────────────────────────────────
 

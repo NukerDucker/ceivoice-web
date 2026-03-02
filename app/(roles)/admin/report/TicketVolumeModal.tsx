@@ -3,7 +3,7 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { X, Download, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
-import { type ApiMetrics, periodToApiParam } from './report-types';
+import { type ApiMetrics, periodToApiParam } from '@/types/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
