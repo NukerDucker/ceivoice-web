@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search, ChevronDown, ChevronUp,
-  Shield, User, Briefcase, X, TicketCheck, Tag,
+  Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle,
 } from 'lucide-react';
 import { Header }  from '@/components/layout/UserManagementTB';
 import {
@@ -126,7 +126,8 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
   onScopeAdd:    (id: string, scope: string) => void;
   onScopeRemove: (id: string, scope: string) => void;
 }) {
-  const [scopeOpen, setScopeOpen] = useState(false);
+  const [scopeOpen,        setScopeOpen]        = useState(false);
+  const [confirmAdminFor,  setConfirmAdminFor]   = useState<string | null>(null); // user id pending admin confirm
   const available = SCOPE_OPTIONS.filter((s) => !user.scopes.includes(s));
 
   return (
@@ -137,28 +138,59 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
         <div className="flex flex-col gap-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</p>
 
-          {user.role !== 'admin' && (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] text-gray-400">
-                Role <span className="text-gray-300">(EP06-ST001)</span>
-              </span>
-              <div className="flex gap-1.5">
-                {(['user', 'assignee'] as UserRole[]).map((r) => (
+          <div className="flex flex-col gap-1.5">
+            <span className="text-[10px] text-gray-400">
+              Role <span className="text-gray-300">(EP06-ST001)</span>
+            </span>
+
+            {/* Role buttons */}
+            <div className="flex gap-1.5 flex-wrap">
+              {(['user', 'assignee'] as UserRole[]).map((r) => (
+                <button
+                  key={r}
+                  onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, r); }}
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                    user.role === r
+                      ? `${ROLE_CONFIG[r].bg} ${ROLE_CONFIG[r].text} ${ROLE_CONFIG[r].border}`
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
+                </button>
+              ))}
+
+              {/* Admin promotion button — requires inline confirmation */}
+              {confirmAdminFor === user.id ? (
+                <span className="flex items-center gap-1.5 text-[10px]">
+                  <AlertTriangle size={10} className="text-amber-500 shrink-0" />
+                  <span className="text-amber-700 font-semibold">Grant full admin?</span>
                   <button
-                    key={r}
-                    onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, r); }}
-                    className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                      user.role === r
-                        ? `${ROLE_CONFIG[r].bg} ${ROLE_CONFIG[r].text} ${ROLE_CONFIG[r].border}`
-                        : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                    }`}
+                    onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, 'admin'); setConfirmAdminFor(null); }}
+                    className="px-2 py-0.5 rounded-full bg-violet-600 text-white font-bold hover:bg-violet-700 transition-colors"
                   >
-                    {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
+                    Confirm
                   </button>
-                ))}
-              </div>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setConfirmAdminFor(null); }}
+                    className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold hover:bg-gray-200 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </span>
+              ) : (
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmAdminFor(user.id); }}
+                  className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
+                    user.role === 'admin'
+                      ? `${ROLE_CONFIG.admin.bg} ${ROLE_CONFIG.admin.text} ${ROLE_CONFIG.admin.border}`
+                      : 'bg-white text-gray-400 border-gray-200 hover:border-violet-300 hover:text-violet-600'
+                  }`}
+                >
+                  {ROLE_CONFIG.admin.icon} Admin
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Col 2 — Scope Tags */}
