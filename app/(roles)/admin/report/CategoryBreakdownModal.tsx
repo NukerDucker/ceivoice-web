@@ -173,20 +173,21 @@ export function CategoryBreakdownModal({ open, onClose, period: externalPeriod, 
 
   // ── Pie slices ────────────────────────────────────────────────────────────
   const pieSlices: PieSlice[] = useMemo(() => {
-    let angle = 0;
-    return categoryRows.map((row, i) => {
-      const span = (row.pct / 100) * 360;
-      const slice: PieSlice = {
-        label:      row.category,
-        count:      row.count,
-        pct:        row.pct,
-        color:      PIE_COLORS[i % PIE_COLORS.length],
-        startAngle: angle,
-        endAngle:   angle + span,
-      };
-      angle += span;
-      return slice;
-    });
+    return categoryRows.reduce<{ slices: PieSlice[]; angle: number }>(
+      (acc, row, i) => {
+        const span  = (row.pct / 100) * 360;
+        const slice: PieSlice = {
+          label:      row.category,
+          count:      row.count,
+          pct:        row.pct,
+          color:      PIE_COLORS[i % PIE_COLORS.length],
+          startAngle: acc.angle,
+          endAngle:   acc.angle + span,
+        };
+        return { slices: [...acc.slices, slice], angle: acc.angle + span };
+      },
+      { slices: [], angle: 0 },
+    ).slices;
   }, [categoryRows]);
 // (pieSlices derived from API-backed categoryRows)
 

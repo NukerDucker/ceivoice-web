@@ -33,21 +33,24 @@ export function useTickets(): UseTicketsResult {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    fetch('/api/tickets', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((data) => {
+    async function load() {
+      setLoading(true);
+      try {
+        const r = await fetch('/api/tickets', { credentials: 'include' });
+        const data: unknown = await r.json();
         if (!cancelled) {
-          setTickets(Array.isArray(data) ? data : data.tickets ?? []);
+          setTickets(Array.isArray(data) ? (data as Ticket[]) : ((data as { tickets?: Ticket[] }).tickets ?? []));
           setError(null);
         }
-      })
-      .catch((e: unknown) => {
+      } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load tickets');
         }
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
     return () => { cancelled = true; };
   }, [tick]);
 

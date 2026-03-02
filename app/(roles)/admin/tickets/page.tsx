@@ -5,7 +5,7 @@ import { Search, Check, Pencil, ChevronDown, User, Merge, X } from 'lucide-react
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/TicketTB';
 import { apiFetch } from '@/lib/api-client';
-import type { ApiUser, ApiTicket } from '@/types/api';
+import type { ApiTicket } from '@/types/api';
 
 type TicketStatus = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew';
 

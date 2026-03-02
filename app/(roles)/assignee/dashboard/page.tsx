@@ -95,10 +95,16 @@ export default function AssigneeDashboardPage() {
 
   const loadTickets = useCallback(() => {
     let cancelled = false;
-    setLoading(true); setError(null);
-    apiFetch<ApiTicketSummary[]>('/tickets/assigned')
-      .then((data) => { if (!cancelled) { setTickets(data); setLoading(false); } })
-      .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
+    async function load() {
+      setLoading(true); setError(null);
+      try {
+        const data = await apiFetch<ApiTicketSummary[]>('/tickets/assigned');
+        if (!cancelled) { setTickets(data); setLoading(false); }
+      } catch (err: unknown) {
+        if (!cancelled) { setError(err instanceof Error ? err.message : 'Failed to load'); setLoading(false); }
+      }
+    }
+    void load();
     return () => { cancelled = true; };
   }, []);
 

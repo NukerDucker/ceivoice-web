@@ -57,14 +57,21 @@ export default function ReportsPage() {
   const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
-    setLoading(true);
-    setMetrics(null);
-    const param = periodToApiParam(period);
-    const url   = param ? `/reporting/admin/metrics?period=${param}` : '/reporting/admin/metrics';
-    apiFetch(url)
-      .then((res: { metrics: ApiMetrics }) => setMetrics(res.metrics))
-      .catch(() => setMetrics(null))
-      .finally(() => setLoading(false));
+    async function load() {
+      setLoading(true);
+      setMetrics(null);
+      const param = periodToApiParam(period);
+      const url   = param ? `/reporting/admin/metrics?period=${param}` : '/reporting/admin/metrics';
+      try {
+        const res = await apiFetch<{ metrics: ApiMetrics }>(url);
+        setMetrics(res.metrics);
+      } catch {
+        setMetrics(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+    void load();
   }, [period]);
 
   const openModal  = (id: string) => setActiveModal(id);

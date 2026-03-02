@@ -5,7 +5,6 @@ import {
   Bell,
   Settings,
   Users,
-  FileText,
   BarChart3,
   MessageSquare,
   LucideIcon,

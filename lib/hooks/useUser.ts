@@ -25,16 +25,21 @@ export function useUser(): UseUserResult {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    getMe()
-      .then((u) => { if (!cancelled) { setUser(u); setError(null); } })
-      .catch((e: unknown) => {
+    async function load() {
+      setLoading(true);
+      try {
+        const u = await getMe();
+        if (!cancelled) { setUser(u); setError(null); }
+      } catch (e: unknown) {
         if (!cancelled) {
           setError(e instanceof Error ? e.message : 'Failed to load user');
           setUser(null);
         }
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    void load();
     return () => { cancelled = true; };
   }, [tick]);
 

@@ -20,49 +20,11 @@ import {
   type TicketHistoryEntry,
 } from '@/lib/assignee-dashboard-data';
 import { type TicketStatus, type DashboardAssignee } from '@/lib/admin-dashboard-data';
+import type { ApiUser, ApiTicket as ApiTicketRaw, ApiComment, ApiHistoryEntry } from '@/types/api';
 
 // ─── Backend API types ────────────────────────────────────────────────────────
 
-interface ApiUser {
-  user_id:   string;
-  full_name: string | null;
-  user_name: string | null;
-  email:     string;
-  role:      string;
-}
 
-interface ApiTicketRaw {
-  ticket_id:   number;
-  title:       string;
-  priority:    string;
-  deadline:    string | null;
-  created_at:  string;
-  resolved_at: string | null;
-  updated_at:  string;
-  status?:     { name: string };
-  category?:   { name: string };
-  assignee?:   ApiUser;
-  creator?:    ApiUser;
-}
-
-interface ApiComment {
-  comment_id: number;
-  content:    string;
-  visibility: 'PUBLIC' | 'INTERNAL';
-  created_at: string;
-  user?:      ApiUser;
-}
-
-interface ApiHistoryEntry {
-  type:          'status_change' | 'assignment_change';
-  timestamp:     string;
-  old_status?:   string | null;
-  new_status?:   string | null;
-  old_assignee?: { name: string } | null;
-  new_assignee?: { name: string } | null;
-  changed_by?:   { name: string } | null;
-  change_reason?: string | null;
-}
 
 // ─── Data mappers ─────────────────────────────────────────────────────────────
 
@@ -116,7 +78,7 @@ function mapResolvedTicket(t: ApiTicketRaw): ResolvedTicket {
 function mapApiComment(c: ApiComment): TicketComment {
   return {
     author:    apiUserName(c.user),
-    type:      c.visibility === 'INTERNAL' ? 'internal' : 'public',
+    type:      c.visibility === 'PRIVATE' ? 'internal' : 'public',
     text:      c.content,
     timestamp: new Date(c.created_at),
   };

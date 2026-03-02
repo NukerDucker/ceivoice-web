@@ -5,44 +5,14 @@ import { Header } from '@/components/layout/PerformanceTB';
 import { apiFetch } from '@/lib/api-client';
 import { createClient } from '@/lib/supabase/client';
 import { CheckCircle2, XCircle, Clock, AlertTriangle, Loader2 } from 'lucide-react';
+import type {
+  ApiTicket,
+  ApiWorkloadResponse as WorkloadResponse,
+  ApiPerformanceResponse as PerformanceResponse,
+} from '@/types/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ApiTicket {
-  ticket_id: number;
-  title: string;
-  summary: string;
-  priority: string;
-  deadline: string | null;
-  resolved_at: string | null;
-  updated_at: string;
-  created_at: string;
-  status?: { name: string };
-  category?: { name: string };
-}
-
-interface WorkloadResponse {
-  assignee_id: string;
-  workload: {
-    total_active_tickets: number;
-    status_breakdown: Record<string, number>;
-    upcoming_deadlines_count: number;
-    overdue_count: number;
-  };
-  tickets: ApiTicket[];
-}
-
-interface PerformanceResponse {
-  assignee_id: string;
-  period: string;
-  performance: {
-    total_solved: number;
-    total_failed: number;
-    success_rate: string;
-    avg_resolution_time_hours: number | null;
-    resolved_by_category: { category_name: string; count: number }[];
-  };
-}
 
 // ─── Priority styles ─────────────────────────────────────────────────────────
 

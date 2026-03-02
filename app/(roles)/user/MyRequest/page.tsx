@@ -28,15 +28,15 @@ function toStatus(raw: string | undefined): UserTicket['status'] {
 }
 
 function mapApiTicket(t: ApiTicketRaw): UserTicket {
-  const assigneeName = userName(t.assignee);
-  const creatorName  = userName(t.creator);
+  const assigneeName = userName(t.assignee ?? null);
+  const creatorName  = userName(t.creator  ?? null);
   return {
     ticketId:    String(t.ticket_id),
     title:       t.title ?? '(No title)',
     category:    t.category?.name ?? null,
     date:        new Date(t.created_at),
     status:      toStatus(t.status?.name),
-    description: t.description ?? undefined,
+    description: t.summary ?? undefined,
     assignee:    { name: assigneeName, fallback: userFallback(assigneeName) },
     creator:     { name: creatorName,  fallback: userFallback(creatorName), role: 'Requester' },
     followers:   [],

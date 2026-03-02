@@ -123,12 +123,19 @@ export function TicketVolumeModal({ open, onClose, period, metrics }: TicketVolu
   // Fetch trend data (per-day per-category) whenever modal opens
   useEffect(() => {
     if (!open) return;
-    setTrendsLoading(true);
-    const daysParam = period === 'Last 7 days' ? 7 : period === 'Last 90 days' ? 90 : 30;
-    apiFetch(`/reporting/admin/category-trends?days=${daysParam}`)
-      .then((res: { trends: TrendData }) => setTrends(res.trends))
-      .catch(() => setTrends(null))
-      .finally(() => setTrendsLoading(false));
+    async function load() {
+      setTrendsLoading(true);
+      const daysParam = period === 'Last 7 days' ? 7 : period === 'Last 90 days' ? 90 : 30;
+      try {
+        const res = await apiFetch<{ trends: TrendData }>(`/reporting/admin/category-trends?days=${daysParam}`);
+        setTrends(res.trends);
+      } catch {
+        setTrends(null);
+      } finally {
+        setTrendsLoading(false);
+      }
+    }
+    void load();
   }, [open, period]);
 
   const stats = useMemo(() => {

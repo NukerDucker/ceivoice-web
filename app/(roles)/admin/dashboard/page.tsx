@@ -79,9 +79,9 @@ function DonutChart({ categories, total }: {
       <svg width={180} height={180} viewBox="0 0 180 180">
         {slices.length === 0 ? (
           <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={28} />
-        ) : slices.map((s, i) => (
+        ) : slices.map((s) => (
           <circle
-            key={i} cx={cx} cy={cy} r={r} fill="none"
+            key={s.category_name} cx={cx} cy={cy} r={r} fill="none"
             stroke={s.color} strokeWidth={28}
             strokeDasharray={`${s.dash} ${s.gap}`}
             strokeDashoffset={-s.offset + circ * 0.25}
@@ -95,8 +95,8 @@ function DonutChart({ categories, total }: {
         </text>
       </svg>
       <div className="w-full mt-4 space-y-2">
-        {slices.map((d, i) => (
-          <div key={i} className="flex items-center justify-between text-sm">
+        {slices.map((d) => (
+          <div key={d.category_name} className="flex items-center justify-between text-sm">
             <div className="flex items-center gap-2">
               <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
               <span className="text-slate-700">{d.category_name}</span>
@@ -267,7 +267,7 @@ export default function AdminDashboardPage() {
                 <div className="divide-y divide-slate-100">
                   {drafts.slice(0, 5).map((t) => {
                     const req        = t.ticket_requests[0]?.request ?? null;
-                    const sender     = req?.name ?? req?.email ?? '—';
+                    const sender     = req?.email ?? '—';
                     const catStyle   = getCatStyle(t.category?.name ?? '');
                     const initials   = sender.slice(0, 2).toUpperCase();
                     return (
