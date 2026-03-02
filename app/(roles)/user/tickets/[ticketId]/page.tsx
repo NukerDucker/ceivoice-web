@@ -92,7 +92,7 @@ export default function UserTicketDetailPage() {
     return (
       <div className="flex-1 px-10 pt-6">
         <p className="text-red-600 text-sm">{error ?? 'Ticket not found.'}</p>
-        <Link href="/user/dashboard" className="text-sm text-blue-600 underline mt-2 block">
+        <Link href="/user/my-request" className="text-sm text-blue-600 underline mt-2 block">
           ← Back to dashboard
         </Link>
       </div>
@@ -104,7 +104,7 @@ export default function UserTicketDetailPage() {
 
   return (
     <div className="flex-1 px-10 pt-6 pb-10 bg-gray-50 overflow-auto">
-      <Link href="/user/dashboard" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+      <Link href="/user/my-request" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
         ← My Tickets
       </Link>
 

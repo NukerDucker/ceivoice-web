@@ -85,7 +85,7 @@ function buildNotifications(drafts: ApiDraft[], tickets: ApiTicket[]): Notificat
 
   // Draft-ready: one notification per draft ticket
   for (const d of drafts) {
-    const email = d.ticket_requests[0]?.request?.email ?? 'unknown';
+    const email = d.ticket_requests?.[0]?.request?.email ?? 'unknown';
     list.push({
       id: `draft-${d.ticket_id}`,
       type: 'draft_ready',

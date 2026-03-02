@@ -20,7 +20,7 @@ export default async function AdminLayout({
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar userName={displayName} />
+      <Sidebar role="admin" userName={displayName} />
       <main className="flex-1 overflow-hidden flex flex-col">
         {children}
       </main>

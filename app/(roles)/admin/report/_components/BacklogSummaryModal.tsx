@@ -26,21 +26,6 @@ interface BacklogSummaryModalProps {
   metrics: ApiMetrics | null;
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-function StatusBadge({ status }: { status: TicketStatus }) {
-  const style = STATUS_STYLES[status];
-  const meta  = BACKLOG_STATUS_META[status];
-  return (
-    <span
-      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold"
-      style={{ background: style.bg, color: style.text }}
-    >
-      {meta.label}
-    </span>
-  );
-}
-
 // ─── Modal ────────────────────────────────────────────────────────────────────
 
 export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogSummaryModalProps) {

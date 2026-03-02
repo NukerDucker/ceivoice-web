@@ -52,3 +52,5 @@ export const getMe = async () => {
     onboarding_completed: (jwt.onboarding_completed ?? false) as boolean,
   };
 };
+
+export type UserProfile = Awaited<ReturnType<typeof getMe>>;

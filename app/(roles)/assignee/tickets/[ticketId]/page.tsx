@@ -1223,7 +1223,7 @@ export default function AssigneeTicketsPage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userName={currentUserName} />
+      <Sidebar role="assignee" userName={currentUserName} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />

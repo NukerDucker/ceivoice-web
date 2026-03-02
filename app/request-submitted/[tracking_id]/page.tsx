@@ -33,7 +33,7 @@ export default async function RequestSubmittedPage({ params }: Props) {
             Track my request
           </Link>
           <Link
-            href="/user/dashboard"
+            href="/user/my-request"
             className="w-full inline-flex items-center justify-center rounded-lg border border-gray-200 text-gray-700 h-10 px-4 text-sm font-medium hover:bg-gray-50 transition-colors"
           >
             Back to dashboard

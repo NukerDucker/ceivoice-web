@@ -20,7 +20,7 @@ export default async function AssigneeLayout({
 
   return (
     <div className="flex h-screen bg-gray-50">
-      <Sidebar userName={displayName} />
+      <Sidebar role="assignee" userName={displayName} />
       <main className="flex-1 overflow-hidden flex flex-col">
         {children}
       </main>

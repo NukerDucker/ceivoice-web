@@ -161,7 +161,7 @@ export function TicketVolumeModal({ open, onClose, period, metrics }: TicketVolu
   const now = new Date();
   const updatedAt = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
 
-  const trendIcon = (trend: WeekRow['trend'], _change: number) => {
+  const trendIcon = (trend: WeekRow['trend']) => {
     if (trend === 'Increasing') return <TrendingUp size={13} className="text-emerald-500" />;
     if (trend === 'Decreasing') return <TrendingDown size={13} className="text-red-400" />;
     return <Minus size={13} className="text-gray-400" />;
@@ -292,7 +292,7 @@ export function TicketVolumeModal({ open, onClose, period, metrics }: TicketVolu
                     <td className="px-5 py-3 text-xs text-gray-700">{row.dailyAvg}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-1.5">
-                        {trendIcon(row.trend, row.change)}
+                        {trendIcon(row.trend)}
                         <span className="text-xs text-gray-600">{row.trend}</span>
                       </div>
                     </td>

@@ -71,7 +71,7 @@ function DraftRow({
   onCheck: (id: number, val: boolean) => void;
 }) {
   const router   = useRouter();
-  const request  = ticket.ticket_requests[0]?.request ?? null;
+  const request  = ticket.ticket_requests?.[0]?.request ?? null;
   const catName  = ticket.category?.name ?? 'General';
   const catStyle = getCategoryStyle(catName);
 
@@ -243,7 +243,7 @@ export default function AdminDraftQueuePage() {
       (t) =>
         (t.title ?? '').toLowerCase().includes(q) ||
         (t.category?.name ?? '').toLowerCase().includes(q) ||
-        (t.ticket_requests[0]?.request?.email ?? '').toLowerCase().includes(q)
+        (t.ticket_requests?.[0]?.request?.email ?? '').toLowerCase().includes(q)
     );
   }, [drafts, search]);
 
@@ -390,7 +390,7 @@ export default function AdminDraftQueuePage() {
             <div className="flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
               {Array.from(selectedIds).map((id) => {
                 const ticket = drafts.find((t) => t.ticket_id === id);
-                const req    = ticket?.ticket_requests[0]?.request;
+                const req    = ticket?.ticket_requests?.[0]?.request;
                 return (
                   <div key={id} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
                     <span className="text-xs font-mono text-gray-400">#{id}</span>

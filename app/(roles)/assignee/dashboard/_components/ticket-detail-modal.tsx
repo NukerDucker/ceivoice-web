@@ -31,12 +31,12 @@ const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
 
 const STATUS_OPTIONS = ['Assigned', 'Solving', 'Solved', 'Failed'] as const;
 
-function userName(u: ApiUser | null): string {
+function userName(u: ApiUser | ApiAssignee | null | undefined): string {
   if (!u) return '—';
   return u.full_name ?? u.user_name ?? u.email;
 }
 
-function userInitial(u: ApiUser | null): string {
+function userInitial(u: ApiUser | ApiAssignee | null | undefined): string {
   const n = userName(u);
   return n.charAt(0).toUpperCase();
 }
@@ -380,7 +380,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                             if (e.kind === 'status') {
                               const h = e.item;
                               const oldSt = h.old_status ? STATUS_STYLES[h.old_status.name] : null;
-                              const newSt = STATUS_STYLES[h.new_status.name];
+                              const newSt = h.new_status ? STATUS_STYLES[h.new_status.name] : null;
                               return (
                                 <div key={`s-${i}`} className="relative">
                                   <div className="absolute -left-6 top-3 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-white shadow-sm" />
@@ -402,7 +402,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                         </>
                                       )}
                                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: newSt?.bg ?? '#f1f5f9', color: newSt?.text ?? '#475569' }}>
-                                        {h.new_status.name.toUpperCase()}
+                                        {h.new_status?.name.toUpperCase()}
                                       </span>
                                     </div>
                                   </div>
@@ -461,10 +461,10 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
 
                     {/* Comment thread */}
                     <div className="space-y-3 min-h-[80px]">
-                      {ticket.comments.length === 0 && (
+                      {(ticket.comments?.length ?? 0) === 0 && (
                         <p className="text-sm text-slate-400 text-center py-6">No comments yet.</p>
                       )}
-                      {ticket.comments.map((c) => (
+                      {ticket.comments?.map((c) => (
                         <div
                           key={c.comment_id}
                           className={`rounded-xl p-3 border ${
@@ -556,11 +556,11 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                         </div>
                       </div>
                     </div>
-                    {ticket.followers.length > 0 && (
+                    {(ticket.followers?.length ?? 0) > 0 && (
                       <div>
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Followers</p>
                         <div className="space-y-1.5">
-                          {ticket.followers.map((f, i) => (
+                          {ticket.followers?.map((f, i) => (
                             <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
                               <div className="w-7 h-7 rounded-full bg-purple-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                                 {userInitial(f.user)}

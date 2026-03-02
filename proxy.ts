@@ -12,7 +12,6 @@ const PUBLIC_PATHS = [
   '/onboarding',
   '/auth/confirm',
   '/auth/callback',
-  '/test',
   '/request-submitted',
   '/track',
 ];

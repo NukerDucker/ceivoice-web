@@ -147,7 +147,7 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
         raw.filter((c) => c.visibility === 'PUBLIC').map((c) => mapApiComment(c, ticket.ticketId)),
       ))
       .catch((err) => console.error('fetch comments:', err));
-  }, [ticket?.ticketId]);
+  }, [ticket]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };

@@ -25,7 +25,7 @@ export default function AuthSuccessPage() {
         } else if (user.role === "assignee") {
           router.replace("/assignee/dashboard");
         } else {
-          router.replace("/user/dashboard");
+          router.replace("/user/my-request");
         }
       })
       .catch(() => {

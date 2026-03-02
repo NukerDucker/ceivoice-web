@@ -220,7 +220,7 @@ function ReviewTicketInner() {
   if (notFound || !ticket) {
     return (
       <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
-        <Sidebar userRole="admin" userName="Admin" />
+        <Sidebar role="admin" userName="Admin" />
         <main className="flex-1 flex flex-col overflow-hidden">
           <Header title="Review and Edit Draft Ticket" />
           <NotFound id={selectedId || '(none)'} />
