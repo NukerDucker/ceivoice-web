@@ -1,20 +1,4 @@
-/**
- * lib/config.ts — Single source of truth for ALL UI configuration constants.
- *
- * Covers: status/priority/category styles, chart colours, scope names,
- * backlog metadata and report period labels.
- *
- * Rules:
- *   - No mock data, no runtime logic — pure static config.
- *   - Import from '@/lib/config' everywhere in page/component code.
- *   - For API type-maps (STATUS_ID_MAP, STATUS_NAME_TO_ID) see '@/types/api'.
- */
-
 import type { TicketStatus, TicketPriority } from '@/types';
-
-// ─── Status styles ────────────────────────────────────────────────────────────
-
-/** Background / text / dot colours for each ticket status badge. */
 export const STATUS_STYLES: Record<
   TicketStatus,
   { bg: string; text: string; dot: string }
@@ -28,9 +12,7 @@ export const STATUS_STYLES: Record<
   renew:    { bg: '#FFF7ED', text: '#C2410C', dot: '#F97316' },
 };
 
-// ─── Priority styles ──────────────────────────────────────────────────────────
 
-/** Badge colours for each ticket priority level. */
 export const PRIORITY_STYLES: Record<
   TicketPriority,
   { bg: string; color: string; dot: string; label: string }
@@ -41,7 +23,6 @@ export const PRIORITY_STYLES: Record<
   low:      { bg: '#f0fdf4', color: '#15803d', dot: '#4ade80', label: 'LOW'      },
 };
 
-/** Sort order: smaller number = higher urgency (use in Array.sort comparators). */
 export const PRIORITY_ORDER: Record<TicketPriority, number> = {
   critical: 0,
   high:     1,
@@ -49,7 +30,6 @@ export const PRIORITY_ORDER: Record<TicketPriority, number> = {
   low:      3,
 };
 
-// ─── Category styles ──────────────────────────────────────────────────────────
 
 export const CATEGORY_STYLES: Record<string, { bg: string; color: string }> = {
   Network:        { bg: '#dbeafe', color: '#1d4ed8' },
@@ -68,13 +48,10 @@ export const CATEGORY_STYLES: Record<string, { bg: string; color: string }> = {
   Infrastructure: { bg: '#f1f5f9', color: '#475569' },
 };
 
-/** Ordered palette for chart segments (cycles when category count > 8). */
 export const CATEGORY_COLORS: string[] = [
   '#6366f1', '#f59e0b', '#10b981', '#ef4444',
   '#3b82f6', '#ec4899', '#14b8a6', '#8b5cf6',
 ];
-
-// ─── Assignee workload badge ──────────────────────────────────────────────────
 
 export const ASSIGNEE_STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   CRITICAL: { bg: '#fee2e2', color: '#b91c1c' },
@@ -82,12 +59,7 @@ export const ASSIGNEE_STATUS_STYLES: Record<string, { bg: string; color: string 
   IDLE:     { bg: '#f3f4f6', color: '#6b7280' },
 };
 
-// ─── Chart colours ────────────────────────────────────────────────────────────
-
-/** One colour per weekly bar in the ticket-volume chart. */
 export const BAR_CHART_COLORS: string[] = ['#fde68a', '#bfdbfe', '#ddd6fe', '#a7f3d0'];
-
-// ─── Backlog panel ────────────────────────────────────────────────────────────
 
 export interface BacklogStatusMeta {
   label:  string;
@@ -104,7 +76,6 @@ export const BACKLOG_STATUS_META: Record<TicketStatus, BacklogStatusMeta> = {
   renew:    { label: 'Renew',    target: '< 4h' },
 };
 
-// ─── Report period labels ─────────────────────────────────────────────────────
 
 export const REPORT_PERIODS: string[] = [
   'Last 7 days',
@@ -113,7 +84,6 @@ export const REPORT_PERIODS: string[] = [
   'This year',
 ];
 
-// ─── Scope / category names (used in settings + user-management) ──────────────
 
 export const SCOPE_NAMES: string[] = [
   'Network', 'Security', 'Database', 'Email', 'Performance',
