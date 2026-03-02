@@ -5,6 +5,7 @@ import Image from 'next/image';
 import { Header } from '@/components/layout/Request';
 import type { UserTicket } from '@/types';
 import { apiFetch } from '@/lib/api-client';
+import { createClient } from '@/lib/supabase/client';
 import { Search, ChevronRight, CheckCircle2, Loader2, PlusCircle, Sparkles, Bell, UserCheck, XCircle, RefreshCw } from 'lucide-react';
 import { CreateTicketModal } from '@/components/tickets/ReplyBox';
 import { TicketDetailModal } from './_components/ticket-detail';
@@ -140,6 +141,16 @@ export default function MyRequestsPage() {
   const [tickets, setTickets]         = useState<UserTicket[]>([]);
   const [loading, setLoading]         = useState(true);
   const [fetchError, setFetchError]   = useState<string | null>(null);
+  const [userEmail, setUserEmail]     = useState('');
+  const [userId, setUserId]           = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      setUserEmail(data.user?.email ?? '');
+      setUserId(data.user?.id);
+    });
+  }, []);
 
   useEffect(() => {
     apiFetch<ApiTicketRaw[]>('/tickets/mine')
@@ -352,7 +363,7 @@ export default function MyRequestsPage() {
               ×
             </button>
             <div className="flex-1 flex flex-col min-h-0 overflow-auto">
-              <CreateTicketModal />
+              <CreateTicketModal defaultEmail={userEmail} defaultUserId={userId} />
             </div>
           </div>
         </div>
