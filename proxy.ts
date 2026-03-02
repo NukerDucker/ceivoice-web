@@ -73,16 +73,6 @@ export async function proxy(request: NextRequest) {
     ? JSON.parse(atob(session.access_token.split('.')[1]))
     : {};
   const appRole = (jwt.app_role ?? 'user') as AppRole;
-  // Check JWT first; fall back to user metadata (freshly registered users won't have it in JWT yet)
-  const onboardingDone = (jwt.onboarding_completed ?? user.user_metadata?.onboarding_completed ?? false) as boolean;
-
-  if (onboardingDone && pathname.startsWith('/onboarding')) {
-    return NextResponse.redirect(new URL('/dashboard', origin));
-  }
-  // Onboarding gate
-  if (!onboardingDone && !pathname.startsWith('/onboarding')) {
-    return NextResponse.redirect(new URL('/onboarding', origin));
-  }
 
   if (pathname === '/dashboard') {
     return NextResponse.redirect(new URL(`/${appRole}/dashboard`, origin));
