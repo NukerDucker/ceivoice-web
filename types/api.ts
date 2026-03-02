@@ -57,6 +57,25 @@ export interface ApiComment {
   user?: ApiUser;
 }
 
+export interface ApiHistoryEntry {
+  type: 'status_change' | 'assignment_change';
+  timestamp: string;
+  // status_change fields
+  old_status?: string | null;
+  new_status?: string | null;
+  // assignment_change fields
+  old_assignee?: { user_id: string; name: string } | null;
+  new_assignee?: { user_id: string; name: string } | null;
+  // common
+  changed_by: { user_id: string; name: string } | null;
+  change_reason?: string | null;
+}
+
+export interface ApiTicketHistory {
+  ticket_id: number;
+  history: ApiHistoryEntry[];
+}
+
 export interface ApiAdminStats {
   total_tickets: number;
   tickets_by_status: Record<string, number>;
