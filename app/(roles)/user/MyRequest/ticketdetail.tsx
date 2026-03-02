@@ -2,11 +2,11 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  MOCK_USER_TICKETS,
-  MOCK_COMMENTS,
   TicketComment,
   Person,
+  UserTicket,
 } from '@/lib/constants';
+import { apiFetch } from '@/lib/api-client';
 import {
   X,
   Sparkles,
@@ -109,30 +109,55 @@ function Comment({ comment, isLast }: { comment: TicketComment; isLast: boolean 
   );
 }
 
+// ─── API shapes ───────────────────────────────────────────────────────────────
+
+interface ApiComment {
+  comment_id: number;
+  content: string;
+  visibility: 'PUBLIC' | 'INTERNAL';
+  created_at: string;
+  user: { full_name: string | null; user_name: string | null; email?: string | null } | null;
+}
+
+function mapApiComment(c: ApiComment, ticketId: string): TicketComment {
+  const name     = c.user?.full_name ?? c.user?.user_name ?? c.user?.email ?? 'Support';
+  const fallback = name.split(' ').filter(Boolean).map((w) => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
+  return {
+    id:         String(c.comment_id),
+    ticketId,
+    author:     { name, fallback } as Person,
+    body:       c.content,
+    createdAt:  new Date(c.created_at),
+    isInternal: c.visibility === 'INTERNAL',
+  };
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface TicketDetailModalProps {
-  ticketId: string | null;
+  ticket: UserTicket | null;
   onClose: () => void;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function TicketDetailModal({ ticketId, onClose }: TicketDetailModalProps) {
-  const ticket = MOCK_USER_TICKETS.find((t) => t.ticketId === ticketId);
-  const initialComments = MOCK_COMMENTS.filter(
-    (c) => c.ticketId === ticketId && !c.isInternal
-  );
-
-  const [localComments, setLocalComments] = useState<TicketComment[]>(initialComments);
-  const [replyText, setReplyText] = useState('');
-  const [isSending, setIsSending] = useState(false);
+export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
+  const [localComments, setLocalComments] = useState<TicketComment[]>([]);
+  const [replyText, setReplyText]         = useState('');
+  const [isSending, setIsSending]         = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // Fetch public comments whenever the ticket changes
   useEffect(() => {
-    setLocalComments(MOCK_COMMENTS.filter((c) => c.ticketId === ticketId && !c.isInternal));
+    if (!ticket) return;
+    setLocalComments([]);
     setReplyText('');
-  }, [ticketId]);
+    apiFetch<ApiComment[]>(`/tickets/id/${ticket.ticketId}/comments`)
+      .then((raw) => setLocalComments(
+        raw.filter((c) => c.visibility === 'PUBLIC').map((c) => mapApiComment(c, ticket.ticketId)),
+      ))
+      .catch((err) => console.error('fetch comments:', err));
+  }, [ticket?.ticketId]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
@@ -140,25 +165,32 @@ export function TicketDetailModal({ ticketId, onClose }: TicketDetailModalProps)
     return () => window.removeEventListener('keydown', handler);
   }, [onClose]);
 
-  if (!ticketId || !ticket) return null;
+  if (!ticket) return null;
 
-  const handleSend = () => {
+  const handleSend = async () => {
     const trimmed = replyText.trim();
     if (!trimmed) return;
     setIsSending(true);
-    setTimeout(() => {
+    try {
+      await apiFetch(`/tickets/id/${ticket.ticketId}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content: trimmed, is_internal: false }),
+      });
       setLocalComments((prev) => [...prev, {
-        id: `local-${Date.now()}`,
-        ticketId,
-        author: ticket.creator,
-        body: trimmed,
-        createdAt: new Date(),
+        id:         `local-${Date.now()}`,
+        ticketId:   ticket.ticketId,
+        author:     ticket.creator,
+        body:       trimmed,
+        createdAt:  new Date(),
         isInternal: false,
       }]);
       setReplyText('');
-      setIsSending(false);
       setTimeout(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), 50);
-    }, 350);
+    } catch (err) {
+      console.error('post comment:', err);
+    } finally {
+      setIsSending(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {

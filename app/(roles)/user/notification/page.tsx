@@ -1,13 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Bell, CheckCircle2, Clock, MessageSquare,
+  Bell, CheckCircle2, MessageSquare,
   UserCheck, ChevronRight, Check, Trash2,
   XCircle, RefreshCw, Sparkles, Wrench,
 } from 'lucide-react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/notification';
+import { apiFetch } from '@/lib/api-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -30,100 +31,106 @@ interface Notification {
   ticketId?: string;
 }
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
+// ─── API shapes ───────────────────────────────────────────────────────────────
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n-1',
-    type: 'new_comment',
-    title: 'New Reply on REQ-001',
-    description: 'Somsak Jaidee replied: "That narrows it down to the GPU power management. I\'ve updated your display driver remotely. Please restart and let me know."',
-    timestamp: '5 minutes ago',
-    read: false,
-    ticketId: 'REQ-001',
-  },
-  {
-    id: 'n-2',
-    type: 'ticket_assigned',
-    title: 'Your Request Has Been Assigned — REQ-004',
-    description: 'Krit Sombat has been assigned to your ticket "VPN connection drops every 30 minutes" and will begin working on it shortly.',
-    timestamp: '30 minutes ago',
-    read: false,
-    ticketId: 'REQ-004',
-  },
-  {
-    id: 'n-3',
-    type: 'status_update',
-    title: 'Status Updated — REQ-001',
-    description: 'Your ticket "Laptop screen flickering issue" status has changed from Assigned to Solving. Somsak Jaidee is actively working on your request.',
-    timestamp: '1 hour ago',
-    read: false,
-    ticketId: 'REQ-001',
-  },
-  {
-    id: 'n-4',
-    type: 'ticket_received',
-    title: 'Request Received — REQ-006',
-    description: 'Your request "Printer on 3rd floor not responding" has been received and is pending admin review. You\'ll be notified once it\'s assigned.',
-    timestamp: '2 hours ago',
-    read: false,
-    ticketId: 'REQ-006',
-  },
-  {
-    id: 'n-5',
-    type: 'ticket_solved',
-    title: 'Request Solved — REQ-003',
-    description: 'Great news! Your request "Request for Adobe Creative Cloud license" has been marked as solved by Nipa Thong. Your license should now be active.',
-    timestamp: '3 hours ago',
-    read: true,
-    ticketId: 'REQ-003',
-  },
-  {
-    id: 'n-6',
-    type: 'new_comment',
-    title: 'New Reply on REQ-004',
-    description: 'Krit Sombat replied: "Acknowledged. This sounds like the known AnyConnect idle-timeout issue. I\'ll schedule a remote session to adjust your VPN profile."',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'REQ-004',
-  },
-  {
-    id: 'n-7',
-    type: 'ticket_solved',
-    title: 'Request Solved — REQ-005',
-    description: 'Your request "New employee onboarding equipment setup" has been resolved. All equipment has been delivered and configured for Ananya Srirak.',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'REQ-005',
-  },
-  {
-    id: 'n-8',
-    type: 'ticket_failed',
-    title: 'Request Could Not Be Resolved — REQ-008',
-    description: 'Unfortunately, "Conference room TV display not working" could not be resolved. The display requires hardware replacement. A procurement request has been escalated.',
-    timestamp: '2 days ago',
-    read: true,
-    ticketId: 'REQ-008',
-  },
-  {
-    id: 'n-9',
-    type: 'ticket_renewed',
-    title: 'Request Reopened — REQ-007',
-    description: 'Your ticket "Email client crashing on startup" has been reopened after the issue recurred. Nipa Thong has been notified and will follow up.',
-    timestamp: '2 days ago',
-    read: true,
-    ticketId: 'REQ-007',
-  },
-  {
-    id: 'n-10',
-    type: 'ticket_assigned',
-    title: 'Your Request Has Been Assigned — REQ-002',
-    description: 'Your ticket "Cannot access internal HR portal" is now assigned. The IT team has been notified and will begin investigation.',
-    timestamp: '3 days ago',
-    read: true,
-    ticketId: 'REQ-002',
-  },
-];
+interface ApiTicket {
+  ticket_id: number;
+  title: string | null;
+  status: { name: string; status_id?: number } | null;
+  category: { name: string } | null;
+  created_at: string;
+  updated_at: string;
+  deadline: string | null;
+  assignee: { full_name: string | null; user_name: string | null } | null;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function timeAgo(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  < 1)  return 'just now';
+  if (mins  < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
+function buildNotifications(tickets: ApiTicket[]): Notification[] {
+  const list: Notification[] = [];
+
+  for (const t of tickets) {
+    const statusName = t.status?.name?.toLowerCase() ?? 'new';
+    const assigneeName = t.assignee?.full_name ?? t.assignee?.user_name ?? null;
+    const titleStr = t.title ? `"${t.title}"` : `#${t.ticket_id}`;
+
+    if (statusName === 'solved') {
+      list.push({
+        id: `solved-${t.ticket_id}`,
+        type: 'ticket_solved',
+        title: `Request Solved — #${t.ticket_id}`,
+        description: `Your request ${titleStr} has been marked as solved${assigneeName ? ` by ${assigneeName}` : ''}.`,
+        timestamp: timeAgo(t.updated_at),
+        read: true,
+        ticketId: String(t.ticket_id),
+      });
+    } else if (statusName === 'failed') {
+      list.push({
+        id: `failed-${t.ticket_id}`,
+        type: 'ticket_failed',
+        title: `Request Could Not Be Resolved — #${t.ticket_id}`,
+        description: `Your request ${titleStr} could not be resolved and has been marked as failed.`,
+        timestamp: timeAgo(t.updated_at),
+        read: true,
+        ticketId: String(t.ticket_id),
+      });
+    } else if (statusName === 'renew') {
+      list.push({
+        id: `renew-${t.ticket_id}`,
+        type: 'ticket_renewed',
+        title: `Request Reopened — #${t.ticket_id}`,
+        description: `Your ticket ${titleStr} has been reopened.${assigneeName ? ` ${assigneeName} has been notified and will follow up.` : ''}`,
+        timestamp: timeAgo(t.updated_at),
+        read: false,
+        ticketId: String(t.ticket_id),
+      });
+    } else if (statusName === 'solving') {
+      list.push({
+        id: `solving-${t.ticket_id}`,
+        type: 'status_update',
+        title: `Status Updated — #${t.ticket_id}`,
+        description: `Your ticket ${titleStr} status has changed to Solving.${assigneeName ? ` ${assigneeName} is actively working on your request.` : ''}`,
+        timestamp: timeAgo(t.updated_at),
+        read: false,
+        ticketId: String(t.ticket_id),
+      });
+    } else if ((statusName === 'assigned') && assigneeName) {
+      list.push({
+        id: `assigned-${t.ticket_id}`,
+        type: 'ticket_assigned',
+        title: `Your Request Has Been Assigned — #${t.ticket_id}`,
+        description: `${assigneeName} has been assigned to your ticket ${titleStr} and will begin working on it shortly.`,
+        timestamp: timeAgo(t.updated_at),
+        read: false,
+        ticketId: String(t.ticket_id),
+      });
+    } else {
+      // New / Draft / unknown
+      list.push({
+        id: `received-${t.ticket_id}`,
+        type: 'ticket_received',
+        title: `Request Received — #${t.ticket_id}`,
+        description: `Your request ${titleStr} has been received and is pending admin review. You'll be notified once it's assigned.`,
+        timestamp: timeAgo(t.created_at),
+        read: statusName !== 'new',
+        ticketId: String(t.ticket_id),
+      });
+    }
+  }
+
+  return list.sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1));
+}
 
 // ─── Config per type ──────────────────────────────────────────────────────────
 
@@ -274,8 +281,20 @@ function NotificationCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function UserNotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activeFilter, setActiveFilter]   = useState<FilterId>('all');
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch<ApiTicket[]>('/tickets/mine')
+      .then((tickets) => setNotifications(buildNotifications(tickets)))
+      .catch((err) => {
+        console.error('[Notifications] fetch error:', err);
+        setError('Failed to load notifications.');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -308,7 +327,7 @@ export default function UserNotificationsPage() {
             <div>
               <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
               <p className="text-[11px] text-gray-400 mt-0.5">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                {loading ? 'Loading…' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
               </p>
             </div>
           </div>
@@ -350,7 +369,15 @@ export default function UserNotificationsPage() {
 
         {/* ── List ── */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center h-48 text-gray-400">
+              <p className="text-xs font-semibold">Loading notifications…</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-48 text-red-400">
+              <p className="text-xs font-semibold">{error}</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-300">
               <Bell size={28} className="mb-2" />
               <p className="text-xs font-semibold">No notifications</p>

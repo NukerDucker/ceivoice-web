@@ -1,23 +1,17 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  Search, Check, Pencil, ChevronDown, User, X,
+  Search, Check, Pencil, ChevronDown, X,
   Clock, AlertTriangle, RefreshCw, MessageSquare,
   Send, Eye, EyeOff, Users, BarChart2, ArrowRight,
-  History, UserCheck, GitBranch, Merge,
+  History, UserCheck, GitBranch, Loader2,
 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import { Sidebar } from '@/components/layout/AssigneeSidebar';
 import { Header } from '@/components/layout/TicketTB';
+import { apiFetch } from '@/lib/api-client';
+import { createClient } from '@/lib/supabase/client';
 import {
-  MY_ACTIVE_TICKETS,
-  MY_RESOLVED_TICKETS,
-  ASSIGNEE_PERFORMANCE,
-  OTHER_ASSIGNEES,
-  ALL_ASSIGNEES,
-  CURRENT_ASSIGNEE,
-  STATUS_STYLES,
   PRIORITY_STYLE,
   getCatStyle,
   type AssigneeTicket,
@@ -26,6 +20,132 @@ import {
   type TicketHistoryEntry,
 } from '@/lib/assignee-dashboard-data';
 import { type TicketStatus, type DashboardAssignee } from '@/lib/admin-dashboard-data';
+
+// ─── Backend API types ────────────────────────────────────────────────────────
+
+interface ApiUser {
+  user_id:   string;
+  full_name: string | null;
+  user_name: string | null;
+  email:     string;
+  role:      string;
+}
+
+interface ApiTicketRaw {
+  ticket_id:   number;
+  title:       string;
+  priority:    string;
+  deadline:    string | null;
+  created_at:  string;
+  resolved_at: string | null;
+  updated_at:  string;
+  status?:     { name: string };
+  category?:   { name: string };
+  assignee?:   ApiUser;
+  creator?:    ApiUser;
+}
+
+interface ApiComment {
+  comment_id: number;
+  content:    string;
+  visibility: 'PUBLIC' | 'INTERNAL';
+  created_at: string;
+  user?:      ApiUser;
+}
+
+interface ApiHistoryEntry {
+  type:          'status_change' | 'assignment_change';
+  timestamp:     string;
+  old_status?:   string | null;
+  new_status?:   string | null;
+  old_assignee?: { name: string } | null;
+  new_assignee?: { name: string } | null;
+  changed_by?:   { name: string } | null;
+  change_reason?: string | null;
+}
+
+// ─── Data mappers ─────────────────────────────────────────────────────────────
+
+function apiUserName(u?: ApiUser | null): string {
+  return u?.full_name ?? u?.user_name ?? u?.email ?? 'Unknown';
+}
+
+function toAssignee(u?: ApiUser | null): DashboardAssignee {
+  const n = apiUserName(u);
+  return { name: n, fallback: n.charAt(0), role: u?.role ?? '', department: '' };
+}
+
+function toTicketStatus(s?: string | null): TicketStatus {
+  return ((s ?? 'new').toLowerCase()) as TicketStatus;
+}
+
+function toPriority(p: string): 'critical' | 'high' | 'medium' | 'low' {
+  return p.toLowerCase() as 'critical' | 'high' | 'medium' | 'low';
+}
+
+function mapApiTicket(t: ApiTicketRaw): AssigneeTicket {
+  return {
+    ticketId:  String(t.ticket_id),
+    title:     t.title,
+    category:  t.category?.name ?? 'General',
+    status:    toTicketStatus(t.status?.name),
+    priority:  toPriority(t.priority),
+    date:      new Date(t.created_at),
+    deadline:  new Date(t.deadline ?? Date.now() + 86_400_000),
+    assignee:  toAssignee(t.assignee),
+    creator:   apiUserName(t.creator),
+    followers: [],
+    history:   [],
+    comments:  [],
+  };
+}
+
+function mapResolvedTicket(t: ApiTicketRaw): ResolvedTicket {
+  const sName = t.status?.name?.toLowerCase() ?? 'solved';
+  return {
+    ticketId:     String(t.ticket_id),
+    title:        t.title,
+    category:     t.category?.name ?? 'General',
+    status:       (sName === 'failed' ? 'failed' : 'solved') as 'solved' | 'failed',
+    priority:     toPriority(t.priority),
+    date:         new Date(t.created_at),
+    resolvedDate: new Date(t.resolved_at ?? t.updated_at),
+  };
+}
+
+function mapApiComment(c: ApiComment): TicketComment {
+  return {
+    author:    apiUserName(c.user),
+    type:      c.visibility === 'INTERNAL' ? 'internal' : 'public',
+    text:      c.content,
+    timestamp: new Date(c.created_at),
+  };
+}
+
+function mapHistoryEntry(h: ApiHistoryEntry): TicketHistoryEntry {
+  if (h.type === 'assignment_change') {
+    return {
+      type:        'reassignment',
+      action:      'Reassigned',
+      oldStatus:   null,
+      newStatus:   'assigned' as TicketStatus,
+      by:          h.changed_by?.name ?? 'System',
+      oldAssignee: h.old_assignee?.name ?? null,
+      newAssignee: h.new_assignee?.name ?? 'Unassigned',
+      detail:      h.change_reason ?? undefined,
+      timestamp:   new Date(h.timestamp),
+    };
+  }
+  return {
+    type:      'status_change',
+    action:    h.old_status ? 'Status Change' : 'Created',
+    oldStatus: h.old_status ? toTicketStatus(h.old_status) : null,
+    newStatus: toTicketStatus(h.new_status),
+    by:        h.changed_by?.name ?? 'System',
+    detail:    h.change_reason ?? undefined,
+    timestamp: new Date(h.timestamp),
+  };
+}
 
 // ─── Status config (same palette as admin page) ───────────────────────────────
 
@@ -53,6 +173,11 @@ const STATUS_TABS: { label: string; value: TicketStatus | 'all' | 'resolved' }[]
   { label: 'Renew',       value: 'renew'    },
   { label: 'Resolved',    value: 'resolved' },
 ];
+
+const STATUS_API_MAP: Record<string, string> = {
+  draft: 'Draft', new: 'New', assigned: 'Assigned',
+  solving: 'Solving', solved: 'Solved', failed: 'Failed', renew: 'Renew',
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -197,22 +322,29 @@ function ResolutionModal({
 
 function ReassignModal({
   currentAssignee,
+  availableAssignees,
   onConfirm,
   onCancel,
 }: {
   currentAssignee: DashboardAssignee;
-  onConfirm: (assignees: DashboardAssignee[], note: string) => void;
+  availableAssignees: ApiUser[];
+  onConfirm: (users: ApiUser[], note: string) => void;
   onCancel: () => void;
 }) {
-  const [selected, setSelected] = useState<DashboardAssignee[]>([]);
+  const [selected, setSelected] = useState<ApiUser[]>([]);
   const [note, setNote]         = useState('');
 
-  const toggle = (a: DashboardAssignee) =>
+  const toggle = (a: ApiUser) =>
     setSelected((prev) =>
-      prev.some((x) => x.name === a.name)
-        ? prev.filter((x) => x.name !== a.name)
+      prev.some((x) => x.user_id === a.user_id)
+        ? prev.filter((x) => x.user_id !== a.user_id)
         : [...prev, a],
     );
+
+  // Exclude current assignee from the list
+  const candidates = availableAssignees.filter(
+    (a) => apiUserName(a) !== currentAssignee.name,
+  );
 
   return (
     <>
@@ -229,7 +361,7 @@ function ReassignModal({
         </div>
 
         <div className="flex items-center justify-between mb-2">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Select new assignees</p>
+          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Select new assignee</p>
           {selected.length > 0 && (
             <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
               {selected.length} selected
@@ -237,44 +369,49 @@ function ReassignModal({
           )}
         </div>
 
-        <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto mb-3">
-          {OTHER_ASSIGNEES.map((a) => {
-            const isSelected = selected.some((x) => x.name === a.name);
-            return (
-              <button
-                key={a.name}
-                onClick={() => toggle(a)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
-                  isSelected
-                    ? 'border-indigo-400 bg-indigo-50'
-                    : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                  isSelected ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-200 text-gray-600'
-                }`}>
-                  {a.name.charAt(0)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800">{a.name}</p>
-                  <p className="text-xs text-gray-400">{a.role} · {a.department}</p>
-                </div>
-                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
-                  isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300'
-                }`}>
-                  {isSelected && <Check size={10} className="text-white" />}
-                </div>
-              </button>
-            );
-          })}
-        </div>
+        {candidates.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-6">No other assignees available.</p>
+        ) : (
+          <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto mb-3">
+            {candidates.map((a) => {
+              const name = apiUserName(a);
+              const isSelected = selected.some((x) => x.user_id === a.user_id);
+              return (
+                <button
+                  key={a.user_id}
+                  onClick={() => toggle(a)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+                    isSelected
+                      ? 'border-indigo-400 bg-indigo-50'
+                      : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                    isSelected ? 'bg-indigo-200 text-indigo-700' : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {name.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-800">{name}</p>
+                    <p className="text-xs text-gray-400">{a.role}</p>
+                  </div>
+                  <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 transition-all ${
+                    isSelected ? 'bg-indigo-500 border-indigo-500' : 'border-gray-300'
+                  }`}>
+                    {isSelected && <Check size={10} className="text-white" />}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Selected summary chips */}
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
             {selected.map((a) => (
-              <span key={a.name} className="flex items-center gap-1 text-[11px] font-semibold bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded-full">
-                {a.name}
+              <span key={a.user_id} className="flex items-center gap-1 text-[11px] font-semibold bg-white border border-indigo-200 text-indigo-700 px-2 py-1 rounded-full">
+                {apiUserName(a)}
                 <button onClick={() => toggle(a)} className="hover:text-red-400 transition-colors">
                   <X size={10} />
                 </button>
@@ -314,15 +451,17 @@ function ReassignModal({
 
 function TicketDetailDrawer({
   ticket,
+  availableAssignees,
   onClose,
   onStatusChange,
   onReassign,
   onCommentPost,
 }: {
   ticket: AssigneeTicket;
+  availableAssignees: ApiUser[];
   onClose: () => void;
   onStatusChange: (id: string, s: TicketStatus, comment?: string) => void;
-  onReassign: (id: string, assignees: DashboardAssignee[], note: string) => void;
+  onReassign: (id: string, users: ApiUser[], note: string) => void;
   onCommentPost: (id: string, text: string, type: 'internal' | 'public') => void;
 }) {
   const [pendingStatus,    setPendingStatus]    = useState<'solved' | 'failed' | null>(null);
@@ -550,40 +689,84 @@ function TicketDetailDrawer({
             <div className="flex flex-col gap-2">
               {ticket.history.map((h, i) => {
                 const isCurrent = i === ticket.history.length - 1;
+                const isReassignment = h.type === 'reassignment';
+
+                let iconBg: string;
+                if (isCurrent && isReassignment)       iconBg = 'bg-indigo-600';
+                else if (isCurrent)                    iconBg = 'bg-gray-900';
+                else if (isReassignment)               iconBg = 'bg-indigo-100';
+                else                                   iconBg = 'bg-gray-200';
+
+                let cardBg: string;
+                if (isCurrent && isReassignment)       cardBg = 'bg-indigo-50 border-indigo-200';
+                else if (isCurrent)                    cardBg = 'bg-gray-50 border-gray-200';
+                else                                   cardBg = 'bg-white border-gray-100';
                 return (
                   <div key={i} className={`flex gap-3 ${isCurrent ? '' : 'opacity-80'}`}>
                     <div className="flex flex-col items-center shrink-0">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
-                        isCurrent ? 'bg-gray-900' : 'bg-gray-200'
-                      }`}>
-                        <History size={12} className={isCurrent ? 'text-white' : 'text-gray-500'} />
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${iconBg}`}>
+                        {isReassignment
+                          ? <UserCheck size={12} className={isCurrent ? 'text-white' : 'text-indigo-500'} />
+                          : <History   size={12} className={isCurrent ? 'text-white' : 'text-gray-500'} />
+                        }
                       </div>
                       {i < ticket.history.length - 1 && (
                         <div className="w-px flex-1 bg-gray-200 my-1" />
                       )}
                     </div>
-                    <div className={`flex-1 pb-4 rounded-xl px-3 py-2.5 border text-xs ${
-                      isCurrent ? 'bg-gray-50 border-gray-200' : 'bg-white border-gray-100'
-                    }`}>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-gray-800">{h.action}</span>
-                        {h.oldStatus && (
-                          <>
-                            <StatusBadge status={h.oldStatus} readonly />
-                            <ArrowRight size={10} className="text-gray-400" />
-                          </>
-                        )}
-                        <StatusBadge status={h.newStatus} readonly />
-                      </div>
-                      <div className="flex items-center gap-2 text-gray-400">
-                        <span>by <span className="font-medium text-gray-600">{h.by}</span></span>
-                        <span>·</span>
-                        <span>{timeAgo(h.timestamp)}</span>
-                      </div>
-                      {h.detail && (
-                        <p className="mt-1.5 text-gray-500 bg-white border border-gray-100 rounded-lg px-3 py-2">
-                          {h.detail}
-                        </p>
+                    <div className={`flex-1 pb-4 rounded-xl px-3 py-2.5 border text-xs ${cardBg}`}>
+                      {isReassignment ? (
+                        /* ── Reassignment entry ─────────────────────────── */
+                        <>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-semibold text-indigo-700">{h.action}</span>
+                            {h.oldAssignee ? (
+                              <>
+                                <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200 text-gray-600">
+                                  {h.oldAssignee}
+                                </span>
+                                <ArrowRight size={10} className="text-gray-400" />
+                              </>
+                            ) : null}
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-indigo-100 border border-indigo-300 text-indigo-700">
+                              {h.newAssignee ?? 'Unassigned'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <span>by <span className="font-medium text-gray-600">{h.by}</span></span>
+                            <span>·</span>
+                            <span>{timeAgo(h.timestamp)}</span>
+                          </div>
+                          {h.detail && (
+                            <p className="mt-1.5 text-gray-500 bg-white border border-gray-100 rounded-lg px-3 py-2">
+                              {h.detail}
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        /* ── Status-change entry ────────────────────────── */
+                        <>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold text-gray-800">{h.action}</span>
+                            {h.oldStatus && (
+                              <>
+                                <StatusBadge status={h.oldStatus} readonly />
+                                <ArrowRight size={10} className="text-gray-400" />
+                              </>
+                            )}
+                            <StatusBadge status={h.newStatus} readonly />
+                          </div>
+                          <div className="flex items-center gap-2 text-gray-400">
+                            <span>by <span className="font-medium text-gray-600">{h.by}</span></span>
+                            <span>·</span>
+                            <span>{timeAgo(h.timestamp)}</span>
+                          </div>
+                          {h.detail && (
+                            <p className="mt-1.5 text-gray-500 bg-white border border-gray-100 rounded-lg px-3 py-2">
+                              {h.detail}
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -648,8 +831,9 @@ function TicketDetailDrawer({
       {showReassign && (
         <ReassignModal
           currentAssignee={ticket.assignee}
-          onConfirm={(assignees, note) => {
-            onReassign(ticket.ticketId, assignees, note);
+          availableAssignees={availableAssignees}
+          onConfirm={(users, note) => {
+            onReassign(ticket.ticketId, users, note);
             setShowReassign(false);
           }}
           onCancel={() => setShowReassign(false)}
@@ -755,16 +939,79 @@ function TicketRow({
 }
 // ─── Performance Dashboard ────────────────────────────────────────────────────
 
-function PerformanceDashboard({ onClose }: { onClose: () => void }) {
-  const p = ASSIGNEE_PERFORMANCE;
-  const stats = [
-    { label: 'Active Tickets',       value: p.activeCount,             sub: 'Currently assigned',       color: 'text-indigo-600', bg: 'bg-indigo-50',  border: 'border-indigo-100' },
-    { label: 'Solved (30d)',          value: p.solvedLast30,            sub: 'Last 30 days',             color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-100'  },
-    { label: 'Failed (30d)',          value: p.failedLast30,            sub: 'Last 30 days',             color: 'text-red-500',    bg: 'bg-red-50',     border: 'border-red-100'    },
-    { label: 'Resolution Rate',       value: `${p.resolutionRatePct}%`, sub: 'Solved / total closed',    color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-100'   },
-    { label: 'Avg First Response',    value: `${p.avgFirstResponseHours}h`, sub: 'Across all tickets',  color: 'text-amber-600',  bg: 'bg-amber-50',   border: 'border-amber-100'  },
-    { label: 'Critical Open',         value: p.criticalCount,           sub: 'Needs immediate attention', color: p.criticalCount > 0 ? 'text-red-600' : 'text-gray-600', bg: p.criticalCount > 0 ? 'bg-red-50' : 'bg-gray-50', border: p.criticalCount > 0 ? 'border-red-100' : 'border-gray-100' },
-  ];
+interface PerfData {
+  total_solved: number;
+  total_failed: number;
+  success_rate: string;          // e.g. "83.33%"
+  avg_resolution_time_hours: number | null;
+  resolved_by_category: { category: string; count: number }[];
+}
+
+interface WorkloadData {
+  total_active_tickets: number;
+  overdue_count: number;
+  upcoming_deadlines_count: number;
+}
+
+function PerformanceDashboard({ onClose, userName }: { onClose: () => void; userName: string }) {
+  const [perf,    setPerf]    = useState<PerfData | null>(null);
+  const [workload, setWorkload] = useState<WorkloadData | null>(null);
+  const [loading, setLoading] = useState(true);   // start true — data not yet fetched
+  const [error,   setError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch<{ performance: PerfData }>('/reporting/assignee/performance?period=last_30_days'),
+      apiFetch<{ workload: WorkloadData }>('/reporting/assignee/workload'),
+    ])
+      .then(([perfRes, workloadRes]) => {
+        setPerf(perfRes.performance);
+        setWorkload(workloadRes.workload);
+      })
+      .catch((err: Error) => setError(err.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const stats = perf && workload ? [
+    {
+      label: 'Active Tickets',
+      value: workload.total_active_tickets,
+      sub: 'Currently assigned',
+      color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-100',
+    },
+    {
+      label: 'Solved (30d)',
+      value: perf.total_solved,
+      sub: 'Last 30 days',
+      color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-100',
+    },
+    {
+      label: 'Failed (30d)',
+      value: perf.total_failed,
+      sub: 'Last 30 days',
+      color: 'text-red-500', bg: 'bg-red-50', border: 'border-red-100',
+    },
+    {
+      label: 'Success Rate',
+      value: perf.success_rate === 'N/A' ? 'N/A' : perf.success_rate,
+      sub: 'Solved / total closed (30d)',
+      color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-100',
+    },
+    {
+      label: 'Avg Resolution',
+      value: perf.avg_resolution_time_hours === null ? 'N/A' : `${perf.avg_resolution_time_hours}h`,
+      sub: 'Hours per closed ticket',
+      color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-100',
+    },
+    {
+      label: 'Overdue',
+      value: workload.overdue_count,
+      sub: 'Past deadline',
+      color: workload.overdue_count > 0 ? 'text-red-600' : 'text-gray-600',
+      bg: workload.overdue_count > 0 ? 'bg-red-50' : 'bg-gray-50',
+      border: workload.overdue_count > 0 ? 'border-red-100' : 'border-gray-100',
+    },
+  ] : [];
 
   return (
     <>
@@ -777,7 +1024,7 @@ function PerformanceDashboard({ onClose }: { onClose: () => void }) {
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-900">My Performance</h2>
-              <p className="text-xs text-gray-400">{CURRENT_ASSIGNEE.name} · {CURRENT_ASSIGNEE.role}</p>
+              <p className="text-xs text-gray-400">{userName}</p>
             </div>
           </div>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-700 transition-colors">
@@ -785,20 +1032,51 @@ function PerformanceDashboard({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          {stats.map((s) => (
-            <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} p-4`}>
-              <div className={`text-2xl font-bold ${s.color} mb-1`}>{s.value}</div>
-              <div className="text-xs font-semibold text-gray-700">{s.label}</div>
-              <div className="text-[10px] text-gray-400 mt-0.5">{s.sub}</div>
-            </div>
-          ))}
-        </div>
+        {loading && (
+          <div className="grid grid-cols-3 gap-3">
+            {['s1','s2','s3','s4','s5','s6'].map((k) => (
+              <div key={k} className="rounded-xl border border-gray-100 bg-gray-50 p-4 animate-pulse h-20" />
+            ))}
+          </div>
+        )}
 
-        <div className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-100">
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Total Assigned (all time)</p>
-          <p className="text-lg font-bold text-gray-900">{p.totalAssigned} tickets</p>
-        </div>
+        {error && (
+          <div className="rounded-xl border border-red-100 bg-red-50 p-4 text-sm text-red-600">
+            Failed to load performance data: {error}
+          </div>
+        )}
+
+        {!loading && !error && perf && workload && (
+          <>
+            <div className="grid grid-cols-3 gap-3">
+              {stats.map((s) => (
+                <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} p-4`}>
+                  <div className={`text-2xl font-bold ${s.color} mb-1`}>{s.value}</div>
+                  <div className="text-xs font-semibold text-gray-700">{s.label}</div>
+                  <div className="text-[10px] text-gray-400 mt-0.5">{s.sub}</div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 p-4 bg-gray-50 rounded-xl border border-gray-100">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Upcoming Deadlines (7 days)</p>
+              <p className="text-lg font-bold text-gray-900">{workload.upcoming_deadlines_count} tickets</p>
+            </div>
+
+            {perf.resolved_by_category.length > 0 && (
+              <div className="mt-3 p-4 bg-gray-50 rounded-xl border border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Resolved by Category (30d)</p>
+                <div className="flex flex-wrap gap-2">
+                  {perf.resolved_by_category.map((c) => (
+                    <span key={c.category} className="text-xs px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-600 font-medium">
+                      {c.category} <span className="font-bold text-gray-900">{c.count}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
     </>
   );
@@ -807,97 +1085,182 @@ function PerformanceDashboard({ onClose }: { onClose: () => void }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AssigneeTicketsPage() {
-  const [activeTab,       setActiveTab]       = useState<TicketStatus | 'all' | 'resolved'>('all');
-  const [activeTickets,   setActiveTickets]   = useState<AssigneeTicket[]>(MY_ACTIVE_TICKETS);
-  const [openTicket,      setOpenTicket]      = useState<AssigneeTicket | null>(null);
-  const [showPerformance, setShowPerformance] = useState(false);
+  const [activeTab,        setActiveTab]        = useState<TicketStatus | 'all' | 'resolved'>('all');
+  const [activeTickets,    setActiveTickets]    = useState<AssigneeTicket[]>([]);
+  const [resolvedTickets,  setResolvedTickets]  = useState<ResolvedTicket[]>([]);
+  const [assigneeList,     setAssigneeList]     = useState<ApiUser[]>([]);
+  const [ticketsLoading,   setTicketsLoading]   = useState(true);
+  const [openTicket,       setOpenTicket]       = useState<AssigneeTicket | null>(null);
+  const [showPerformance,  setShowPerformance]  = useState(false);
+  const [currentUserName,  setCurrentUserName]  = useState('Assignee');
 
-  // Filtered list
+  // ── Load logged-in user name from Supabase ─────────────────────────────────
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return;
+      setCurrentUserName(
+        user.user_metadata?.full_name ??
+        user.user_metadata?.name ??
+        user.email ??
+        'Assignee',
+      );
+    });
+  }, []);
+
+  // ── Initial data fetch ─────────────────────────────────────────────────────
+  useEffect(() => {
+    Promise.all([
+      apiFetch<ApiTicketRaw[]>('/tickets/assigned'),
+      apiFetch<ApiTicketRaw[]>('/tickets/assigned?resolved=true'),
+      apiFetch<ApiUser[]>('/tickets/assignee-list'),
+    ])
+      .then(([active, resolved, assignees]) => {
+        setActiveTickets(active.map(mapApiTicket));
+        setResolvedTickets(resolved.map(mapResolvedTicket));
+        setAssigneeList(assignees);
+      })
+      .catch((err) => console.error('initial fetch:', err))
+      .finally(() => setTicketsLoading(false));
+  }, []);
+
+  // ── Open ticket: also fetch comments + history ─────────────────────────────
+  const handleOpenTicket = useCallback(async (ticket: AssigneeTicket) => {
+    setOpenTicket(ticket);
+    try {
+      const [rawComments, historyRes] = await Promise.all([
+        apiFetch<ApiComment[]>(`/tickets/id/${ticket.ticketId}/comments`),
+        apiFetch<{ history: ApiHistoryEntry[] }>(`/tickets/id/${ticket.ticketId}/history`),
+      ]);
+      const comments = rawComments.map(mapApiComment);
+      const history  = (historyRes.history ?? []).map(mapHistoryEntry);
+      setActiveTickets((prev) =>
+        prev.map((t) => t.ticketId === ticket.ticketId ? { ...t, comments, history } : t),
+      );
+      setOpenTicket((prev) => prev ? { ...prev, comments, history } : null);
+    } catch (err) {
+      console.error('fetch ticket details:', err);
+    }
+  }, []);
+
+  // ── Status change ──────────────────────────────────────────────────────────
+  const handleStatusChange = useCallback(async (id: string, status: TicketStatus, comment?: string) => {
+    try {
+      await apiFetch(`/tickets/id/${id}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ new_status: STATUS_API_MAP[status] ?? status }),
+      });
+      if (comment) {
+        await apiFetch(`/tickets/id/${id}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ content: comment, is_internal: true }),
+        });
+      }
+    } catch (err) {
+      console.error('status update failed:', err);
+    }
+
+    const newEntry: TicketHistoryEntry = {
+      action: 'Status Change', oldStatus: null, newStatus: status,
+      by: currentUserName, timestamp: new Date(),
+    };
+    const newCommentEntry: TicketComment | null = comment
+      ? { author: currentUserName, type: 'internal', text: comment, timestamp: new Date() }
+      : null;
+
+    setActiveTickets((prev) =>
+      prev.map((t) => {
+        if (t.ticketId !== id) return t;
+        return {
+          ...t,
+          status,
+          history:  [...t.history,  { ...newEntry, oldStatus: t.status }],
+          comments: newCommentEntry ? [...t.comments, newCommentEntry] : t.comments,
+        };
+      }),
+    );
+    setOpenTicket((prev) => {
+      if (!prev || prev.ticketId !== id) return prev;
+      return {
+        ...prev,
+        status,
+        history: [...prev.history, { ...newEntry, oldStatus: prev.status }],
+        comments: newCommentEntry ? [...prev.comments, newCommentEntry] : prev.comments,
+      };
+    });
+  }, [currentUserName]);
+
+  // ── Reassign ───────────────────────────────────────────────────────────────
+  const handleReassign = useCallback(async (id: string, users: ApiUser[], note: string) => {
+    // Assign to the first selected user (primary); remaining are just noted
+    const primary = users[0];
+    if (!primary) return;
+    try {
+      await apiFetch(`/tickets/id/${id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ assignee_id: primary.user_id, change_reason: note || undefined }),
+      });
+    } catch (err) {
+      console.error('reassign failed:', err);
+    }
+
+    const names = users.map(apiUserName).join(', ');
+    setActiveTickets((prev) =>
+      prev.map((t) => {
+        if (t.ticketId !== id) return t;
+        const newEntry: TicketHistoryEntry = {
+          type: 'reassignment', action: 'Reassigned',
+          oldStatus: t.status, newStatus: 'assigned',
+          by: currentUserName, oldAssignee: t.assignee.name,
+          newAssignee: names, detail: note || undefined, timestamp: new Date(),
+        };
+        return { ...t, assignee: toAssignee(primary), status: 'assigned', history: [...t.history, newEntry] };
+      }),
+    );
+    setOpenTicket((prev) => {
+      if (!prev || prev.ticketId !== id) return prev;
+      return { ...prev, assignee: toAssignee(primary), status: 'assigned' };
+    });
+  }, [currentUserName]);
+
+  // ── Post comment ───────────────────────────────────────────────────────────
+  const handleCommentPost = useCallback(async (id: string, text: string, type: 'internal' | 'public') => {
+    try {
+      await apiFetch(`/tickets/id/${id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content: text, is_internal: type === 'internal' }),
+      });
+    } catch (err) {
+      console.error('comment post failed:', err);
+    }
+    const newComment: TicketComment = { author: currentUserName, type, text, timestamp: new Date() };
+    setActiveTickets((prev) =>
+      prev.map((t) => t.ticketId === id ? { ...t, comments: [...t.comments, newComment] } : t),
+    );
+    setOpenTicket((prev) => prev && prev.ticketId === id
+      ? { ...prev, comments: [...prev.comments, newComment] }
+      : prev,
+    );
+  }, [currentUserName]);
+
+  // ── Derived state ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (activeTab === 'resolved') return [];
     return activeTickets.filter((t) => activeTab === 'all' || t.status === activeTab);
   }, [activeTab, activeTickets]);
 
-  // Counts
   const counts = useMemo(() => {
     const map: Record<string, number> = {
       all:      activeTickets.length,
-      resolved: MY_RESOLVED_TICKETS.length,
+      resolved: resolvedTickets.length,
     };
     activeTickets.forEach((t) => { map[t.status] = (map[t.status] ?? 0) + 1; });
     return map;
-  }, [activeTickets]);
-
-  // Handlers
-  const handleStatusChange = (id: string, status: TicketStatus, comment?: string) => {
-    setActiveTickets((prev) =>
-      prev.map((t) => {
-        if (t.ticketId !== id) return t;
-        const newHistory: TicketHistoryEntry = {
-          action:    'Status Change',
-          oldStatus: t.status,
-          newStatus: status,
-          by:        CURRENT_ASSIGNEE.name,
-          timestamp: new Date(),
-        };
-        const newComments = comment
-          ? [...t.comments, { author: CURRENT_ASSIGNEE.name, type: 'internal' as const, text: comment, timestamp: new Date() }]
-          : t.comments;
-        return { ...t, status, history: [...t.history, newHistory], comments: newComments };
-      }),
-    );
-    // Update open ticket if it's the same
-    if (openTicket?.ticketId === id) {
-      setOpenTicket((prev) => {
-        if (!prev) return null;
-        const newHistory: TicketHistoryEntry = {
-          action: 'Status Change', oldStatus: prev.status, newStatus: status,
-          by: CURRENT_ASSIGNEE.name, timestamp: new Date(),
-        };
-        return { ...prev, status, history: [...prev.history, newHistory] };
-      });
-    }
-  };
-
-  const handleReassign = (id: string, assignees: DashboardAssignee[], note: string) => {
-    const names = assignees.map((a) => a.name).join(', ');
-    setActiveTickets((prev) =>
-      prev.map((t) => {
-        if (t.ticketId !== id) return t;
-        const detail = note || `Reassigned from ${t.assignee.name} to ${names}`;
-        const newHistory: TicketHistoryEntry = {
-          action:    'Reassigned',
-          oldStatus: t.status,
-          newStatus: 'assigned',
-          by:        CURRENT_ASSIGNEE.name,
-          detail,
-          timestamp: new Date(),
-        };
-        // Primary assignee = first selected; rest stored in followers
-        const [primary, ...rest] = assignees;
-        const updatedFollowers = [...t.followers, ...rest.filter((a) => !t.followers.some((f) => f.name === a.name))];
-        return { ...t, assignee: primary, followers: updatedFollowers, status: 'assigned', history: [...t.history, newHistory] };
-      }),
-    );
-    if (openTicket?.ticketId === id) {
-      const [primary] = assignees;
-      setOpenTicket((prev) => prev ? { ...prev, assignee: primary, status: 'assigned' } : null);
-    }
-  };
-
-  const handleCommentPost = (id: string, text: string, type: 'internal' | 'public') => {
-    const newComment: TicketComment = { author: CURRENT_ASSIGNEE.name, type, text, timestamp: new Date() };
-    setActiveTickets((prev) =>
-      prev.map((t) => t.ticketId === id ? { ...t, comments: [...t.comments, newComment] } : t),
-    );
-    if (openTicket?.ticketId === id) {
-      setOpenTicket((prev) => prev ? { ...prev, comments: [...prev.comments, newComment] } : null);
-    }
-  };
+  }, [activeTickets, resolvedTickets]);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar userName={CURRENT_ASSIGNEE.name} />
+      <Sidebar userName={currentUserName} />
 
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
@@ -906,11 +1269,11 @@ export default function AssigneeTicketsPage() {
         <div className="flex items-center justify-between px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700">
-              {CURRENT_ASSIGNEE.name.charAt(0)}
+              {currentUserName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="text-sm font-semibold text-gray-800">{CURRENT_ASSIGNEE.name}</p>
-              <p className="text-xs text-gray-400">{CURRENT_ASSIGNEE.role} · {CURRENT_ASSIGNEE.department}</p>
+              <p className="text-sm font-semibold text-gray-800">{currentUserName}</p>
+              <p className="text-xs text-gray-400">Assignee</p>
             </div>
           </div>
           <button
@@ -948,21 +1311,26 @@ export default function AssigneeTicketsPage() {
 
         {/* Ticket list */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          {activeTab === 'resolved' ? (
+          {ticketsLoading ? (
+            <div className="flex items-center justify-center py-20 text-gray-400 gap-3">
+              <Loader2 size={24} className="animate-spin" />
+              <span className="text-sm">Loading tickets…</span>
+            </div>
+          ) : activeTab === 'resolved' ? (
             <div className="flex flex-col gap-2">
-              {MY_RESOLVED_TICKETS.length === 0 ? (
+              {resolvedTickets.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400">
                   <Check size={32} className="mb-3 opacity-30" />
                   <p className="text-sm font-medium">No resolved tickets yet</p>
                 </div>
               ) : (
-                MY_RESOLVED_TICKETS.map((t) => <TicketRow key={t.ticketId} ticket={t} />)
+                resolvedTickets.map((t) => <TicketRow key={t.ticketId} ticket={t} />)
               )}
             </div>
           ) : filtered.length > 0 ? (
             <div className="flex flex-col gap-2">
               {filtered.map((ticket) => (
-                <TicketRow key={ticket.ticketId} ticket={ticket} onOpen={setOpenTicket} />
+                <TicketRow key={ticket.ticketId} ticket={ticket} onOpen={handleOpenTicket} />
               ))}
             </div>
           ) : (
@@ -979,6 +1347,7 @@ export default function AssigneeTicketsPage() {
       {openTicket && (
         <TicketDetailDrawer
           ticket={openTicket}
+          availableAssignees={assigneeList}
           onClose={() => setOpenTicket(null)}
           onStatusChange={handleStatusChange}
           onReassign={handleReassign}
@@ -988,7 +1357,7 @@ export default function AssigneeTicketsPage() {
 
       {/* Performance Modal */}
       {showPerformance && (
-        <PerformanceDashboard onClose={() => setShowPerformance(false)} />
+        <PerformanceDashboard onClose={() => setShowPerformance(false)} userName={currentUserName} />
       )}
     </div>
   );

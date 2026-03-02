@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bell, CheckCircle2, Clock, MessageSquare,
   UserCheck, UserPlus, ChevronRight, Check, Trash2,
   XCircle, RefreshCw,
 } from 'lucide-react';
 import { Header } from '@/components/layout/notification';
+import { apiFetch } from '@/lib/api-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,109 +23,114 @@ interface Notification {
   ticketId?: string;
 }
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
+// ─── API shapes ───────────────────────────────────────────────────────────────
 
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: 'n-1',
-    type: 'ticket_assigned',
-    title: 'New Ticket Assigned — TKT-044',
-    description: 'Ticket TKT-044 "Cannot access classroom portal" has been assigned to you by Admin. Please review and begin resolution.',
-    timestamp: '3 minutes ago',
-    read: false,
-    ticketId: 'TKT-044',
-  },
-  {
-    id: 'n-2',
-    type: 'deadline',
-    title: 'Deadline Approaching — TKT-039',
-    description: 'Ticket TKT-039 "Email server outage" is due in 2 hours and is still In Progress. Immediate attention required.',
-    timestamp: '10 minutes ago',
-    read: false,
-    ticketId: 'TKT-039',
-  },
-  {
-    id: 'n-3',
-    type: 'new_comment',
-    title: 'New Public Comment — TKT-037',
-    description: 'user@company.com left a public comment on TKT-037 "VPN access issue": "I\'m still experiencing this problem after the last update."',
-    timestamp: '25 minutes ago',
-    read: false,
-    ticketId: 'TKT-037',
-  },
-  {
-    id: 'n-4',
-    type: 'reassignment',
-    title: 'Ticket Reassigned to You — TKT-035',
-    description: 'Alex Chen has reassigned TKT-035 "Legacy system migration" to you. A resolution comment has been logged by the previous assignee.',
-    timestamp: '1 hour ago',
-    read: false,
-    ticketId: 'TKT-035',
-  },
-  {
-    id: 'n-5',
-    type: 'status_update',
-    title: 'Status Updated — TKT-031',
-    description: 'Dana Kim changed the status of TKT-031 "Storage quota exceeded" from In Progress to Solved. A resolution comment was submitted.',
-    timestamp: '2 hours ago',
-    read: true,
-    ticketId: 'TKT-031',
-  },
-  {
-    id: 'n-6',
-    type: 'ticket_assigned',
-    title: 'New Ticket Assigned — TKT-029',
-    description: 'Ticket TKT-029 "Need to reset my database password" has been assigned to you by Admin. Category: IT Operations.',
-    timestamp: '3 hours ago',
-    read: true,
-    ticketId: 'TKT-029',
-  },
-  {
-    id: 'n-7',
-    type: 'deadline',
-    title: 'Deadline Passed — TKT-025',
-    description: 'Ticket TKT-025 "HR portal login issue" passed its deadline 1 hour ago and remains Open. Please update the status immediately.',
-    timestamp: '4 hours ago',
-    read: true,
-    ticketId: 'TKT-025',
-  },
-  {
-    id: 'n-8',
-    type: 'new_comment',
-    title: 'New Public Comment — TKT-022',
-    description: 'student22@company.com left a public comment on TKT-022 "Printer in lab is broken": "Has there been any progress on this? It\'s been 2 days."',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'TKT-022',
-  },
-  {
-    id: 'n-9',
-    type: 'ticket_closed',
-    title: 'Ticket Solved — TKT-018',
-    description: 'You marked TKT-018 "VPN configuration issue" as Solved. The user (creator@company.com) has been notified automatically.',
-    timestamp: 'Yesterday',
-    read: true,
-    ticketId: 'TKT-018',
-  },
-  {
-    id: 'n-10',
-    type: 'ticket_closed',
-    title: 'Ticket Failed — TKT-016',
-    description: 'You marked TKT-016 "Legacy database migration" as Failed. Your resolution comment has been logged and the user has been notified.',
-    timestamp: '2 days ago',
-    read: true,
-    ticketId: 'TKT-016',
-  },
-  {
-    id: 'n-11',
-    type: 'ticket_renewed',
-    title: 'Ticket Renewed — TKT-014',
-    description: 'TKT-014 "Email sync issue" has been reopened and reassigned to you. Previous status was Solved. Please review the updated request.',
-    timestamp: '2 days ago',
-    read: true,
-    ticketId: 'TKT-014',
-  },
-];
+interface ApiTicket {
+  ticket_id: number;
+  title: string | null;
+  status: { name: string } | null;
+  category: { name: string } | null;
+  created_at: string;
+  updated_at: string;
+  deadline: string | null;
+  creator: { full_name: string | null; user_name: string | null } | null;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function timeAgo(dateStr: string): string {
+  const diff  = Date.now() - new Date(dateStr).getTime();
+  const mins  = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days  = Math.floor(diff / 86400000);
+  if (mins  < 1)  return 'just now';
+  if (mins  < 60) return `${mins}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
+}
+
+function buildNotifications(active: ApiTicket[], resolved: ApiTicket[]): Notification[] {
+  const list: Notification[] = [];
+  const now = Date.now();
+
+  for (const t of active) {
+    const titleStr   = t.title ? `"${t.title}"` : `#${t.ticket_id}`;
+    const statusName = t.status?.name?.toLowerCase() ?? 'assigned';
+
+    // Deadline alert
+    if (t.deadline) {
+      const daysUntil = Math.ceil((new Date(t.deadline).getTime() - now) / 86400000);
+      if (daysUntil <= 7) {
+        const isPast = daysUntil < 0;
+        list.push({
+          id: `deadline-${t.ticket_id}`,
+          type: 'deadline',
+          title: isPast
+            ? `Deadline Passed — #${t.ticket_id}`
+            : `Deadline in ${daysUntil}d — #${t.ticket_id}`,
+          description: isPast
+            ? `Ticket #${t.ticket_id} ${titleStr} passed its deadline ${Math.abs(daysUntil)} day(s) ago and is still ${t.status?.name ?? 'active'}. Please update the status immediately.`
+            : `Ticket #${t.ticket_id} ${titleStr} is due in ${daysUntil} day(s). Current status: ${t.status?.name ?? 'active'}.`,
+          timestamp: timeAgo(t.updated_at),
+          read: isPast,
+          ticketId: String(t.ticket_id),
+        });
+      }
+    }
+
+    if (statusName === 'solving') {
+      list.push({
+        id: `solving-${t.ticket_id}`,
+        type: 'status_update',
+        title: `In Progress — #${t.ticket_id}`,
+        description: `You are actively working on ticket #${t.ticket_id} ${titleStr}.`,
+        timestamp: timeAgo(t.updated_at),
+        read: true,
+        ticketId: String(t.ticket_id),
+      });
+    } else if (statusName === 'assigned') {
+      list.push({
+        id: `assigned-${t.ticket_id}`,
+        type: 'ticket_assigned',
+        title: `Ticket Assigned — #${t.ticket_id}`,
+        description: `Ticket #${t.ticket_id} ${titleStr} has been assigned to you. Please review and begin resolution.`,
+        timestamp: timeAgo(t.updated_at),
+        read: false,
+        ticketId: String(t.ticket_id),
+      });
+    }
+  }
+
+  for (const t of resolved) {
+    const titleStr   = t.title ? `"${t.title}"` : `#${t.ticket_id}`;
+    const statusName = t.status?.name?.toLowerCase() ?? 'solved';
+
+    if (statusName === 'renew') {
+      list.push({
+        id: `renewed-${t.ticket_id}`,
+        type: 'ticket_renewed',
+        title: `Ticket Renewed — #${t.ticket_id}`,
+        description: `Ticket #${t.ticket_id} ${titleStr} has been reopened and reassigned to you. Please review the updated request.`,
+        timestamp: timeAgo(t.updated_at),
+        read: false,
+        ticketId: String(t.ticket_id),
+      });
+    } else {
+      const label = statusName === 'failed' ? 'Failed' : 'Solved';
+      list.push({
+        id: `closed-${t.ticket_id}`,
+        type: 'ticket_closed',
+        title: `Ticket ${label} — #${t.ticket_id}`,
+        description: `You marked ticket #${t.ticket_id} ${titleStr} as ${label}.`,
+        timestamp: timeAgo(t.updated_at),
+        read: true,
+        ticketId: String(t.ticket_id),
+      });
+    }
+  }
+
+  return list.sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1));
+}
 
 // ─── Config per type ──────────────────────────────────────────────────────────
 
@@ -275,8 +281,23 @@ function NotificationCard({
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AssigneeNotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS);
-  const [activeFilter, setActiveFilter] = useState<FilterId>('all');
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [activeFilter, setActiveFilter]   = useState<FilterId>('all');
+  const [loading, setLoading]             = useState(true);
+  const [error, setError]                 = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      apiFetch<ApiTicket[]>('/tickets/assigned'),
+      apiFetch<ApiTicket[]>('/tickets/assigned?resolved=true'),
+    ])
+      .then(([active, resolved]) => setNotifications(buildNotifications(active, resolved)))
+      .catch((err) => {
+        console.error('[Notifications] fetch error:', err);
+        setError('Failed to load notifications.');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -306,7 +327,7 @@ export default function AssigneeNotificationsPage() {
             <div>
               <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
               <p className="text-[11px] text-gray-400 mt-0.5">
-                {unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+                {loading ? 'Loading…' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
               </p>
             </div>
           </div>
@@ -348,7 +369,15 @@ export default function AssigneeNotificationsPage() {
 
         {/* ── List ── */}
         <div className="flex-1 overflow-y-auto px-8 py-6">
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex items-center justify-center h-48 text-gray-400">
+              <p className="text-xs font-semibold">Loading notifications…</p>
+            </div>
+          ) : error ? (
+            <div className="flex items-center justify-center h-48 text-red-400">
+              <p className="text-xs font-semibold">{error}</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-gray-300">
               <Bell size={28} className="mb-2" />
               <p className="text-xs font-semibold">No notifications</p>

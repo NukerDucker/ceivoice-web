@@ -29,12 +29,16 @@ export interface TicketComment {
 }
 
 export interface TicketHistoryEntry {
-  action:     string;
-  oldStatus:  TicketStatus | null;
-  newStatus:  TicketStatus;
-  by:         string;
-  detail?:    string;           // used for reassignment notes
-  timestamp:  Date;
+  type?:        'status_change' | 'reassignment'; // defaults to 'status_change' if omitted
+  action:       string;
+  oldStatus:    TicketStatus | null;
+  newStatus:    TicketStatus;
+  by:           string;
+  // Reassignment-specific fields
+  oldAssignee?: string | null;  // previous assignee display name
+  newAssignee?: string;         // new assignee display name(s), comma-separated for multiples
+  detail?:      string;         // optional free-text note
+  timestamp:    Date;
 }
 
 export interface AssigneeTicket {
@@ -158,6 +162,16 @@ export const MY_ACTIVE_TICKETS: AssigneeTicket[] = [
     history: [
       { action: 'Created',        oldStatus: null,       newStatus: 'draft',    by: 'AI System',           timestamp: daysAgo(1.5) },
       { action: 'Admin Approved', oldStatus: 'draft',    newStatus: 'new',      by: 'Admin',               timestamp: daysAgo(1)   },
+      {
+        type: 'reassignment' as const,
+        action: 'Reassigned',
+        oldStatus: 'new', newStatus: 'assigned',
+        by: 'Admin',
+        oldAssignee: DASHBOARD_ASSIGNEES[1].name,
+        newAssignee: CURRENT_ASSIGNEE.name,
+        detail: `Re-routed from ${DASHBOARD_ASSIGNEES[1].name} — workload rebalance`,
+        timestamp: daysAgo(0.95),
+      },
       { action: 'Acknowledged',   oldStatus: 'new',      newStatus: 'assigned', by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(0.9) },
       { action: 'Status Change',  oldStatus: 'assigned', newStatus: 'solving',  by: CURRENT_ASSIGNEE.name, timestamp: daysAgo(0.5) },
     ],

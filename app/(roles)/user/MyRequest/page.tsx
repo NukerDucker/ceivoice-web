@@ -1,12 +1,68 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { Header } from '@/components/layout/Request';
-import { MOCK_USER_TICKETS, UserTicket } from '@/lib/constants';
-import { Search, ChevronRight, Clock, CheckCircle2, AlertCircle, Loader2, PlusCircle, Sparkles, Bell, UserCheck, Wrench, XCircle, RefreshCw } from 'lucide-react';
+import { UserTicket } from '@/lib/constants';
+import { apiFetch } from '@/lib/api-client';
+import { Search, ChevronRight, CheckCircle2, Loader2, PlusCircle, Sparkles, Bell, UserCheck, XCircle, RefreshCw } from 'lucide-react';
 import { CreateTicketModal } from '@/components/tickets/ReplyBox';
 import { TicketDetailModal } from '@/app/(roles)/user/MyRequest/ticketdetail';
+
+// ─── API shapes ───────────────────────────────────────────────────────────────
+
+interface ApiUser {
+  user_id?: string;
+  full_name: string | null;
+  user_name: string | null;
+  email?: string | null;
+}
+
+interface ApiTicketRaw {
+  ticket_id: number;
+  title: string | null;
+  status:   { name: string } | null;
+  category: { name: string } | null;
+  created_at: string;
+  updated_at: string;
+  deadline: string | null;
+  assignee: ApiUser | null;
+  creator:  ApiUser | null;
+  description?: string | null;
+}
+
+// ─── Mapper ───────────────────────────────────────────────────────────────────
+
+function userName(u: ApiUser | null): string {
+  if (!u) return 'Unassigned';
+  return u.full_name ?? u.user_name ?? u.email ?? 'Unknown';
+}
+function userFallback(name: string): string {
+  return name.split(' ').filter(Boolean).map((w) => w[0]).join('').toUpperCase().slice(0, 2) || 'U';
+}
+function toStatus(raw: string | undefined): UserTicket['status'] {
+  const map: Record<string, UserTicket['status']> = {
+    Draft: 'draft', New: 'new', Assigned: 'assigned',
+    Solving: 'solving', Solved: 'solved', Failed: 'failed', Renew: 'renew',
+  };
+  return map[raw ?? ''] ?? 'new';
+}
+
+function mapApiTicket(t: ApiTicketRaw): UserTicket {
+  const assigneeName = userName(t.assignee);
+  const creatorName  = userName(t.creator);
+  return {
+    ticketId:    String(t.ticket_id),
+    title:       t.title ?? '(No title)',
+    category:    t.category?.name ?? null,
+    date:        new Date(t.created_at),
+    status:      toStatus(t.status?.name),
+    description: t.description ?? undefined,
+    assignee:    { name: assigneeName, fallback: userFallback(assigneeName) },
+    creator:     { name: creatorName,  fallback: userFallback(creatorName), role: 'Requester' },
+    followers:   [],
+  };
+}
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -98,13 +154,26 @@ function Avatar({ name, fallback, avatar }: { name: string; fallback: string; av
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MyRequestsPage() {
-  const [search, setSearch] = useState('');
+  const [search, setSearch]           = useState('');
   const [activeStatus, setActiveStatus] = useState<Status | 'all'>('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<UserTicket | null>(null);
+  const [tickets, setTickets]         = useState<UserTicket[]>([]);
+  const [loading, setLoading]         = useState(true);
+  const [fetchError, setFetchError]   = useState<string | null>(null);
+
+  useEffect(() => {
+    apiFetch<ApiTicketRaw[]>('/tickets/mine')
+      .then((data) => setTickets(data.map(mapApiTicket)))
+      .catch((err) => {
+        console.error('fetch /tickets/mine:', err);
+        setFetchError('Failed to load tickets.');
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    return MOCK_USER_TICKETS.filter((t) => {
+    return tickets.filter((t) => {
       const matchesSearch =
         t.title.toLowerCase().includes(search.toLowerCase()) ||
         t.ticketId.toLowerCase().includes(search.toLowerCase()) ||
@@ -112,14 +181,14 @@ export default function MyRequestsPage() {
       const matchesStatus = activeStatus === 'all' || t.status === activeStatus;
       return matchesSearch && matchesStatus;
     });
-  }, [search, activeStatus]);
+  }, [search, activeStatus, tickets]);
 
   const countByStatus = useMemo(() => {
     return ALL_STATUSES.reduce((acc, s) => {
-      acc[s] = MOCK_USER_TICKETS.filter((t) => t.status === s).length;
+      acc[s] = tickets.filter((t) => t.status === s).length;
       return acc;
     }, {} as Record<Status, number>);
-  }, []);
+  }, [tickets]);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
@@ -148,7 +217,7 @@ export default function MyRequestsPage() {
                 : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
             }`}
           >
-            All ({MOCK_USER_TICKETS.length})
+            All ({tickets.length})
           </button>
           {ALL_STATUSES.map((s) => {
             const cfg = STATUS_CONFIG[s];
@@ -211,7 +280,20 @@ export default function MyRequestsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-gray-400 text-sm">
+                      <Loader2 size={20} className="animate-spin mx-auto mb-2" />
+                      Loading tickets…
+                    </td>
+                  </tr>
+                ) : fetchError ? (
+                  <tr>
+                    <td colSpan={7} className="py-16 text-center text-red-400 text-sm">
+                      {fetchError}
+                    </td>
+                  </tr>
+                ) : filtered.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-16 text-center text-gray-400 text-sm">
                       No requests found.
@@ -221,7 +303,7 @@ export default function MyRequestsPage() {
                   filtered.map((ticket) => (
                     <tr
                       key={ticket.ticketId}
-                      onClick={() => setSelectedTicketId(ticket.ticketId)}
+                      onClick={() => setSelectedTicket(ticket)}
                       className="hover:bg-orange-50/30 transition-colors cursor-pointer group"
                     >
                       <td className="px-5 py-4 font-mono text-xs text-gray-400">
@@ -271,7 +353,7 @@ export default function MyRequestsPage() {
 
           {filtered.length > 0 && (
             <p className="text-xs text-gray-400 mt-3 px-1">
-              Showing {filtered.length} of {MOCK_USER_TICKETS.length} requests
+              Showing {filtered.length} of {tickets.length} requests
             </p>
           )}
         </div>
@@ -299,10 +381,10 @@ export default function MyRequestsPage() {
       )}
 
       {/* Ticket Detail Modal */}
-      {selectedTicketId && (
+      {selectedTicket && (
         <TicketDetailModal
-          ticketId={selectedTicketId}
-          onClose={() => setSelectedTicketId(null)}
+          ticket={selectedTicket}
+          onClose={() => setSelectedTicket(null)}
         />
       )}
 
