@@ -12,7 +12,6 @@ import { STATUS_STYLES, BACKLOG_STATUS_META, REPORT_PERIODS as BACKLOG_PERIODS }
 import type { TicketStatus } from '@/types';
 import { type ApiMetrics, type ApiStatusName, STATUS_NAME_TO_ID, nameFallback } from '@/types/api';
 
-/** Capitalise a lowercase TicketStatus to match ApiStatusName keys. */
 function toApiStatusName(s: TicketStatus): ApiStatusName {
   return (s.charAt(0).toUpperCase() + s.slice(1)) as ApiStatusName;
 }
@@ -45,7 +44,6 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
   const total        = metrics?.total_tickets ?? 0;
   const totalBacklog = metrics?.current_backlog ?? 0;
 
-  // Status rows from metrics.tickets_by_status
   const statusRows = (Object.keys(BACKLOG_STATUS_META) as TicketStatus[]).map((status) => {
     const statusId = STATUS_NAME_TO_ID[toApiStatusName(status)] ?? -1;
     const entry    = metrics?.tickets_by_status.find((s) => s.status_id === statusId);
@@ -59,13 +57,11 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
     };
   });
 
-  // Category rows from metrics.top_categories
   const categoryRows = (metrics?.top_categories ?? []).map((c) => ({
     name:  c.category_name,
     total: c.count,
   }));
 
-  // Assignee rows from metrics.assignee_workload
   const assigneeRows = (metrics?.assignee_workload ?? []).map((a) => {
     const capacity  = total > 0 ? Math.round((a.active_tickets / total) * 100) : 0;
     const loadColor =
@@ -85,43 +81,45 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: 'rgba(15, 15, 35, 0.45)' }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[88vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 flex-shrink-0">
-          <div className="flex items-center gap-3">
+        {/* ── Header ── */}
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 flex-shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
+              className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
               style={{ background: '#EEF2FF', color: '#6366F1' }}
             >
               <Layers size={18} />
             </div>
-            <div>
-              <h2 className="text-base font-bold text-gray-900">Backlog Summary</h2>
-              <p className="text-[10px] text-gray-400 mt-0.5">
+            <div className="min-w-0">
+              <h2 className="text-sm sm:text-base font-bold text-gray-900">Backlog Summary</h2>
+              <p className="text-[10px] text-gray-400 mt-0.5 truncate">
                 {localPeriod}&nbsp;•&nbsp;{total} ticket{total !== 1 ? 's' : ''} in period
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-              <Download size={13} /> Export Report
+          <div className="flex items-center gap-2 shrink-0 ml-2">
+            {/* Export: icon-only on mobile, full label on sm+ */}
+            <button className="flex items-center gap-1.5 text-xs font-semibold px-2 sm:px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
+              <Download size={13} />
+              <span className="hidden sm:inline">Export Report</span>
             </button>
             <button
               onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors shrink-0"
             >
               <X size={15} />
             </button>
           </div>
         </div>
 
-        {/* Period toolbar */}
-        <div className="flex items-center gap-2 px-6 py-2.5 border-b border-gray-100 flex-shrink-0">
+        {/* ── Period toolbar ── */}
+        <div className="flex items-center gap-2 px-4 sm:px-6 py-2.5 border-b border-gray-100 flex-shrink-0">
           <span className="text-xs text-gray-500">Period:</span>
           <select
             value={localPeriod}
@@ -134,8 +132,8 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
           </select>
         </div>
 
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
+        {/* ── Scrollable body ── */}
+        <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 sm:py-5 space-y-6">
 
           {total === 0 ? (
             <p className="text-xs text-gray-400 text-center py-10">
@@ -143,28 +141,28 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
             </p>
           ) : (
             <>
-              {/* Total Backlog KPI */}
-              <div className="rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 flex items-center justify-between">
-                <div>
+              {/* ── Total Backlog KPI ── */}
+              <div className="rounded-xl border border-gray-100 bg-gray-50 px-4 sm:px-5 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="text-[10px] font-medium text-gray-400 uppercase tracking-wide">
                     Total Backlog
                   </p>
-                  <p className="text-3xl font-extrabold tracking-tight mt-1" style={{ color: '#6366F1' }}>
+                  <p className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1" style={{ color: '#6366F1' }}>
                     {totalBacklog}
                   </p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
+                  <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">
                     unresolved out of {total} tickets in {localPeriod.toLowerCase()}
                   </p>
                 </div>
                 <div
-                  className="w-14 h-14 rounded-2xl flex items-center justify-center"
+                  className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0"
                   style={{ background: '#EEF2FF' }}
                 >
-                  <Layers size={26} style={{ color: '#6366F1' }} />
+                  <Layers size={22} style={{ color: '#6366F1' }} />
                 </div>
               </div>
 
-              {/* Backlog by Category */}
+              {/* ── Backlog by Category ── */}
               <div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <AlertTriangle size={12} className="text-amber-500" />
@@ -174,36 +172,38 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
                   <p className="text-xs text-gray-400 text-center py-6">No backlog tickets.</p>
                 ) : (
                   <div className="rounded-xl border border-gray-100 overflow-hidden">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-100">
-                          {['Category', 'Total Tickets'].map((h) => (
-                            <th
-                              key={h}
-                              className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"
-                            >
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {categoryRows.map((row) => (
-                          <tr
-                            key={row.name}
-                            className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors"
-                          >
-                            <td className="px-4 py-2.5 text-xs font-semibold text-gray-800">{row.name}</td>
-                            <td className="px-4 py-2.5 text-xs text-gray-700">{row.total}</td>
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-[280px]">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-100">
+                            {['Category', 'Total Tickets'].map((h) => (
+                              <th
+                                key={h}
+                                className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
+                              >
+                                {h}
+                              </th>
+                            ))}
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {categoryRows.map((row) => (
+                            <tr
+                              key={row.name}
+                              className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors"
+                            >
+                              <td className="px-4 py-2.5 text-xs font-semibold text-gray-800">{row.name}</td>
+                              <td className="px-4 py-2.5 text-xs text-gray-700">{row.total}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Tickets by Status */}
+              {/* ── Tickets by Status ── */}
               <div>
                 <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <Clock size={12} className="text-indigo-500" />
@@ -214,10 +214,10 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
                     <div key={s.status}>
                       <div className="flex items-center justify-between mb-1.5">
                         <div className="flex items-center gap-2">
-                          <span className="w-2 h-2 rounded-full" style={{ background: s.dot }} />
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.dot }} />
                           <span className="text-xs font-semibold text-gray-700">{s.label}</span>
                         </div>
-                        <span className="text-[10px] text-gray-400">
+                        <span className="text-[10px] text-gray-400 shrink-0 ml-2">
                           {s.count} ticket{s.count !== 1 ? 's' : ''}&nbsp;({s.pct}%)
                         </span>
                       </div>
@@ -240,66 +240,67 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
                 </div>
               </div>
 
-              {/* Assignee Backlog Load */}
+              {/* ── Assignee Backlog Load ── */}
               <div>
-                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h3 className="text-xs font-bold text-gray-700 uppercase tracking-widests mb-3 flex items-center gap-2">
                   <Layers size={12} className="text-indigo-400" />
                   Assignee Backlog Load
                 </h3>
                 <div className="rounded-xl border border-gray-100 overflow-hidden">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="bg-gray-50 border-b border-gray-100">
-                        {['Assignee', 'Active Tickets', 'Load'].map((h) => (
-                          <th
-                            key={h}
-                            className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {assigneeRows.map((a) => (
-                        <tr
-                          key={a.name}
-                          className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors"
-                        >
-                          <td className="px-4 py-2.5">
-                            <div className="flex items-center gap-2">
-                              <div
-                                className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-                                style={{ background: STATUS_STYLES.new.dot }}
-                              >
-                                <span className="text-white text-[9px] font-bold">{a.fallback}</span>
-                              </div>
-                              <span className="text-xs font-semibold text-gray-800">{a.name}</span>
-                            </div>
-                          </td>
-                          <td className="px-4 py-2.5 text-xs font-semibold text-gray-800">{a.open}</td>
-                          <td className="px-4 py-2.5 min-w-[100px]">
-                            <div className="flex items-center gap-2">
-                              <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full rounded-full transition-all duration-500"
-                                  style={{ width: `${a.capacity}%`, background: a.loadColor }}
-                                />
-                              </div>
-                              <span className="text-[10px] text-gray-500 font-medium w-7 text-right">
-                                {a.capacity}%
-                              </span>
-                            </div>
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[360px]">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          {['Assignee', 'Active Tickets', 'Load'].map((h) => (
+                            <th
+                              key={h}
+                              className="text-left px-4 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap"
+                            >
+                              {h}
+                            </th>
+                          ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {assigneeRows.map((a) => (
+                          <tr
+                            key={a.name}
+                            className="border-b border-gray-50 last:border-0 hover:bg-gray-50/60 transition-colors"
+                          >
+                            <td className="px-4 py-2.5">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+                                  style={{ background: STATUS_STYLES.new.dot }}
+                                >
+                                  <span className="text-white text-[9px] font-bold">{a.fallback}</span>
+                                </div>
+                                <span className="text-xs font-semibold text-gray-800 whitespace-nowrap">{a.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-2.5 text-xs font-semibold text-gray-800">{a.open}</td>
+                            <td className="px-4 py-2.5 min-w-[100px]">
+                              <div className="flex items-center gap-2">
+                                <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${a.capacity}%`, background: a.loadColor }}
+                                  />
+                                </div>
+                                <span className="text-[10px] text-gray-500 font-medium w-7 text-right shrink-0">
+                                  {a.capacity}%
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             </>
           )}
-
         </div>
       </div>
     </div>

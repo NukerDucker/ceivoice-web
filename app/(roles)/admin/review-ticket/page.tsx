@@ -9,7 +9,6 @@ import type { ApiUser, ApiCategory } from '@/types/api';
 
 // ─── API Types ────────────────────────────────────────────────────────────────
 
-/** Ticket detail shape — kept local because ticket_requests includes request_id. */
 interface ApiTicket {
   ticket_id: number;
   title: string | null;
@@ -30,7 +29,6 @@ interface ApiTicket {
   }>;
 }
 
-/** ApiUser extended with assignee-specific optional field. */
 type ApiAssignee = ApiUser & { assigned_tickets?: unknown[] };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -88,6 +86,61 @@ function NotFound({ id }: { id: string }) {
   );
 }
 
+// ─── Panel component ──────────────────────────────────────────────────────────
+
+/**
+ * On mobile: collapsible accordion panel.
+ * On sm+: always-open panel (the toggle is hidden).
+ */
+function Panel({
+  title,
+  emoji,
+  badge,
+  headerBg,
+  headerBorder,
+  headerTextColor,
+  children,
+  defaultOpen = true,
+}: {
+  title: string;
+  emoji: string;
+  badge?: React.ReactNode;
+  headerBg: string;
+  headerBorder: string;
+  headerTextColor: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
+      {/* Header — tapping toggles on mobile, static on desktop */}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className={`w-full px-4 py-3 ${headerBg} border-b ${headerBorder} flex items-center gap-2.5 rounded-t-xl sm:cursor-default`}
+      >
+        <span className="text-base">{emoji}</span>
+        <span className={`text-[13.5px] font-semibold ${headerTextColor}`}>{title}</span>
+        {badge && <span className="ml-auto flex items-center gap-2">{badge}</span>}
+        {/* Chevron only visible on mobile */}
+        <svg
+          className={`w-4 h-4 ml-auto sm:hidden text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {/* Content — always visible on sm+, toggleable on mobile */}
+      <div className={`flex-1 overflow-y-auto ${open ? 'block' : 'hidden'} sm:block`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 // ─── Inner component ──────────────────────────────────────────────────────────
 
 function ReviewTicketInner() {
@@ -95,14 +148,12 @@ function ReviewTicketInner() {
   const searchParams = useSearchParams();
   const selectedId   = searchParams.get('id') ?? '';
 
-  // API state
   const [ticket,     setTicket]     = useState<ApiTicket | null>(null);
   const [assignees,  setAssignees]  = useState<ApiAssignee[]>([]);
   const [categories, setCategories] = useState<ApiCategory[]>([]);
   const [loading,    setLoading]    = useState(true);
   const [notFound,   setNotFound]   = useState(false);
 
-  // Form state
   const [titleVal,        setTitleVal]        = useState('');
   const [categoryId,      setCategoryId]      = useState<number | null>(null);
   const [summaryVal,      setSummaryVal]      = useState('');
@@ -111,17 +162,13 @@ function ReviewTicketInner() {
   const [deadlineVal,     setDeadlineVal]     = useState('');
   const [deadlineTimeVal, setDeadlineTimeVal] = useState('');
 
-  // Action status
-  const [saveStatus,    setSaveStatus]    = useState<'idle' | 'saving'    | 'saved' | 'error'>('idle');
-  const [submitStatus,  setSubmitStatus]  = useState<'idle' | 'submitting' | 'done'  | 'error'>('idle');
-  const [unlinkingId,   setUnlinkingId]   = useState<number | null>(null);
-
-  // Selected request index (when multiple requests are linked)
+  const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving'     | 'saved' | 'error'>('idle');
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting'  | 'done'  | 'error'>('idle');
+  const [unlinkingId,  setUnlinkingId]  = useState<number | null>(null);
   const [selectedReqIdx, setSelectedReqIdx] = useState(0);
 
   useEffect(() => {
     if (!selectedId) {
-      // Use a microtask to avoid setState-in-effect lint warning
       Promise.resolve().then(() => { setLoading(false); setNotFound(true); });
       return;
     }
@@ -138,7 +185,6 @@ function ReviewTicketInner() {
         setTicket(t);
         setAssignees(a);
         setCategories(cats);
-        // Pre-fill form from API data
         setTitleVal(t.title ?? '');
         setCategoryId(t.category?.category_id ?? (cats[0]?.category_id ?? null));
         setSummaryVal(t.summary ?? '');
@@ -232,29 +278,37 @@ function ReviewTicketInner() {
     .filter((r): r is NonNullable<typeof r> => r !== null);
   const activeRequest = linkedRequests[selectedReqIdx] ?? null;
   const canUnlink     = linkedRequests.length > 1;
-  const subtitle = `Draft #${ticket.ticket_id} · created ${timeAgo(ticket.created_at)}`;
+  const subtitle      = `Draft #${ticket.ticket_id} · created ${timeAgo(ticket.created_at)}`;
 
   return (
     <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
-
       <main className="flex-1 flex flex-col overflow-hidden">
         <Header title="Review and Edit Draft Ticket" subtitle={subtitle} />
 
-        <div className="flex-1 overflow-auto p-6 grid grid-cols-2 gap-5">
+        {/*
+          Layout:
+          - Mobile:  single column, stacked panels (scrollable)
+          - Desktop: two-column side-by-side grid
+        */}
+        <div className="flex-1 overflow-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 auto-rows-min sm:auto-rows-fr">
 
-          {/* Original Request */}
-          <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
-            <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center gap-2.5 rounded-t-xl">
-              <span className="text-base">✉️</span>
-              <span className="text-[13.5px] font-semibold text-gray-700">Original request</span>
-              {linkedRequests.length > 0 && (
-                <span className="ml-auto text-[10.5px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
+          {/* ── Original Request panel ── */}
+          <Panel
+            title="Original request"
+            emoji="✉️"
+            headerBg="bg-gray-50"
+            headerBorder="border-gray-200"
+            headerTextColor="text-gray-700"
+            defaultOpen={true}
+            badge={
+              linkedRequests.length > 0 ? (
+                <span className="text-[10.5px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
                   {linkedRequests.length} linked
                 </span>
-              )}
-            </div>
-
-            {/* Request tabs (only when multiple linked) */}
+              ) : undefined
+            }
+          >
+            {/* Request tabs */}
             {linkedRequests.length > 1 && (
               <div className="flex gap-1 px-4 pt-3 pb-2 flex-wrap border-b border-gray-100">
                 {linkedRequests.map((r, i) => (
@@ -273,10 +327,10 @@ function ReviewTicketInner() {
               </div>
             )}
 
-            <div className="p-5 flex-1 overflow-y-auto">
+            <div className="p-4 sm:p-5">
               {activeRequest ? (
                 <>
-                  <div className="flex items-center justify-between mb-2.5 gap-2">
+                  <div className="flex items-center justify-between mb-2.5 gap-2 flex-wrap">
                     <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide">
                       From: {activeRequest.email}
                     </div>
@@ -316,19 +370,23 @@ function ReviewTicketInner() {
                 </div>
               )}
             </div>
-          </div>
+          </Panel>
 
-          {/* AI Suggestion / Edit Form */}
-          <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
-            <div className="px-4 py-3 bg-sky-50 border-b border-sky-200 flex items-center gap-2.5 rounded-t-xl">
-              <span className="text-base">🤖</span>
-              <span className="text-[13.5px] font-semibold text-sky-700">AI suggestion</span>
-              <span className="ml-auto text-[10.5px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full font-semibold">
+          {/* ── AI Suggestion / Edit Form panel ── */}
+          <Panel
+            title="AI suggestion"
+            emoji="🤖"
+            headerBg="bg-sky-50"
+            headerBorder="border-sky-200"
+            headerTextColor="text-sky-700"
+            defaultOpen={false}
+            badge={
+              <span className="text-[10.5px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full font-semibold">
                 Auto-generated
               </span>
-            </div>
-
-            <div className="p-5 flex-1 overflow-y-auto flex flex-col gap-3.5">
+            }
+          >
+            <div className="p-4 sm:p-5 flex flex-col gap-3.5">
 
               <Field label="Title">
                 <input
@@ -397,7 +455,8 @@ function ReviewTicketInner() {
               </Field>
 
               <Field label="Deadline">
-                <div className="flex gap-2.5">
+                {/* Stack date + time vertically on mobile, side by side on sm+ */}
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-2.5">
                   <input
                     type="date"
                     value={deadlineVal}
@@ -408,7 +467,7 @@ function ReviewTicketInner() {
                     type="time"
                     value={deadlineTimeVal}
                     onChange={(e) => setDeadlineTimeVal(e.target.value)}
-                    className={`${inputClass} w-28 shrink-0`}
+                    className={`${inputClass} sm:w-28 sm:shrink-0`}
                   />
                 </div>
               </Field>
@@ -425,11 +484,12 @@ function ReviewTicketInner() {
                 </div>
               )}
 
-              <div className="flex gap-2 justify-end pt-1 flex-wrap">
+              {/* Action buttons: full-width on mobile, auto on desktop */}
+              <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-1">
                 <button
                   onClick={handleSaveDraft}
                   disabled={saveStatus === 'saving'}
-                  className={`px-4 py-2 rounded-full text-[12.5px] font-semibold border-[1.5px] border-amber-300 bg-amber-50 text-amber-600 transition-opacity ${
+                  className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-semibold border-[1.5px] border-amber-300 bg-amber-50 text-amber-600 transition-opacity ${
                     saveStatus === 'saving' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-amber-100 cursor-pointer'
                   }`}
                 >
@@ -438,7 +498,7 @@ function ReviewTicketInner() {
                 <button
                   onClick={handleSubmit}
                   disabled={submitStatus === 'submitting'}
-                  className={`px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
+                  className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
                     submitStatus === 'submitting' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-100 cursor-pointer'
                   }`}
                 >
@@ -447,7 +507,7 @@ function ReviewTicketInner() {
               </div>
 
             </div>
-          </div>
+          </Panel>
 
         </div>
       </main>

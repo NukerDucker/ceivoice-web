@@ -13,12 +13,11 @@ import type { ApiScope } from '@/types/api';
 
 // ─── API types ────────────────────────────────────────────────────────────────
 
-/** Extended user shape returned by admin/users endpoint (includes stats). */
 interface ApiUser {
   user_id:              string;
   full_name:            string;
   email:                string;
-  role:                 string; // 'ADMIN' | 'ASSIGNEE' | 'USER'
+  role:                 string;
   created_at:           string;
   scopes:               ApiScope[];
   active_ticket_count:  number;
@@ -49,11 +48,7 @@ function mapApiUser(u: ApiUser): ManagedUserEx {
   };
 }
 
-// ─── Scope dropdown options (EP06-ST002) ──────────────────────────────────────
-
 const SCOPE_OPTIONS = SCOPE_NAMES;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(date: Date): string {
   const diff  = Date.now() - date.getTime();
@@ -119,24 +114,22 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
   onScopeAdd:    (id: string, scope: string) => void;
   onScopeRemove: (id: string, scope: string) => void;
 }) {
-  const [scopeOpen,        setScopeOpen]        = useState(false);
-  const [confirmAdminFor,  setConfirmAdminFor]   = useState<string | null>(null); // user id pending admin confirm
+  const [scopeOpen,       setScopeOpen]       = useState(false);
+  const [confirmAdminFor, setConfirmAdminFor] = useState<string | null>(null);
   const available = SCOPE_OPTIONS.filter((s) => !user.scopes.includes(s));
 
   return (
-    <div className="px-6 pb-5 pt-2 bg-gray-50/60 border-t border-gray-100">
-      <div className="grid grid-cols-3 gap-6">
+    <div className="px-4 sm:px-6 pb-5 pt-2 bg-gray-50/60 border-t border-gray-100">
+      {/* 1-col on mobile, 3-col on sm+ */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
 
-        {/* Col 1 — Role */}
+        {/* ── Role ── */}
         <div className="flex flex-col gap-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</p>
-
           <div className="flex flex-col gap-1.5">
             <span className="text-[10px] text-gray-400">
               Role <span className="text-gray-300">(EP06-ST001)</span>
             </span>
-
-            {/* Role buttons */}
             <div className="flex gap-1.5 flex-wrap">
               {(['user', 'assignee'] as UserRole[]).map((r) => (
                 <button
@@ -152,9 +145,8 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
                 </button>
               ))}
 
-              {/* Admin promotion button — requires inline confirmation */}
               {confirmAdminFor === user.id ? (
-                <span className="flex items-center gap-1.5 text-[10px]">
+                <span className="flex items-center gap-1.5 text-[10px] flex-wrap">
                   <AlertTriangle size={10} className="text-amber-500 shrink-0" />
                   <span className="text-amber-700 font-semibold">Grant full admin?</span>
                   <button
@@ -186,12 +178,11 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
           </div>
         </div>
 
-        {/* Col 2 — Scope Tags */}
+        {/* ── Scope Tags ── */}
         <div className="flex flex-col gap-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
             <Tag size={10} /> Scope Tags <span className="font-normal text-gray-300">(EP06-ST002)</span>
           </p>
-
           {user.role === 'assignee' ? (
             <>
               <div className="flex flex-wrap gap-1.5 min-h-6">
@@ -234,7 +225,7 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
           )}
         </div>
 
-        {/* Col 3 — Ticket Activity */}
+        {/* ── Ticket Activity ── */}
         <div className="flex flex-col gap-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
             <TicketCheck size={10} /> Ticket Activity
@@ -287,8 +278,10 @@ function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 hover:border-gray-200 overflow-hidden transition-all duration-150">
+
+      {/* ── Mobile row (< sm) ── */}
       <div
-        className="flex items-center gap-5 px-6 py-3.5 cursor-pointer select-none"
+        className="flex sm:hidden items-center gap-3 px-4 py-3.5 cursor-pointer select-none"
         onClick={() => setExpanded((e) => !e)}
       >
         {/* Avatar */}
@@ -296,16 +289,47 @@ function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
           <span className="text-white text-[11px] font-bold">{user.fallback}</span>
         </div>
 
-        {/* Name + email */}
+        {/* Name + email + role badge */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-gray-800 truncate">{user.name}</span>
+            <RoleBadge role={user.role} />
+          </div>
+          <span className="text-[11px] text-gray-400 truncate block">{user.email}</span>
+          {/* Scope tags preview */}
+          {user.role === 'assignee' && user.scopes.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap mt-1">
+              {user.scopes.slice(0, 2).map((s) => <ScopeTag key={s} label={s} />)}
+              {user.scopes.length > 2 && (
+                <span className="text-[10px] text-gray-400 font-medium">+{user.scopes.length - 2}</span>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Ticket count + chevron */}
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <span className="text-xs font-bold text-gray-700">{user.ticketCount}</span>
+          <span className="text-[9px] text-gray-400">{user.role === 'assignee' ? 'assigned' : 'submitted'}</span>
+          <div className="text-gray-300 mt-0.5">
+            {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop row (sm+) ── */}
+      <div
+        className="hidden sm:flex items-center gap-5 px-6 py-3.5 cursor-pointer select-none"
+        onClick={() => setExpanded((e) => !e)}
+      >
+        <div className={`w-9 h-9 rounded-full bg-linear-to-br ${avatarColor(user.id)} flex items-center justify-center shrink-0 shadow-sm`}>
+          <span className="text-white text-[11px] font-bold">{user.fallback}</span>
+        </div>
         <div className="flex-1 min-w-0">
           <span className="text-sm font-semibold text-gray-800 truncate block">{user.name}</span>
           <span className="text-[11px] text-gray-400 truncate block">{user.email}</span>
         </div>
-
-        {/* Role */}
         <div className="w-22.5 shrink-0"><RoleBadge role={user.role} /></div>
-
-        {/* Scopes preview */}
         <div className="flex items-center gap-1 flex-wrap w-50 shrink-0">
           {user.role === 'assignee' && user.scopes.length > 0 ? (
             <>
@@ -320,21 +344,15 @@ function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
             </span>
           )}
         </div>
-
-        {/* Ticket count */}
         <div className="w-20 shrink-0 text-center">
           <span className="text-xs font-bold text-gray-700">{user.ticketCount}</span>
           <p className="text-[9px] text-gray-400">{user.role === 'assignee' ? 'assigned' : 'submitted'}</p>
         </div>
-
-        {/* Joined */}
         <div className="w-22.5 shrink-0 text-right">
           <span className="text-[11px] text-gray-400">
             {user.joinedAt.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
           </span>
         </div>
-
-        {/* Chevron */}
         <div className="w-6 shrink-0 flex justify-center text-gray-300">
           {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </div>
@@ -401,9 +419,7 @@ export default function AdminUserManagementPage() {
           ? { ...u, role, scopes: role === 'user' ? [] : u.scopes, rawScopes: role === 'user' ? [] : u.rawScopes }
           : u
       ));
-    } catch {
-      // silently revert — could add a toast here
-    }
+    } catch { /* silently revert */ }
   };
 
   const handleScopeAdd = async (id: string, scope: string) => {
@@ -417,29 +433,21 @@ export default function AdminUserManagementPage() {
           ? { ...u, scopes: [...u.scopes, scope], rawScopes: [...u.rawScopes, res.scope] }
           : u
       ));
-    } catch {
-      // silently handle
-    }
+    } catch { /* silently handle */ }
   };
 
   const handleScopeRemove = async (id: string, scope: string) => {
-    const user      = users.find((u) => u.id === id);
-    const rawScope  = user?.rawScopes.find((s) => s.scope_name === scope);
+    const user     = users.find((u) => u.id === id);
+    const rawScope = user?.rawScopes.find((s) => s.scope_name === scope);
     if (!rawScope) return;
     try {
       await apiFetch(`/admin/assignees/${id}/scopes/${rawScope.scope_id}`, { method: 'DELETE' });
       setUsers((p) => p.map((u) =>
         u.id === id
-          ? {
-              ...u,
-              scopes:    u.scopes.filter((s) => s !== scope),
-              rawScopes: u.rawScopes.filter((s) => s.scope_id !== rawScope.scope_id),
-            }
+          ? { ...u, scopes: u.scopes.filter((s) => s !== scope), rawScopes: u.rawScopes.filter((s) => s.scope_id !== rawScope.scope_id) }
           : u
       ));
-    } catch {
-      // silently handle
-    }
+    } catch { /* silently handle */ }
   };
 
   return (
@@ -448,8 +456,9 @@ export default function AdminUserManagementPage() {
         <Header />
 
         {/* ── Toolbar ── */}
-        <div className="flex items-center justify-between gap-4 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-1">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-8 py-3 bg-white border-b border-gray-100 shrink-0">
+          {/* Role filter tabs — scrollable */}
+          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
             {([
               { value: 'all',      label: 'All'       },
               { value: 'admin',    label: 'Admins'    },
@@ -475,7 +484,8 @@ export default function AdminUserManagementPage() {
             })}
           </div>
 
-          <div className="relative w-64">
+          {/* Search — full width on mobile */}
+          <div className="relative w-full sm:w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -487,8 +497,8 @@ export default function AdminUserManagementPage() {
           </div>
         </div>
 
-        {/* ── Column headers ── */}
-        <div className="flex items-center gap-5 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0">
+        {/* ── Column headers — desktop only ── */}
+        <div className="hidden sm:flex items-center gap-5 px-6 py-2 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="w-9 shrink-0" />
           <div className="flex-1     text-[10px] font-bold text-gray-400 uppercase tracking-widest">User</div>
           <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</div>
@@ -499,7 +509,7 @@ export default function AdminUserManagementPage() {
         </div>
 
         {/* ── User list ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-4">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4">
           <div className="flex flex-col gap-2">
             {loading ? (
               <div className="flex items-center justify-center py-20 text-gray-400">

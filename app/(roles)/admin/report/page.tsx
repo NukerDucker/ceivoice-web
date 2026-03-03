@@ -28,13 +28,13 @@ import {
 const PERIODS = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
 
 const STATUS_LABELS: { status: TicketStatus; label: string; icon: React.ReactNode }[] = [
-  { status: 'draft',    label: 'Draft',    icon: <FileEdit size={14} />    },
-  { status: 'new',      label: 'New',      icon: <Sparkles size={14} />    },
-  { status: 'assigned', label: 'Assigned', icon: <UserCheck size={14} />   },
-  { status: 'solving',  label: 'Solving',  icon: <Wrench size={14} />      },
+  { status: 'draft',    label: 'Draft',    icon: <FileEdit size={14} />     },
+  { status: 'new',      label: 'New',      icon: <Sparkles size={14} />     },
+  { status: 'assigned', label: 'Assigned', icon: <UserCheck size={14} />    },
+  { status: 'solving',  label: 'Solving',  icon: <Wrench size={14} />       },
   { status: 'solved',   label: 'Solved',   icon: <CheckCircle2 size={14} /> },
-  { status: 'failed',   label: 'Failed',   icon: <XCircle size={14} />     },
-  { status: 'renew',    label: 'Renew',    icon: <RefreshCw size={14} />   },
+  { status: 'failed',   label: 'Failed',   icon: <XCircle size={14} />      },
+  { status: 'renew',    label: 'Renew',    icon: <RefreshCw size={14} />    },
 ];
 
 const REPORT_CARDS = [
@@ -75,7 +75,6 @@ export default function ReportsPage() {
   const openModal  = (id: string) => setActiveModal(id);
   const closeModal = ()           => setActiveModal(null);
 
-  // ── Derived values from real API metrics ──────────────────────────────────
   const totalTickets   = metrics?.total_tickets ?? 0;
   const solvedTickets  = metrics?.tickets_by_status.find(s => s.status_id === 5)?.count ?? 0;
   const failedTickets  = metrics?.tickets_by_status.find(s => s.status_id === 6)?.count ?? 0;
@@ -114,19 +113,19 @@ export default function ReportsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <main className="flex-1 overflow-y-auto px-6 pb-8">
+        <main className="flex-1 overflow-y-auto px-4 sm:px-6 pb-8">
 
-          {/* Period selector */}
-          <div className="flex items-center justify-between mt-6 mb-5">
+          {/* ── Period selector ── */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-5 sm:mt-6 mb-4 sm:mb-5">
             <div>
-              <h2 className="text-xl font-bold text-gray-900">Reports Overview</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900">Reports Overview</h2>
               <p className="text-sm text-gray-500 mt-0.5">
                 {loading
                   ? 'Loading metrics…'
                   : `Showing ${totalTickets} ticket${totalTickets !== 1 ? 's' : ''} for ${period.toLowerCase()}`}
               </p>
             </div>
-            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm">
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-2 shadow-sm self-start sm:self-auto">
               <span className="text-xs text-gray-500 font-medium">Period</span>
               <select
                 value={period}
@@ -138,25 +137,27 @@ export default function ReportsPage() {
             </div>
           </div>
 
-          {/* KPI Cards */}
-          <div className="grid grid-cols-4 gap-4 mb-6">
+          {/* ── KPI Cards: 2-col on mobile, 4-col on desktop ── */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 mb-5 sm:mb-6">
             {[
               { label: 'Total Tickets',      value: loading ? '—' : totalTickets,   sub: period.toLowerCase(),                                                                                              color: '#3B82F6' },
               { label: 'Solved',             value: loading ? '—' : solvedTickets,  sub: totalTickets > 0 ? `${Math.round((solvedTickets / totalTickets) * 100)}% resolution rate` : '0% resolution rate', color: '#10B981' },
-              { label: 'Average Resolution', value: loading ? '—' : avgResolution > 0 ? `${avgResolution.toFixed(1)} hrs` : '—', sub: 'Per resolved ticket',                             color: '#8B5CF6' },
+              { label: 'Avg Resolution',     value: loading ? '—' : avgResolution > 0 ? `${avgResolution.toFixed(1)} hrs` : '—', sub: 'Per resolved ticket',                             color: '#8B5CF6' },
               { label: 'Backlog',            value: loading ? '—' : backlogTickets, sub: `${failedTickets} failed`,                                                                                        color: '#F43F5E' },
             ].map((kpi) => (
-              <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-5 flex flex-col gap-1">
+              <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 sm:px-5 py-4 sm:py-5 flex flex-col gap-1">
                 <div className="w-8 h-1.5 rounded-full mb-2" style={{ background: kpi.color }} />
-                <span className="text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
-                <span className="text-sm font-semibold text-gray-700">{kpi.label}</span>
-                <span className="text-xs text-gray-400">{kpi.sub}</span>
+                <span className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">{kpi.value}</span>
+                <span className="text-xs sm:text-sm font-semibold text-gray-700">{kpi.label}</span>
+                <span className="text-[10px] sm:text-xs text-gray-400 leading-tight">{kpi.sub}</span>
               </div>
             ))}
           </div>
 
-          {/* Insight panels */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
+          {/* ── Insight panels: 1-col on mobile, 3-col on desktop ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5 sm:mb-6">
+
+            {/* Status Distribution */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Status Distribution</h4>
               {totalTickets === 0 ? (
@@ -186,6 +187,7 @@ export default function ReportsPage() {
               )}
             </div>
 
+            {/* Top Categories */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Top Categories</h4>
               {categoryBreakdown.length === 0 ? (
@@ -210,6 +212,7 @@ export default function ReportsPage() {
               )}
             </div>
 
+            {/* Assignee Workload */}
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h4 className="text-sm font-bold text-gray-800 mb-4">Assignee Workload</h4>
               {totalTickets === 0 ? (
@@ -233,11 +236,12 @@ export default function ReportsPage() {
                 </div>
               )}
             </div>
+
           </div>
 
-          {/* Report Cards */}
+          {/* ── Report Cards: 1-col on mobile, 2-col on sm, 3-col on lg ── */}
           <h3 className="text-sm font-bold text-gray-700 uppercase tracking-widest mb-3">Available Reports</h3>
-          <div className="grid grid-cols-3 gap-4 items-stretch">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-stretch">
             {REPORT_CARDS.map((card) => (
               <div
                 key={card.id}
@@ -271,42 +275,12 @@ export default function ReportsPage() {
       </div>
 
       {/* ── Modals ── */}
-      <TicketVolumeModal
-        open={activeModal === 'ticket-volume'}
-        onClose={closeModal}
-        period={period}
-        metrics={metrics}
-      />
-      <PerformanceMetricsModal
-        open={activeModal === 'performance-metrics'}
-        onClose={closeModal}
-        period={period}
-        metrics={metrics}
-      />
-      <CategoryBreakdownModal
-        open={activeModal === 'category-breakdown'}
-        onClose={closeModal}
-        period={period}
-        metrics={metrics}
-      />
-      <AssigneePerformanceModal
-        open={activeModal === 'assignee-performance'}
-        onClose={closeModal}
-        period={period}
-        metrics={metrics}
-      />
-      <BacklogSummaryModal
-        open={activeModal === 'backlog-summary'}
-        onClose={closeModal}
-        period={period}
-        metrics={metrics}
-      />
-      <AIAccuracyModal
-        open={activeModal === 'ai-accuracy'}
-        onClose={closeModal}
-        period={period}
-        metrics={metrics}
-      />
+      <TicketVolumeModal        open={activeModal === 'ticket-volume'}        onClose={closeModal} period={period} metrics={metrics} />
+      <PerformanceMetricsModal  open={activeModal === 'performance-metrics'}  onClose={closeModal} period={period} metrics={metrics} />
+      <CategoryBreakdownModal   open={activeModal === 'category-breakdown'}   onClose={closeModal} period={period} metrics={metrics} />
+      <AssigneePerformanceModal open={activeModal === 'assignee-performance'} onClose={closeModal} period={period} metrics={metrics} />
+      <BacklogSummaryModal      open={activeModal === 'backlog-summary'}      onClose={closeModal} period={period} metrics={metrics} />
+      <AIAccuracyModal          open={activeModal === 'ai-accuracy'}          onClose={closeModal} period={period} metrics={metrics} />
     </div>
   );
 }

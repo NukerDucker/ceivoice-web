@@ -12,7 +12,9 @@ import { useRouter } from 'next/navigation';
 
 function Header() {
   return (
-    <div className="relative px-4 md:px-6 pt-4 md:pt-6">
+    // shrink-0: prevents flex from compressing this to zero height
+    // translateZ(0): forces own GPU compositing layer — fixes mobile repaint/disappear bug on shadow-sm elements
+    <div className="shrink-0" style={{ transform: 'translateZ(0)' }}>
       <div className="flex items-center justify-between w-full gap-6 p-4 bg-white rounded-xl shadow-sm">
         <h3 className="text-2xl font-bold">My Profile</h3>
       </div>
@@ -149,8 +151,8 @@ export default function ProfilePage() {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
 
+        {/* Header lives inside scroll container — scrolls away naturally, not sticky */}
         <div className="flex-1 overflow-auto px-4 md:px-6 py-4 md:py-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
@@ -158,6 +160,9 @@ export default function ProfilePage() {
             </div>
           ) : (
             <div className="max-w-2xl mx-auto space-y-6">
+
+              {/* ── Header ── */}
+              <Header />
 
               {/* ── Profile card ─────────────────────────────────────── */}
               <form onSubmit={handleSaveProfile} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -337,7 +342,8 @@ export default function ProfilePage() {
               </form>
 
               {/* ── Sign out — mobile only ────────────────────────────── */}
-              <div className="md:hidden pb-6">
+              {/* translateZ(0) fixes the same mobile repaint/disappear bug as the header */}
+              <div className="md:hidden pb-24" style={{ transform: 'translateZ(0)' }}>
                 <button
                   onClick={handleLogout}
                   className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-gray-600 hover:text-red-500 text-sm font-medium rounded-2xl transition-all shadow-sm"
