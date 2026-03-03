@@ -51,7 +51,7 @@ export function AIAccuracyModal({ open, onClose, period: externalPeriod }: Props
             <X size={16} />
           </button>
         </div>
-        <div className="flex items-center gap-2 px-6 py-2.5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-center gap-2 px-6 py-2.5 border-b border-gray-100 shrink-0">
           <span className="text-xs text-gray-500">Period:</span>
           <select value={localPeriod} onChange={(e) => setLocalPeriod(e.target.value)}
             className="text-xs font-semibold text-gray-800 border border-gray-200 rounded-lg px-2 py-1 bg-white outline-none cursor-pointer">
