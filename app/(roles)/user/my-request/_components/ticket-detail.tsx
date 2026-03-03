@@ -107,7 +107,7 @@ function Comment({ comment, isLast }: { comment: TicketComment; isLast: boolean 
   );
 }
 
-// ─── API shapes (→ @/types/api) ───────────────────────────────────────────────────────────
+// ─── API mapper ───────────────────────────────────────────────────────────────
 
 function mapApiComment(c: ApiComment, ticketId: string): TicketComment {
   const name     = c.user?.full_name ?? c.user?.user_name ?? c.user?.email ?? 'Support';
@@ -135,6 +135,7 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
   const [localComments, setLocalComments] = useState<TicketComment[]>([]);
   const [replyText, setReplyText]         = useState('');
   const [isSending, setIsSending]         = useState(false);
+  const [activeTab, setActiveTab]         = useState<'details' | 'comments'>('details');
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Fetch public comments whenever the ticket changes
@@ -142,6 +143,7 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
     if (!ticket) return;
     setLocalComments([]);
     setReplyText('');
+    setActiveTab('details');
     apiFetch<ApiComment[]>(`/tickets/id/${ticket.ticketId}/comments`)
       .then((raw) => setLocalComments(
         raw.filter((c) => c.visibility === 'PUBLIC').map((c) => mapApiComment(c, ticket.ticketId)),
@@ -187,23 +189,147 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
   };
 
+  // ─── Shared panels ────────────────────────────────────────────────────────
+
+  const DetailsPanel = () => (
+    <div className="flex flex-col gap-7">
+      {/* Description */}
+      <div>
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Description</p>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          {ticket.description ?? <span className="italic text-gray-300">No description provided.</span>}
+        </p>
+      </div>
+
+      <div className="w-full h-px bg-gray-100" />
+
+      {/* People */}
+      <div>
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">People</p>
+        <div className="flex flex-col gap-4">
+          {/* Creator */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-gray-400">Creator</span>
+            <div className="flex items-center gap-2.5">
+              <Avatar person={ticket.creator} size="sm" />
+              <span className="text-sm font-medium text-gray-800">{ticket.creator.name}</span>
+            </div>
+          </div>
+          {/* Assignee */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-gray-400">Assignee</span>
+            {ticket.assignee.name === 'Unassigned' ? (
+              <span className="text-sm text-gray-300 italic">Unassigned</span>
+            ) : (
+              <div className="flex items-center gap-2.5">
+                <Avatar person={ticket.assignee} size="sm" />
+                <span className="text-sm font-medium text-gray-800">{ticket.assignee.name}</span>
+              </div>
+            )}
+          </div>
+          {/* Followers */}
+          <div className="flex flex-col gap-1.5">
+            <span className="text-xs text-gray-400">Followers</span>
+            {ticket.followers.length === 0 ? (
+              <span className="text-sm text-gray-300 italic">None</span>
+            ) : (
+              <div className="flex items-center gap-1.5">
+                {ticket.followers.map((f) => (
+                  <div key={f.name} title={f.name}>
+                    <Avatar person={f} size="sm" />
+                  </div>
+                ))}
+                <span className="text-sm text-gray-500 ml-1">
+                  {ticket.followers.map(f => f.name).join(', ')}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="w-full h-px bg-gray-100" />
+
+      {/* Details */}
+      <div>
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Details</p>
+        <div className="flex flex-col gap-3">
+          {[
+            { label: 'Request ID', value: <span className="font-mono text-gray-700">{ticket.ticketId}</span> },
+            { label: 'Category',   value: <span className="text-gray-700">{ticket.category ?? '—'}</span> },
+            { label: 'Submitted',  value: <span className="text-gray-700">{ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span> },
+            { label: 'Status',     value: <StatusBadge status={ticket.status as Status} /> },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex items-center justify-between">
+              <span className="text-xs text-gray-400">{label}</span>
+              <span className="text-xs">{value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  const CommentsPanel = () => (
+    <>
+      {/* Thread */}
+      <div className="flex-1 overflow-y-auto px-8 pb-4">
+        {localComments.length === 0 ? (
+          <div className="flex items-center justify-center h-full py-16">
+            <p className="text-sm text-gray-300">No comments yet.</p>
+          </div>
+        ) : (
+          localComments.map((c, i) => (
+            <Comment key={c.id} comment={c} isLast={i === localComments.length - 1} />
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Reply box */}
+      <div className="shrink-0 border-t border-gray-100 px-4 md:px-8 py-4 md:py-5">
+        <div className="flex gap-3 items-start">
+          <Avatar person={ticket.creator} size="sm" />
+          <div className="flex-1 relative">
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={3}
+              placeholder="Reply… (⌘+Enter to send)"
+              className="w-full px-4 py-3 pr-20 text-sm bg-gray-50 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-300 transition-all placeholder:text-gray-300"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!replyText.trim() || isSending}
+              className="absolute bottom-3 right-3 flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-100 disabled:text-gray-300 text-white text-xs font-medium rounded-lg transition-all"
+            >
+              {isSending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-center justify-center p-6"
+      className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex items-end md:items-center justify-center md:p-6"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className="w-full max-w-5xl bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col"
-        style={{ height: '88vh' }}
+        className="w-full md:max-w-5xl bg-white md:rounded-2xl rounded-t-2xl shadow-xl overflow-hidden flex flex-col"
+        style={{ height: '92vh' }}
         onClick={(e) => e.stopPropagation()}
       >
 
         {/* ── Header ── */}
-        <div className="shrink-0 px-8 pt-7 pb-5 border-b border-gray-100">
+        <div className="shrink-0 px-4 md:px-8 pt-5 md:pt-7 pb-4 md:pb-5 border-b border-gray-100">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
               {/* ID + category row */}
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="font-mono text-xs text-gray-400">{ticket.ticketId}</span>
                 {ticket.category && (
                   <>
@@ -217,9 +343,9 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
                 </span>
               </div>
               {/* Title */}
-              <h1 className="text-xl font-bold text-gray-900 leading-snug">{ticket.title}</h1>
+              <h1 className="text-lg md:text-xl font-bold text-gray-900 leading-snug">{ticket.title}</h1>
             </div>
-            <div className="flex items-center gap-3 shrink-0 mt-1">
+            <div className="flex items-center gap-2 md:gap-3 shrink-0 mt-1">
               <StatusBadge status={ticket.status as Status} />
               <button
                 onClick={onClose}
@@ -229,146 +355,59 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
               </button>
             </div>
           </div>
+
+          {/* ── Mobile tabs ── */}
+          <div className="flex md:hidden mt-4 border-b border-gray-100 -mb-4">
+            {(['details', 'comments'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`flex-1 py-2.5 text-sm font-medium capitalize transition-colors border-b-2 -mb-px ${
+                  activeTab === tab
+                    ? 'border-orange-500 text-orange-500'
+                    : 'border-transparent text-gray-400'
+                }`}
+              >
+                {tab}
+                {tab === 'comments' && localComments.length > 0 && (
+                  <span className="ml-1.5 text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
+                    {localComments.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* ── Body ── */}
         <div className="flex-1 flex overflow-hidden min-h-0">
 
-          {/* ════ LEFT ════ */}
-          <div className="w-[45%] border-r border-gray-100 overflow-y-auto px-8 py-6 flex flex-col gap-7">
-
-            {/* Description */}
-            <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Description</p>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                {ticket.description ?? <span className="italic text-gray-300">No description provided.</span>}
-              </p>
-            </div>
-
-            <div className="w-full h-px bg-gray-100" />
-
-            {/* People */}
-            <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">People</p>
-              <div className="flex flex-col gap-4">
-
-                {/* Creator */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-gray-400">Creator</span>
-                  <div className="flex items-center gap-2.5">
-                    <Avatar person={ticket.creator} size="sm" />
-                    <span className="text-sm font-medium text-gray-800">{ticket.creator.name}</span>
-                  </div>
-                </div>
-
-                {/* Assignee */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-gray-400">Assignee</span>
-                  {ticket.assignee.name === 'Unassigned' ? (
-                    <span className="text-sm text-gray-300 italic">Unassigned</span>
-                  ) : (
-                    <div className="flex items-center gap-2.5">
-                      <Avatar person={ticket.assignee} size="sm" />
-                      <span className="text-sm font-medium text-gray-800">{ticket.assignee.name}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Followers */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-xs text-gray-400">Followers</span>
-                  {ticket.followers.length === 0 ? (
-                    <span className="text-sm text-gray-300 italic">None</span>
-                  ) : (
-                    <div className="flex items-center gap-1.5">
-                      {ticket.followers.map((f) => (
-                        <div key={f.name} title={f.name}>
-                          <Avatar person={f} size="sm" />
-                        </div>
-                      ))}
-                      <span className="text-sm text-gray-500 ml-1">
-                        {ticket.followers.map(f => f.name).join(', ')}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
+          {/* ── MOBILE: tab content ── */}
+          <div className="flex flex-col flex-1 overflow-hidden md:hidden">
+            {activeTab === 'details' ? (
+              <div className="flex-1 overflow-y-auto px-4 py-6">
+                <DetailsPanel />
               </div>
-            </div>
-
-            <div className="w-full h-px bg-gray-100" />
-
-            {/* Details */}
-            <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">Details</p>
-              <div className="flex flex-col gap-3">
-                {[
-                  { label: 'Request ID', value: <span className="font-mono text-gray-700">{ticket.ticketId}</span> },
-                  { label: 'Category',   value: <span className="text-gray-700">{ticket.category ?? '—'}</span> },
-                  { label: 'Submitted',  value: <span className="text-gray-700">{ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</span> },
-                  { label: 'Status',     value: <StatusBadge status={ticket.status as Status} /> },
-                ].map(({ label, value }) => (
-                  <div key={label} className="flex items-center justify-between">
-                    <span className="text-xs text-gray-400">{label}</span>
-                    <span className="text-xs">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
+            ) : (
+              <CommentsPanel />
+            )}
           </div>
 
-          {/* ════ RIGHT — Comments ════ */}
-          <div className="flex-1 flex flex-col overflow-hidden">
+          {/* ── DESKTOP: two columns ── */}
+          {/* LEFT */}
+          <div className="hidden md:block w-[45%] border-r border-gray-100 overflow-y-auto px-8 py-6">
+            <DetailsPanel />
+          </div>
 
-            {/* Comments label */}
+          {/* RIGHT — Comments */}
+          <div className="hidden md:flex flex-1 flex-col overflow-hidden">
             <div className="shrink-0 px-8 pt-6 pb-3 flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
-                Comments
-              </p>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Comments</p>
               <span className="text-xs text-gray-400">{localComments.length}</span>
             </div>
-
-            {/* Thread */}
-            <div className="flex-1 overflow-y-auto px-8 pb-4">
-              {localComments.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-sm text-gray-300">No comments yet.</p>
-                </div>
-              ) : (
-                localComments.map((c, i) => (
-                  <Comment key={c.id} comment={c} isLast={i === localComments.length - 1} />
-                ))
-              )}
-              <div ref={bottomRef} />
-            </div>
-
-            {/* Reply box */}
-            <div className="shrink-0 border-t border-gray-100 px-8 py-5">
-              <div className="flex gap-3 items-start">
-                <Avatar person={ticket.creator} size="sm" />
-                <div className="flex-1 relative">
-                  <textarea
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    rows={3}
-                    placeholder="Reply… (⌘+Enter to send)"
-                    className="w-full px-4 py-3 pr-20 text-sm bg-gray-50 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-300 transition-all placeholder:text-gray-300"
-                  />
-                  <button
-                    onClick={handleSend}
-                    disabled={!replyText.trim() || isSending}
-                    className="absolute bottom-3 right-3 flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-100 disabled:text-gray-300 text-white text-xs font-medium rounded-lg transition-all"
-                  >
-                    {isSending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
-                    Send
-                  </button>
-                </div>
-              </div>
-            </div>
-
+            <CommentsPanel />
           </div>
+
         </div>
       </div>
     </div>

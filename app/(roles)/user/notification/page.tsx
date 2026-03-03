@@ -48,9 +48,9 @@ function buildNotifications(tickets: ApiTicket[]): Notification[] {
   const list: Notification[] = [];
 
   for (const t of tickets) {
-    const statusName = t.status?.name?.toLowerCase() ?? 'new';
+    const statusName   = t.status?.name?.toLowerCase() ?? 'new';
     const assigneeName = t.assignee?.full_name ?? t.assignee?.user_name ?? null;
-    const titleStr = t.title ? `"${t.title}"` : `#${t.ticket_id}`;
+    const titleStr     = t.title ? `"${t.title}"` : `#${t.ticket_id}`;
 
     if (statusName === 'solved') {
       list.push({
@@ -208,7 +208,7 @@ function NotificationCard({
   const cfg = TYPE_CONFIG[notification.type];
 
   return (
-    <div className={`flex items-start gap-4 px-5 py-4 rounded-2xl border transition-all group ${
+    <div className={`flex items-start gap-3 md:gap-4 px-4 md:px-5 py-4 rounded-2xl border transition-all group ${
       notification.read
         ? 'bg-gray-50 border-transparent'
         : 'bg-orange-50/40 border-orange-100'
@@ -236,8 +236,8 @@ function NotificationCard({
         <p className="text-[11px] text-gray-500 leading-relaxed">{notification.description}</p>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+      {/* Actions — always visible on mobile, hover-only on desktop */}
+      <div className="flex items-center gap-1 shrink-0 md:opacity-0 md:group-hover:opacity-100 transition-opacity mt-0.5">
         {!notification.read && (
           <button
             onClick={() => onRead(notification.id)}
@@ -304,7 +304,7 @@ export default function UserNotificationsPage() {
         <Header />
 
         {/* ── Page header ── */}
-        <div className="flex items-center justify-between px-8 py-5 bg-gray-50 border-b border-gray-100 shrink-0">
+        <div className="flex items-center justify-between px-4 md:px-8 py-4 md:py-5 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
               <Bell size={14} />
@@ -319,15 +319,17 @@ export default function UserNotificationsPage() {
           {unreadCount > 0 && (
             <button
               onClick={markAllRead}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 md:px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
             >
-              <Check size={12} /> Mark all as read
+              <Check size={12} />
+              <span className="hidden sm:inline">Mark all as read</span>
+              <span className="sm:hidden">Read all</span>
             </button>
           )}
         </div>
 
         {/* ── Filter tabs ── */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto">
+        <div className="flex items-center gap-1 px-4 md:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
           {FILTERS.map((f) => {
             const count = f.id === 'all'
               ? notifications.length
@@ -337,7 +339,7 @@ export default function UserNotificationsPage() {
               <button
                 key={f.id}
                 onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`flex items-center gap-1.5 px-3 md:px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-gray-900 text-white'
                     : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
@@ -353,7 +355,7 @@ export default function UserNotificationsPage() {
         </div>
 
         {/* ── List ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-4 md:py-6">
           {loading ? (
             <div className="flex items-center justify-center h-48 text-gray-400">
               <p className="text-xs font-semibold">Loading notifications…</p>
