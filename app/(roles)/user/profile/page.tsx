@@ -3,15 +3,16 @@
 import React, { useState, useEffect } from 'react';
 import {
   User, Mail, AtSign, Save, Loader2,
-  CheckCircle2, AlertCircle, Lock, Eye, EyeOff,
+  CheckCircle2, AlertCircle, Lock, Eye, EyeOff, LogOut,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 // ─── Header ───────────────────────────────────────────────────────────────────
 
 function Header() {
   return (
-    <div className="relative px-6 pt-6">
+    <div className="relative px-4 md:px-6 pt-4 md:pt-6">
       <div className="flex items-center justify-between w-full gap-6 p-4 bg-white rounded-xl shadow-sm">
         <h3 className="text-2xl font-bold">My Profile</h3>
       </div>
@@ -23,7 +24,7 @@ function Header() {
 
 function Toast({ message, type }: { message: string; type: 'success' | 'error' }) {
   return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-popup ${
+    <div className={`fixed bottom-24 md:bottom-6 right-4 md:right-6 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium animate-popup ${
       type === 'success'
         ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
         : 'bg-red-50 border border-red-200 text-red-700'
@@ -39,7 +40,8 @@ function Toast({ message, type }: { message: string; type: 'success' | 'error' }
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-  const supabase   = createClient();
+  const supabase = createClient();
+  const router   = useRouter();
 
   // profile fields
   const [fullName,  setFullName]  = useState('');
@@ -56,10 +58,10 @@ export default function ProfilePage() {
   const [showConfirm, setShowConfirm] = useState(false);
 
   // ui state
-  const [loading,   setLoading]   = useState(true);
-  const [saving,    setSaving]    = useState(false);
-  const [pwSaving,  setPwSaving]  = useState(false);
-  const [toast,     setToast]     = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [loading,  setLoading]  = useState(true);
+  const [saving,   setSaving]   = useState(false);
+  const [pwSaving, setPwSaving] = useState(false);
+  const [toast,    setToast]    = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -135,16 +137,21 @@ export default function ProfilePage() {
     }
   };
 
+  // ── Logout ──────────────────────────────────────────────────────────────────
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/login');
+  };
+
   const displayAvatar = avatarUrl;
   const initials      = (fullName || email).charAt(0).toUpperCase();
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        <div className="flex-1 overflow-auto px-6 py-6">
+        <div className="flex-1 overflow-auto px-4 md:px-6 py-4 md:py-6">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <Loader2 size={24} className="animate-spin text-gray-400" />
@@ -158,7 +165,7 @@ export default function ProfilePage() {
                 <div className="h-24 bg-gradient-to-r from-orange-400 to-orange-500" />
 
                 {/* avatar */}
-                <div className="px-6 pb-6">
+                <div className="px-4 md:px-6 pb-6">
                   <div className="-mt-12 mb-4 w-fit">
                     <div className="w-20 h-20 rounded-full border-4 border-white shadow-md bg-linear-to-br from-orange-500 to-orange-400 flex items-center justify-center overflow-hidden">
                       {displayAvatar ? (
@@ -237,7 +244,7 @@ export default function ProfilePage() {
               </form>
 
               {/* ── Change password ───────────────────────────────────── */}
-              <form onSubmit={handleChangePassword} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+              <form onSubmit={handleChangePassword} className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 md:p-6">
                 <div className="flex items-center gap-2 mb-5">
                   <div className="w-8 h-8 rounded-lg bg-orange-50 flex items-center justify-center">
                     <Lock size={15} className="text-orange-500" />
@@ -328,6 +335,17 @@ export default function ProfilePage() {
                   </div>
                 </div>
               </form>
+
+              {/* ── Sign out — mobile only ────────────────────────────── */}
+              <div className="md:hidden pb-6">
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center justify-center gap-2 px-5 py-3 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-gray-600 hover:text-red-500 text-sm font-medium rounded-2xl transition-all shadow-sm"
+                >
+                  <LogOut size={15} />
+                  Sign Out
+                </button>
+              </div>
 
             </div>
           )}

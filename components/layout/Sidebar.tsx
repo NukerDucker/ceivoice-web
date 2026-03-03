@@ -158,15 +158,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             );
           })}
-
-          {/* Logout tab */}
-          <button
-            onClick={handleLogout}
-            className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] text-gray-400 active:text-red-500"
-          >
-            <LogOut size={22} />
-            <span className="text-[10px] font-medium leading-none">Logout</span>
-          </button>
         </div>
       </nav>
     </>
