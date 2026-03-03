@@ -83,7 +83,6 @@ function timeAgo(dateStr: string): string {
 function buildNotifications(drafts: ApiDraft[], tickets: ApiTicket[]): Notification[] {
   const list: Notification[] = [];
 
-  // Draft-ready: one notification per draft ticket
   for (const d of drafts) {
     const email = d.ticket_requests?.[0]?.request?.email ?? 'unknown';
     list.push({
@@ -102,9 +101,8 @@ function buildNotifications(drafts: ApiDraft[], tickets: ApiTicket[]): Notificat
   for (const t of tickets) {
     const statusId = t.status_id;
 
-    // Ticket closed: Solved (5) or Failed (6)
     if (statusId === 5 || statusId === 6) {
-      const label  = statusId === 5 ? 'Solved' : 'Failed';
+      const label        = statusId === 5 ? 'Solved' : 'Failed';
       const assigneeName = t.assignee?.full_name ?? t.assignee?.user_name ?? 'Support Team';
       list.push({
         id: `closed-${t.ticket_id}`,
@@ -117,9 +115,8 @@ function buildNotifications(drafts: ApiDraft[], tickets: ApiTicket[]): Notificat
       });
     }
 
-    // Deadline: upcoming (within 7 days) or already passed, for active tickets
     if (t.deadline && statusId !== 5 && statusId !== 6) {
-      const deadline = new Date(t.deadline);
+      const deadline  = new Date(t.deadline);
       const daysUntil = Math.ceil((deadline.getTime() - now) / 86400000);
 
       if (daysUntil <= 7) {
@@ -141,7 +138,6 @@ function buildNotifications(drafts: ApiDraft[], tickets: ApiTicket[]): Notificat
     }
   }
 
-  // Sort: unread first, then by id
   return list.sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1));
 }
 
@@ -161,7 +157,7 @@ function NotificationCard({
   const cfg = TYPE_CONFIG[notification.type];
 
   return (
-    <div className={`flex items-start gap-4 px-5 py-4 rounded-2xl border transition-all group ${
+    <div className={`flex items-start gap-3 sm:gap-4 px-4 sm:px-5 py-4 rounded-2xl border transition-all group ${
       notification.read
         ? 'bg-white border-gray-100'
         : 'bg-blue-50/30 border-blue-100'
@@ -187,10 +183,39 @@ function NotificationCard({
         </div>
         <p className="text-xs font-semibold text-gray-800 mb-0.5">{notification.title}</p>
         <p className="text-[11px] text-gray-500 leading-relaxed">{notification.description}</p>
+
+        {/* Actions: always visible on mobile, hover-only on desktop */}
+        <div className="flex items-center gap-1 mt-2 sm:hidden">
+          {!notification.read && (
+            <button
+              onClick={() => onRead(notification.id)}
+              title="Mark as read"
+              className="p-1.5 rounded-lg bg-gray-100 text-gray-500 transition-colors"
+            >
+              <Check size={13} />
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(notification.id)}
+            title="Dismiss"
+            className="p-1.5 rounded-lg bg-gray-100 text-gray-500 transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
+          {notification.ticketId && (
+            <button
+              onClick={() => onView(notification.ticketId!)}
+              title="View ticket"
+              className="p-1.5 rounded-lg bg-gray-100 text-gray-500 transition-colors"
+            >
+              <ChevronRight size={13} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+      {/* Actions: hover-only on desktop, hidden on mobile */}
+      <div className="hidden sm:flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
         {!notification.read && (
           <button
             onClick={() => onRead(notification.id)}
@@ -239,10 +264,8 @@ export default function AdminNotificationsPage() {
           apiFetch<ApiDraft[]>('/admin/drafts'),
           apiFetch<ApiTicket[]>('/admin/tickets'),
         ]);
-        console.debug('[Notifications] drafts:', drafts.length, 'tickets:', tickets.length);
         setNotifications(buildNotifications(drafts, tickets));
       } catch (err) {
-        console.error('[Notifications] fetch error:', err);
         setError('Failed to load notifications.');
       } finally {
         setLoading(false);
@@ -274,9 +297,9 @@ export default function AdminNotificationsPage() {
       <Header />
 
       {/* ── Page header ── */}
-      <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
+      <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5 bg-white border-b border-gray-100 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white shrink-0">
             <Bell size={14} />
           </div>
           <div>
@@ -289,17 +312,19 @@ export default function AdminNotificationsPage() {
         {unreadCount > 0 && (
           <button
             onClick={markAllRead}
-            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 sm:px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
           >
-            <Check size={12} /> Mark all as read
+            <Check size={12} />
+            <span className="hidden sm:inline">Mark all as read</span>
+            <span className="sm:hidden">Mark all</span>
           </button>
         )}
       </div>
 
-      {/* ── Filter tabs ── */}
-      <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
+      {/* ── Filter tabs — scrollable on mobile ── */}
+      <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-white border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
         {FILTERS.map((f) => {
-          const count = f.id === 'all'
+          const count    = f.id === 'all'
             ? notifications.length
             : notifications.filter((n) => n.type === f.id).length;
           const isActive = activeFilter === f.id;
@@ -307,7 +332,7 @@ export default function AdminNotificationsPage() {
             <button
               key={f.id}
               onClick={() => setActiveFilter(f.id)}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
                 isActive
                   ? 'bg-gray-900 text-white'
                   : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
@@ -323,7 +348,7 @@ export default function AdminNotificationsPage() {
       </div>
 
       {/* ── List ── */}
-      <div className="flex-1 overflow-y-auto px-8 py-6">
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
         {loading ? (
           <div className="flex items-center justify-center h-48 text-gray-400">
             <p className="text-xs font-semibold">Loading notifications…</p>

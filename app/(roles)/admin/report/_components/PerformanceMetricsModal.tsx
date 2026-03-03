@@ -1,18 +1,14 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { X, Download, TrendingUp } from "lucide-react";
 import { type ApiMetrics, STATUS_NAME_TO_ID } from '@/types/api';
-
-// ─── Period helper ────────────────────────────────────────────────────────────
 
 const PERIODS = ["Last 7 days", "Last 30 days", "Last 90 days", "This year"];
 
 function round1(n: number): string {
   return n.toFixed(1);
 }
-
-// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
   open: boolean;
@@ -21,17 +17,18 @@ interface Props {
   metrics: ApiMetrics | null;
 }
 
-// ─── Component ────────────────────────────────────────────────────────────────
-
 export function PerformanceMetricsModal({ open, onClose, period: externalPeriod, metrics }: Props) {
   const [localPeriod, setLocalPeriod] = useState(externalPeriod);
 
-  // Sync local period whenever the parent period changes
-  React.useEffect(() => {
-    setLocalPeriod(externalPeriod);
-  }, [externalPeriod]);
+  useEffect(() => { setLocalPeriod(externalPeriod); }, [externalPeriod]);
 
-  // ── KPI derivations from API metrics ─────────────────────────────────────
+  // Lock body scroll when open
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
+
   const kpis = useMemo(() => {
     if (!metrics) return null;
     const total          = metrics.total_tickets;
@@ -42,7 +39,6 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
     return { avgResolution, resolutionRate, solvedCount, total };
   }, [metrics]);
 
-  // ── Category table from top_categories ───────────────────────────────────
   const categoryRows = useMemo(() => {
     return (metrics?.top_categories ?? []).map((c) => ({
       category:     c.category_name,
@@ -50,43 +46,47 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
     }));
   }, [metrics]);
 
-  const now          = new Date();
-  const updatedLabel = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const updatedLabel = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal */}
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+      {/* Modal — bottom sheet on mobile, centered card on sm+ */}
+      <div className="relative bg-white w-full max-w-3xl flex flex-col rounded-t-2xl max-h-[92dvh] sm:rounded-2xl sm:shadow-2xl sm:max-h-[90vh]">
 
-        {/* ── Header ── */}
-        <div className="flex items-center gap-3 px-6 pt-6 pb-4 border-b border-gray-100">
-          <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-            <TrendingUp size={20} />
+        {/* Drag handle — mobile only */}
+        <div className="flex justify-center pt-3 pb-1 sm:hidden">
+          <div className="w-10 h-1.5 rounded-full bg-gray-200" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center gap-3 px-4 sm:px-6 pt-3 sm:pt-6 pb-4 border-b border-gray-100 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600 shrink-0">
+            <TrendingUp size={18} />
           </div>
-          <div className="flex-1">
-            <h2 className="text-xl font-bold text-gray-900">Performance Metrics</h2>
-            <p className="text-xs text-gray-400 mt-0.5">
+          <div className="flex-1 min-w-0">
+            <h2 className="text-base sm:text-xl font-bold text-gray-900 truncate">Performance Metrics</h2>
+            <p className="text-xs text-gray-400 mt-0.5 truncate">
               {localPeriod} &bull; Updated today at {updatedLabel}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-100 transition-colors shrink-0"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* ── Scrollable Body ── */}
-        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
 
-          {/* Period + Export */}
-          <div className="flex items-center justify-between">
+          {/* Period + Export — stack on mobile */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-500 font-medium">Period :</span>
               <select
@@ -94,23 +94,21 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
                 onChange={(e) => setLocalPeriod(e.target.value)}
                 className="text-sm font-semibold text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none cursor-pointer"
               >
-                {PERIODS.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
+                {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
               </select>
             </div>
-            <button className="flex items-center gap-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-4 py-1.5 hover:bg-blue-50 transition-colors">
+            <button className="self-start sm:self-auto flex items-center gap-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-4 py-1.5 hover:bg-blue-50 transition-colors">
               <Download size={14} />
               Export Report
             </button>
           </div>
 
-          {/* ── KPI Cards ── */}
           {!kpis ? (
             <p className="text-sm text-gray-400 text-center py-8">No data available for this period.</p>
           ) : (
             <>
-              <div className="grid grid-cols-2 gap-3">
+              {/* KPI Cards — 1 col on mobile, 2 col on sm+ */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {[
                   {
                     label: "Average resolution time",
@@ -138,36 +136,49 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
                 ))}
               </div>
 
-              {/* ── Performance by Category ── */}
+              {/* Performance by Category */}
               <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="px-5 py-4 border-b border-gray-100">
+                <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-gray-100">
                   <h3 className="text-sm font-bold text-gray-800">Performance by Category</h3>
                 </div>
+
                 {categoryRows.length === 0 ? (
                   <p className="text-xs text-gray-400 text-center py-6">No data available.</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="bg-gray-50">
-                        {["Category", "Total Tickets"].map((h) => (
-                          <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
+                  <>
+                    {/* Mobile card list */}
+                    <div className="sm:hidden divide-y divide-gray-100">
                       {categoryRows.map((row) => (
-                        <tr key={row.category} className="hover:bg-gray-50 transition-colors">
-                          <td className="px-5 py-3.5 font-medium text-gray-800">{row.category}</td>
-                          <td className="px-5 py-3.5 text-gray-600">{row.totalTickets}</td>
-                        </tr>
+                        <div key={row.category} className="flex items-center justify-between px-4 py-3">
+                          <span className="text-sm font-medium text-gray-800">{row.category}</span>
+                          <span className="text-sm text-gray-500 font-semibold">{row.totalTickets} tickets</span>
+                        </div>
                       ))}
-                    </tbody>
-                  </table>
+                    </div>
+
+                    {/* Desktop table */}
+                    <table className="hidden sm:table w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50">
+                          {["Category", "Total Tickets"].map((h) => (
+                            <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wide">
+                              {h}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {categoryRows.map((row) => (
+                          <tr key={row.category} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-5 py-3.5 font-medium text-gray-800">{row.category}</td>
+                            <td className="px-5 py-3.5 text-gray-600">{row.totalTickets}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
                 )}
               </div>
-
             </>
           )}
         </div>

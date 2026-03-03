@@ -55,7 +55,7 @@ function StatCard({ label, value, sub, subColor, bgColor }: {
   return (
     <div className="rounded-2xl p-4 flex flex-col gap-1" style={{ background: bgColor }}>
       <p className="text-xs font-medium text-slate-600">{label}</p>
-      <p className="text-4xl font-bold text-slate-900">{value}</p>
+      <p className="text-3xl sm:text-4xl font-bold text-slate-900">{value}</p>
       <p className="text-xs font-medium" style={{ color: subColor }}>{sub}</p>
     </div>
   );
@@ -97,12 +97,12 @@ function DonutChart({ categories, total }: {
       </svg>
       <div className="w-full mt-4 space-y-2">
         {slices.map((d) => (
-          <div key={d.category_name} className="flex items-center justify-between text-sm">
-            <div className="flex items-center gap-2">
+          <div key={d.category_name} className="flex items-center justify-between text-sm gap-2">
+            <div className="flex items-center gap-2 min-w-0">
               <span className="w-3 h-3 rounded-sm shrink-0" style={{ background: d.color }} />
-              <span className="text-slate-700">{d.category_name}</span>
+              <span className="text-slate-700 truncate">{d.category_name}</span>
             </div>
-            <span className="font-semibold text-slate-900">
+            <span className="font-semibold text-slate-900 shrink-0">
               {d.count} ({total > 0 ? Math.round((d.count / total) * 100) : 0}%)
             </span>
           </div>
@@ -121,19 +121,19 @@ function StatusBarChart({ byStatus }: { byStatus: Array<{ status_id: number; cou
   const maxH   = 120;
 
   return (
-    <div className="flex items-end justify-between gap-2 mt-6" style={{ height: maxH + 56 }}>
+    <div className="flex items-end justify-between gap-1 sm:gap-2 mt-6" style={{ height: maxH + 56 }}>
       {sorted.length === 0 ? (
         <p className="text-xs text-slate-400 text-center w-full">No data yet.</p>
       ) : sorted.map((s, i) => {
         const h = Math.max(8, Math.round((s.count / maxVal) * maxH));
         return (
-          <div key={s.status_id} className="flex flex-col items-center flex-1">
+          <div key={s.status_id} className="flex flex-col items-center flex-1 min-w-0">
             <div
               className="w-full rounded-t-lg transition-all duration-500"
               style={{ height: h, background: BAR_CHART_COLORS[i % BAR_CHART_COLORS.length] }}
             />
-            <p className="text-lg font-bold text-slate-900 mt-1">{s.count}</p>
-            <p className="text-[9px] text-slate-500 text-center leading-tight">
+            <p className="text-sm sm:text-lg font-bold text-slate-900 mt-1">{s.count}</p>
+            <p className="text-[8px] sm:text-[9px] text-slate-500 text-center leading-tight">
               {STATUS_NAMES[s.status_id] ?? `#${s.status_id}`}
             </p>
           </div>
@@ -207,81 +207,85 @@ export default function AdminDashboardPage() {
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex-1 overflow-y-auto bg-slate-50">
 
-          {/* Top bar */}
-          <div className="px-8 pt-6 pb-2">
-            <div className="flex items-center justify-between bg-white rounded-xl shadow-sm px-6 py-4">
-              <h2 className="text-2xl font-bold text-slate-900">Admin Dashboard</h2>
-              <div className="flex gap-2 bg-slate-100 rounded-lg p-1">
-                {(['7D', '30D', '90D'] as const).map((r) => (
-                  <button
-                    key={r}
-                    onClick={() => setRange(r)}
-                    className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
-                    style={{
-                      background: range === r ? '#fff' : 'transparent',
-                      color:      range === r ? '#0f172a' : '#64748b',
-                      boxShadow:  range === r ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                    }}
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
+        {/* Top bar */}
+        <div className="px-4 sm:px-8 pt-4 sm:pt-6 pb-2">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white rounded-xl shadow-sm px-4 sm:px-6 py-3 sm:py-4">
+            <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Admin Dashboard</h2>
+            <div className="flex gap-2 bg-slate-100 rounded-lg p-1 self-start sm:self-auto">
+              {(['7D', '30D', '90D'] as const).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => setRange(r)}
+                  className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
+                  style={{
+                    background: range === r ? '#fff' : 'transparent',
+                    color:      range === r ? '#0f172a' : '#64748b',
+                    boxShadow:  range === r ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                  }}
+                >
+                  {r}
+                </button>
+              ))}
             </div>
           </div>
+        </div>
 
-          <div className="px-8 py-4 space-y-5">
+        <div className="px-4 sm:px-8 py-4 space-y-4 sm:space-y-5">
 
-            {/* ── Stat Cards ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="Draft Queue"      value={draftCount}                         sub="Need Reviews"     subColor="#ef4444" bgColor="#fef3c2" />
-              <StatCard label="Active Tickets"   value={activeCount}                        sub="In Progress"      subColor="#6366f1" bgColor="#dbeafe" />
-              <StatCard label="Avg Resolution"   value={avgRes > 0 ? `${avgRes}h` : '—'}   sub="Resolved tickets" subColor="#10b981" bgColor="#e9d5ff" />
-              <StatCard label="Active Assignees" value={assigneeList.length}                sub="Team Members"     subColor="#64748b" bgColor="#ccfbf1" />
+          {/* ── Stat Cards ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <StatCard label="Draft Queue"      value={draftCount}                         sub="Need Reviews"     subColor="#ef4444" bgColor="#fef3c2" />
+            <StatCard label="Active Tickets"   value={activeCount}                        sub="In Progress"      subColor="#6366f1" bgColor="#dbeafe" />
+            <StatCard label="Avg Resolution"   value={avgRes > 0 ? `${avgRes}h` : '—'}   sub="Resolved tickets" subColor="#10b981" bgColor="#e9d5ff" />
+            <StatCard label="Active Assignees" value={assigneeList.length}                sub="Team Members"     subColor="#64748b" bgColor="#ccfbf1" />
+          </div>
+
+          {/* ── Draft Queue ── */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 sm:px-5 py-4 border-b border-slate-200">
+              <div className="flex items-start gap-2">
+                <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center shrink-0 mt-0.5">
+                  <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" clipRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-slate-900">Draft Queue — Action Required</h3>
+                  <p className="text-xs text-slate-500">Submitted tickets pending admin review and approval</p>
+                </div>
+              </div>
+              <button
+                onClick={() => router.push('/admin/draft')}
+                className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors self-start sm:self-auto shrink-0"
+              >
+                View All Drafts
+              </button>
             </div>
 
-            {/* ── Draft Queue ── */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-red-100 rounded flex items-center justify-center">
-                    <svg className="w-4 h-4 text-red-600" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" clipRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" />
-                    </svg>
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Draft Queue — Action Required</h3>
-                    <p className="text-xs text-slate-500">Submitted tickets pending admin review and approval</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => router.push('/admin/draft')}
-                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                >
-                  View All Drafts
-                </button>
-              </div>
+            {drafts.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-10">No pending submissions.</p>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {drafts.slice(0, 5).map((t) => {
+                  const req      = t.ticket_requests?.[0]?.request ?? null;
+                  const sender   = req?.email ?? '—';
+                  const catStyle = getCatStyle(t.category?.name ?? '');
+                  const initials = sender.slice(0, 2).toUpperCase();
+                  return (
+                    // On mobile: stack into two rows. On sm+: single flex row.
+                    <div key={t.ticket_id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors">
 
-              {drafts.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-10">No pending submissions.</p>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {drafts.slice(0, 5).map((t) => {
-                    const req        = t.ticket_requests?.[0]?.request ?? null;
-                    const sender     = req?.email ?? '—';
-                    const catStyle   = getCatStyle(t.category?.name ?? '');
-                    const initials   = sender.slice(0, 2).toUpperCase();
-                    return (
-                      <div key={t.ticket_id} className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
-                            {initials}
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                      {/* Row 1 (mobile) / Left section (desktop): avatar + email + time */}
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                          {initials}
+                        </div>
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 min-w-0">
                             <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                             </svg>
-                            <span className="truncate max-w-40">{req?.email ?? '—'}</span>
+                            <span className="truncate max-w-[140px] sm:max-w-40">{req?.email ?? '—'}</span>
                           </div>
                           <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -290,13 +294,17 @@ export default function AdminDashboardPage() {
                             {timeAgo(t.created_at)}
                           </div>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
-                          <span className="text-sm font-semibold text-slate-900 max-w-55 truncate">
-                            {t.title ?? `Draft #${t.ticket_id}`}
-                          </span>
+                      </div>
+
+                      {/* Row 2 (mobile) / Right section (desktop): title + badge + button */}
+                      <div className="flex items-center gap-2 sm:gap-3 justify-between sm:justify-end shrink-0">
+                        <span className="text-sm font-semibold text-slate-900 truncate max-w-[140px] sm:max-w-[220px]">
+                          {t.title ?? `Draft #${t.ticket_id}`}
+                        </span>
+                        <div className="flex items-center gap-2 shrink-0">
                           {t.category && (
                             <span
-                              className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase shrink-0"
+                              className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase"
                               style={{ background: catStyle.bg, color: catStyle.color }}
                             >
                               {t.category.name}
@@ -304,114 +312,116 @@ export default function AdminDashboardPage() {
                           )}
                           <button
                             onClick={() => router.push(`/admin/review-ticket?id=${t.ticket_id}`)}
-                            className="text-sm px-4 py-1.5 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors font-medium shrink-0"
+                            className="text-sm px-3 sm:px-4 py-1.5 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50 transition-colors font-medium shrink-0"
                           >
                             Edit
                           </button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── Charts Row ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-1 h-6 bg-linear-to-b from-yellow-400 via-blue-400 to-purple-400 rounded-full" />
+                <span className="text-sm sm:text-base font-bold text-slate-900">Ticket Volume by Status</span>
+              </div>
+              <StatusBarChart byStatus={m?.tickets_by_status ?? []} />
             </div>
 
-            {/* ── Charts Row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-1 h-6 bg-linear-to-b from-yellow-400 via-blue-400 to-purple-400 rounded-full" />
-                  <span className="text-base font-bold text-slate-900">Ticket Volume by Status</span>
-                </div>
-                <StatusBarChart byStatus={m?.tickets_by_status ?? []} />
-              </div>
-
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <h3 className="text-base font-bold text-slate-900 mb-1">Category Breakdown</h3>
-                <p className="text-xs text-slate-500 mb-4">Top categories by ticket volume</p>
-                <DonutChart
-                  categories={m?.top_categories ?? []}
-                  total={m?.total_tickets ?? 0}
-                />
-              </div>
-            </div>
-
-            {/* ── Bottom Row ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-
-              {/* Assignee Workload */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold text-slate-900">Assignee Workload</h3>
-                  <button
-                    onClick={() => router.push('/admin/user-management')}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    Manage Users →
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {assigneeList.length === 0 ? (
-                    <p className="text-sm text-slate-400 text-center py-4">No assignees found.</p>
-                  ) : assigneeList.slice(0, 5).map((a, i) => {
-                    const statusLabel = a.active_tickets > 5 ? 'CRITICAL' : a.active_tickets > 0 ? 'ACTIVE' : 'IDLE';
-                    const statusStyle = ASSIGNEE_STATUS_STYLE[statusLabel];
-                    const initials    = a.assignee_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
-                    return (
-                      <div key={a.assignee_id ?? i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200">
-                        <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
-                          {initials}
-                        </div>
-                        <p className="text-sm font-semibold text-slate-900 flex-1 truncate">{a.assignee_name}</p>
-                        <div className="text-right shrink-0">
-                          <span className="text-[10px] font-bold px-3 py-1 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.color }}>
-                            {statusLabel}
-                          </span>
-                          <p className="text-xs text-slate-500 mt-1">
-                            {a.active_tickets} ticket{a.active_tickets !== 1 ? 's' : ''}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Status Overview */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-base font-bold text-slate-900">Status Overview</h3>
-                  <button
-                    onClick={() => router.push('/admin/tickets')}
-                    className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
-                  >
-                    View All →
-                  </button>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: 'Draft',       ids: [1], color: '#d97706', bg: '#fffbeb' },
-                    { label: 'New',         ids: [2], color: '#2563eb', bg: '#eff6ff' },
-                    { label: 'In Progress', ids: [3, 4], color: '#7c3aed', bg: '#f5f3ff' },
-                    { label: 'Renew',       ids: [7], color: '#0369a1', bg: '#f0f9ff' },
-                    { label: 'Solved',      ids: [5], color: '#15803d', bg: '#f0fdf4' },
-                    { label: 'Failed',      ids: [6], color: '#b91c1c', bg: '#fef2f2' },
-                  ].map((s) => {
-                    const count = (m?.tickets_by_status ?? [])
-                      .filter((ts) => s.ids.includes(ts.status_id))
-                      .reduce((acc, ts) => acc + ts.count, 0);
-                    return (
-                      <div key={s.label} className="rounded-xl p-3 text-center border border-slate-200" style={{ background: s.bg }}>
-                        <p className="text-2xl font-bold leading-none" style={{ color: s.color }}>{count}</p>
-                        <p className="text-[10px] font-medium text-slate-500 mt-1">{s.label}</p>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+              <h3 className="text-sm sm:text-base font-bold text-slate-900 mb-1">Category Breakdown</h3>
+              <p className="text-xs text-slate-500 mb-4">Top categories by ticket volume</p>
+              <DonutChart
+                categories={m?.top_categories ?? []}
+                total={m?.total_tickets ?? 0}
+              />
             </div>
           </div>
+
+          {/* ── Bottom Row ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
+
+            {/* Assignee Workload */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">Assignee Workload</h3>
+                <button
+                  onClick={() => router.push('/admin/user-management')}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  Manage Users →
+                </button>
+              </div>
+              <div className="space-y-3">
+                {assigneeList.length === 0 ? (
+                  <p className="text-sm text-slate-400 text-center py-4">No assignees found.</p>
+                ) : assigneeList.slice(0, 5).map((a, i) => {
+                  const statusLabel = a.active_tickets > 5 ? 'CRITICAL' : a.active_tickets > 0 ? 'ACTIVE' : 'IDLE';
+                  const statusStyle = ASSIGNEE_STATUS_STYLE[statusLabel];
+                  const initials    = a.assignee_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+                  return (
+                    <div key={a.assignee_id ?? i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 hover:bg-slate-100 transition-colors border border-slate-200">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
+                        {initials}
+                      </div>
+                      <p className="text-sm font-semibold text-slate-900 flex-1 truncate">{a.assignee_name}</p>
+                      <div className="text-right shrink-0">
+                        <span className="text-[10px] font-bold px-2.5 sm:px-3 py-1 rounded-full" style={{ background: statusStyle.bg, color: statusStyle.color }}>
+                          {statusLabel}
+                        </span>
+                        <p className="text-xs text-slate-500 mt-1">
+                          {a.active_tickets} ticket{a.active_tickets !== 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Status Overview */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4 sm:p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm sm:text-base font-bold text-slate-900">Status Overview</h3>
+                <button
+                  onClick={() => router.push('/admin/tickets')}
+                  className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  View All →
+                </button>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+                {[
+                  { label: 'Draft',       ids: [1], color: '#d97706', bg: '#fffbeb' },
+                  { label: 'New',         ids: [2], color: '#2563eb', bg: '#eff6ff' },
+                  { label: 'In Progress', ids: [3, 4], color: '#7c3aed', bg: '#f5f3ff' },
+                  { label: 'Renew',       ids: [7], color: '#0369a1', bg: '#f0f9ff' },
+                  { label: 'Solved',      ids: [5], color: '#15803d', bg: '#f0fdf4' },
+                  { label: 'Failed',      ids: [6], color: '#b91c1c', bg: '#fef2f2' },
+                ].map((s) => {
+                  const count = (m?.tickets_by_status ?? [])
+                    .filter((ts) => s.ids.includes(ts.status_id))
+                    .reduce((acc, ts) => acc + ts.count, 0);
+                  return (
+                    <div key={s.label} className="rounded-xl p-3 text-center border border-slate-200" style={{ background: s.bg }}>
+                      <p className="text-xl sm:text-2xl font-bold leading-none" style={{ color: s.color }}>{count}</p>
+                      <p className="text-[10px] font-medium text-slate-500 mt-1">{s.label}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
     </div>
   );

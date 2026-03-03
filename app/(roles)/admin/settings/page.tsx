@@ -5,14 +5,12 @@ import {
   Tag, Plus, Pencil, Trash2, Check, X, AlertCircle,
 } from 'lucide-react';
 
-// ─── Tabs config (add future tabs here) ──────────────────────────────────────
-
 const TABS = [
   { id: 'scopes', label: 'Scope & Categories', icon: <Tag size={13} /> },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
-import { Header }  from '@/components/layout/settingTB';
+import { Header }     from '@/components/layout/settingTB';
 import { SCOPE_NAMES } from '@/lib/config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -60,7 +58,7 @@ function SectionHeader({ icon, title, subtitle }: {
   icon: React.ReactNode; title: string; subtitle: string;
 }) {
   return (
-    <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100">
+    <div className="flex items-start justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
       <div className="flex items-center gap-3">
         <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white shrink-0">
           {icon}
@@ -77,11 +75,11 @@ function SectionHeader({ icon, title, subtitle }: {
 // ─── Scope Tag Management ─────────────────────────────────────────────────────
 
 function ScopesTab() {
-  const [scopes, setScopes] = useState<ScopeCategory[]>(INITIAL_SCOPES);
-  const [newLabel, setNewLabel]   = useState('');
-  const [editId,   setEditId]     = useState<string | null>(null);
-  const [editLabel, setEditLabel] = useState('');
-  const [error, setError] = useState('');
+  const [scopes,     setScopes]     = useState<ScopeCategory[]>(INITIAL_SCOPES);
+  const [newLabel,   setNewLabel]   = useState('');
+  const [editId,     setEditId]     = useState<string | null>(null);
+  const [editLabel,  setEditLabel]  = useState('');
+  const [error,      setError]      = useState('');
 
   const handleAdd = () => {
     const trimmed = newLabel.trim();
@@ -117,9 +115,10 @@ function ScopesTab() {
         title="Scope & Category Management"
         subtitle="Predefined tags used for Assignee routing and AI suggestions"
       />
-      <div className="p-6">
-        {/* Add new */}
-        <div className="flex gap-2 mb-1">
+      <div className="p-4 sm:p-6">
+
+        {/* Add new: stacks on mobile, row on sm+ */}
+        <div className="flex flex-col sm:flex-row gap-2 mb-1">
           <input
             type="text"
             value={newLabel}
@@ -130,56 +129,91 @@ function ScopesTab() {
           />
           <button
             onClick={handleAdd}
-            className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl bg-gray-900 text-white hover:bg-gray-700 transition-colors shrink-0"
+            className="flex items-center justify-center gap-1.5 text-xs font-semibold px-4 py-2.5 rounded-xl bg-gray-900 text-white hover:bg-gray-700 transition-colors shrink-0"
           >
             <Plus size={13} /> Add Scope
           </button>
         </div>
+
         {error && (
           <p className="flex items-center gap-1 text-[11px] text-red-500 mb-3 mt-1">
             <AlertCircle size={11} /> {error}
           </p>
         )}
 
-        {/* List */}
+        {/* Scope list */}
         <div className="mt-4 flex flex-col gap-1.5">
           {scopes.map((s) => (
-            <div key={s.id} className="flex items-center justify-between px-4 py-2.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 group transition-all">
-              <div className="flex items-center gap-3">
+            <div
+              key={s.id}
+              className="flex items-center justify-between px-3 sm:px-4 py-2.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 group transition-all"
+            >
+              {/* Left: tag + assignee count */}
+              <div className="flex items-center gap-3 min-w-0">
                 {editId === s.id ? (
                   <input
                     autoFocus
                     value={editLabel}
                     onChange={(e) => setEditLabel(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') saveEdit(s.id); if (e.key === 'Escape') setEditId(null); }}
-                    className="text-xs border border-gray-300 rounded-lg px-2.5 py-1 outline-none focus:border-gray-500 bg-white"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter')  saveEdit(s.id);
+                      if (e.key === 'Escape') setEditId(null);
+                    }}
+                    className="text-xs border border-gray-300 rounded-lg px-2.5 py-1 outline-none focus:border-gray-500 bg-white max-w-[140px] sm:max-w-none"
                   />
                 ) : (
-                  <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-lg border ${s.color}`}>
+                  <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-lg border truncate max-w-[160px] sm:max-w-none ${s.color}`}>
                     {s.label}
                   </span>
                 )}
-                <span className="text-[11px] text-gray-400">
+                <span className="text-[11px] text-gray-400 shrink-0">
                   {s.assigneeCount} assignee{s.assigneeCount !== 1 ? 's' : ''}
                 </span>
               </div>
-              <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+
+              {/* Right: action buttons
+                  - Desktop: hover-reveal (opacity-0 group-hover:opacity-100)
+                  - Mobile:  always visible (sm:opacity-0 sm:group-hover:opacity-100) */}
+              <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
                 {editId === s.id ? (
                   <>
-                    <button onClick={() => saveEdit(s.id)} className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"><Check size={13} /></button>
-                    <button onClick={() => setEditId(null)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"><X size={13} /></button>
+                    <button
+                      onClick={() => saveEdit(s.id)}
+                      className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
+                    >
+                      <Check size={13} />
+                    </button>
+                    <button
+                      onClick={() => setEditId(null)}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
                   </>
                 ) : (
                   <>
-                    <button onClick={() => startEdit(s)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"><Pencil size={13} /></button>
-                    <button onClick={() => handleDelete(s.id)} className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"><Trash2 size={13} /></button>
+                    <button
+                      onClick={() => startEdit(s)}
+                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(s.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 size={13} />
+                    </button>
                   </>
                 )}
               </div>
             </div>
           ))}
         </div>
-        <p className="mt-4 text-[11px] text-gray-400">{scopes.length} scopes total — changes apply to User Management and AI Draft suggestions immediately.</p>
+
+        <p className="mt-4 text-[11px] text-gray-400">
+          {scopes.length} scopes total — changes apply to User Management and AI Draft suggestions immediately.
+        </p>
       </div>
     </SectionCard>
   );
@@ -196,7 +230,7 @@ export default function AdminSettingsPage() {
         <Header />
 
         {/* ── Tab bar ── */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-white border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             return (
@@ -217,7 +251,7 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* ── Content ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
           {activeTab === 'scopes' && <ScopesTab />}
         </div>
       </div>

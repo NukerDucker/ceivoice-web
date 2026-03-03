@@ -9,13 +9,11 @@ import type { ApiTicket } from '@/types/api';
 
 type TicketStatus = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew';
 
-// Map backend status names (Title-case) → frontend keys (lowercase)
 const STATUS_NAME_MAP: Record<string, TicketStatus> = {
   Draft: 'draft', New: 'new', Assigned: 'assigned',
   Solving: 'solving', Solved: 'solved', Failed: 'failed', Renew: 'renew',
 };
 
-// Map frontend tab value → backend status name (Title-case)
 const TAB_TO_API: Record<string, string> = {
   draft: 'Draft', new: 'New', assigned: 'Assigned',
   solving: 'Solving', solved: 'Solved', failed: 'Failed', renew: 'Renew',
@@ -118,7 +116,79 @@ function TicketRow({
 
   return (
     <div className={`border-l-4 ${cfg.borderColor} bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100`}>
-      <div className="flex items-center gap-6 px-6 py-4">
+
+      {/* ── Mobile layout (< sm) ── */}
+      <div className="flex flex-col gap-3 px-4 py-4 sm:hidden">
+
+        {/* Top row: checkbox + ID + time + status badge */}
+        <div className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={checked}
+            onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
+            className="w-4 h-4 rounded border-gray-300 accent-gray-900 shrink-0"
+          />
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
+            <span className="text-[10px] text-gray-400">
+              {created.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+              {' · '}
+              {created.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+            </span>
+          </div>
+          <div className="ml-auto">
+            <StatusBadge status={status} onChange={handleStatusChange} />
+          </div>
+        </div>
+
+        {/* Title */}
+        <button
+          onClick={handleReview}
+          className="text-sm font-semibold text-gray-800 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2"
+        >
+          {ticket.title ?? '(Untitled)'}
+        </button>
+
+        {/* Meta: 2-col grid */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          {[
+            { label: 'Category', value: ticket.category?.name ?? '—' },
+            { label: 'Assignee', value: ticket.assignee?.full_name ?? ticket.assignee?.user_name ?? 'Unassigned' },
+          ].map(({ label, value }) => (
+            <div key={label} className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
+              <span className="text-xs text-gray-600 font-medium truncate">{value}</span>
+            </div>
+          ))}
+        </div>
+
+        {/* Bottom actions */}
+        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
+          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors">
+            <User size={13} className="text-gray-400" />
+            Client note
+          </button>
+          <div className="ml-auto flex items-center gap-3">
+            <button
+              onClick={() => handleStatusChange('solved')}
+              className="text-gray-300 hover:text-gray-900 transition-colors"
+              title="Mark as solved"
+            >
+              <Check size={14} />
+            </button>
+            <button
+              onClick={handleReview}
+              className="text-gray-300 hover:text-gray-900 transition-colors"
+              title="Review ticket"
+            >
+              <Pencil size={13} />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Desktop layout (sm+) ── */}
+      <div className="hidden sm:flex items-center gap-6 px-6 py-4">
 
         {/* ID + checkbox + time */}
         <div className="flex flex-col gap-0.5 w-[120px] shrink-0">
@@ -200,30 +270,36 @@ function MergePopup({ selectedIds, onClear, onMerge }: { selectedIds: number[]; 
   if (selectedIds.length < 2) return null;
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-      <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100">
-        <div className="flex items-center gap-2">
-          <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-            {selectedIds.length}
-          </span>
-          <span className="text-sm font-medium text-gray-700">tickets selected</span>
-        </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <div className="flex items-center gap-1.5">
-          {selectedIds.slice(0, 3).map((id) => (
-            <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
-              #{id}
+    <div className="fixed bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto z-50">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-white px-5 py-4 rounded-2xl shadow-xl border border-gray-100">
+
+        {/* Count + IDs */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+              {selectedIds.length}
             </span>
-          ))}
-          {selectedIds.length > 3 && (
-            <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
-          )}
+            <span className="text-sm font-medium text-gray-700">tickets selected</span>
+          </div>
+          <div className="hidden sm:block w-px h-5 bg-gray-200" />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {selectedIds.slice(0, 3).map((id) => (
+              <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
+                #{id}
+              </span>
+            ))}
+            {selectedIds.length > 3 && (
+              <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
+            )}
+          </div>
         </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <div className="flex items-center gap-2">
+
+        {/* Buttons */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="hidden sm:block w-px h-5 bg-gray-200" />
           <button
             onClick={onMerge}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
           >
             <Merge size={15} />
             Merge Tickets
@@ -233,9 +309,10 @@ function MergePopup({ selectedIds, onClear, onMerge }: { selectedIds: number[]; 
             className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-xs px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
           >
             <X size={14} />
-            Clear
+            <span className="hidden sm:inline">Clear</span>
           </button>
         </div>
+
       </div>
     </div>
   );
@@ -258,21 +335,16 @@ export default function AdminTicketsPage() {
       const url = tab === 'all'
         ? '/admin/tickets'
         : `/tickets/status/${TAB_TO_API[tab]}`;
-      console.debug('[Tickets] fetching:', url);
       const data = await apiFetch<ApiTicket[]>(url);
-      console.debug('[Tickets] received:', data.length, 'tickets');
       setTickets(data);
     } catch (err: unknown) {
-      console.error('[Tickets] fetch error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load tickets');
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchTickets(activeTab);
-  }, [activeTab, fetchTickets]);
+  useEffect(() => { fetchTickets(activeTab); }, [activeTab, fetchTickets]);
 
   const counts = useMemo(() => {
     const map: Record<string, number> = { all: tickets.length };
@@ -313,65 +385,65 @@ export default function AdminTicketsPage() {
 
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
-        <Header />
+      <Header />
 
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0">
-          {STATUS_TABS.map((tab) => {
-            const isActive = activeTab === tab.value;
-            const count    = counts[tab.value] ?? 0;
-            return (
-              <button
-                key={tab.value}
-                onClick={() => handleTabChange(tab.value)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {tab.label}
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
-                }`}>
-                  {loading ? '…' : count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Filter tabs — scrollable on mobile */}
+      <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-white border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
+        {STATUS_TABS.map((tab) => {
+          const isActive = activeTab === tab.value;
+          const count    = counts[tab.value] ?? 0;
+          return (
+            <button
+              key={tab.value}
+              onClick={() => handleTabChange(tab.value)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                isActive ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              {tab.label}
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {loading ? '…' : count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
-        {/* Ticket list */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-              <p className="text-sm font-medium">Loading tickets…</p>
-            </div>
-          ) : error ? (
-            <div className="flex flex-col items-center justify-center py-20 text-red-400">
-              <p className="text-sm font-medium">Failed to load tickets</p>
-              <p className="text-xs mt-1 opacity-60">{error}</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {tickets.length > 0 ? (
-                tickets.map((ticket) => (
-                  <TicketRow
-                    key={ticket.ticket_id}
-                    ticket={ticket}
-                    checked={selectedIds.has(ticket.ticket_id)}
-                    onCheck={handleCheck}
-                    onStatusChange={handleStatusChange}
-                  />
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center py-20 text-gray-400">
-                  <Search size={32} className="mb-3 opacity-30" />
-                  <p className="text-sm font-medium">No tickets found</p>
-                  <p className="text-xs mt-1 opacity-60">No tickets in this category</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Ticket list */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+            <p className="text-sm font-medium">Loading tickets…</p>
+          </div>
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-20 text-red-400">
+            <p className="text-sm font-medium">Failed to load tickets</p>
+            <p className="text-xs mt-1 opacity-60">{error}</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2">
+            {tickets.length > 0 ? (
+              tickets.map((ticket) => (
+                <TicketRow
+                  key={ticket.ticket_id}
+                  ticket={ticket}
+                  checked={selectedIds.has(ticket.ticket_id)}
+                  onCheck={handleCheck}
+                  onStatusChange={handleStatusChange}
+                />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-gray-400">
+                <Search size={32} className="mb-3 opacity-30" />
+                <p className="text-sm font-medium">No tickets found</p>
+                <p className="text-xs mt-1 opacity-60">No tickets in this category</p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
 
       <MergePopup
         selectedIds={Array.from(selectedIds)}
@@ -383,7 +455,7 @@ export default function AdminTicketsPage() {
       {showMergeConfirm && (
         <>
           <div className="fixed inset-0 bg-black/20 z-50" onClick={() => setShowMergeConfirm(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[440px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 w-[calc(100vw-2rem)] sm:w-[440px]">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Merge {selectedIds.size} Tickets</h2>
             <p className="text-sm text-gray-400 mb-6">
               This will combine the selected tickets into one. The oldest ticket will be kept as the primary.

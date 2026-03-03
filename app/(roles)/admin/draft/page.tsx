@@ -81,35 +81,38 @@ function DraftRow({
 
   return (
     <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100">
-      <div className="flex items-center gap-5 px-6 py-4">
+      <div className="flex items-start sm:items-center gap-3 sm:gap-5 px-4 sm:px-6 py-4">
 
-        {/* Checkbox + ID + time */}
-        <div className="flex flex-col gap-0.5 w-[110px] shrink-0">
+        {/* Checkbox */}
+        <div className="shrink-0 pt-0.5 sm:pt-0">
           <input
             type="checkbox"
             checked={checked}
             onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 accent-gray-900 mb-1"
+            className="w-4 h-4 rounded border-gray-300 accent-gray-900"
           />
-          <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
-          <span className="text-xs text-gray-500">
-            {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-          </span>
-          <span className="text-xs text-gray-400">
-            {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-          </span>
         </div>
 
-        {/* Title + meta */}
+        {/* Main content */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 mb-1.5">
+
+          {/* Top line: ID + time + AI badge */}
+          <div className="flex items-center gap-2 flex-wrap mb-1.5">
+            <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-xs text-gray-400">
+              {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              {' '}
+              {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
+            <span className="text-gray-300 hidden sm:inline">·</span>
             <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
               <Bot size={10} /> AI Draft
             </span>
-            <span className="text-gray-200">·</span>
-            <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
+            <span className="text-[10px] text-gray-400 hidden sm:inline">{timeAgoFull(ticket.created_at)}</span>
           </div>
 
+          {/* Title */}
           <button
             onClick={handleReview}
             className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
@@ -117,7 +120,8 @@ function DraftRow({
             {ticket.title ?? '(Untitled)'}
           </button>
 
-          <div className="grid grid-cols-4 gap-4">
+          {/* Meta grid: 2-col on mobile, 4-col on desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Original Email</span>
               <span className="text-xs text-gray-600 font-medium truncate">
@@ -141,8 +145,8 @@ function DraftRow({
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Review button */}
+        <div className="shrink-0 self-start sm:self-auto">
           <button
             onClick={handleReview}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
@@ -170,30 +174,36 @@ function MergePopup({
   if (selectedIds.length < 2) return null;
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50">
-      <div className="flex items-center gap-4 bg-white px-6 py-4 rounded-2xl shadow-xl border border-gray-100">
-        <div className="flex items-center gap-2">
-          <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
-            {selectedIds.length}
-          </span>
-          <span className="text-sm font-medium text-gray-700">drafts selected</span>
-        </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <div className="flex items-center gap-1.5">
-          {selectedIds.slice(0, 3).map((id) => (
-            <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
-              #{id}
+    <div className="fixed bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto z-50">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-white px-5 py-4 rounded-2xl shadow-xl border border-gray-100">
+
+        {/* Count + IDs */}
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <div className="flex items-center gap-2">
+            <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
+              {selectedIds.length}
             </span>
-          ))}
-          {selectedIds.length > 3 && (
-            <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
-          )}
+            <span className="text-sm font-medium text-gray-700">drafts selected</span>
+          </div>
+          <div className="hidden sm:block w-px h-5 bg-gray-200" />
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {selectedIds.slice(0, 3).map((id) => (
+              <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
+                #{id}
+              </span>
+            ))}
+            {selectedIds.length > 3 && (
+              <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
+            )}
+          </div>
         </div>
-        <div className="w-px h-5 bg-gray-200" />
-        <div className="flex items-center gap-2">
+
+        {/* Actions */}
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="hidden sm:block w-px h-5 bg-gray-200" />
           <button
             onClick={onMerge}
-            className="flex items-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
           >
             <Merge size={15} />
             Merge into Draft
@@ -203,9 +213,10 @@ function MergePopup({
             className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 text-xs px-3 py-2 rounded-xl hover:bg-gray-100 transition-colors"
           >
             <X size={14} />
-            Clear
+            <span className="hidden sm:inline">Clear</span>
           </button>
         </div>
+
       </div>
     </div>
   );
@@ -291,12 +302,11 @@ export default function AdminDraftQueuePage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
         {/* Toolbar */}
-        <div className="flex items-center justify-between gap-4 px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input
@@ -322,7 +332,8 @@ export default function AdminDraftQueuePage() {
             </div>
           </div>
 
-          <div className="relative w-64">
+          {/* Search: full width on mobile, fixed width on desktop */}
+          <div className="relative w-full sm:w-64">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
@@ -335,7 +346,7 @@ export default function AdminDraftQueuePage() {
         </div>
 
         {/* Draft list */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <p className="text-sm font-medium">Loading drafts…</p>
@@ -380,7 +391,7 @@ export default function AdminDraftQueuePage() {
       {showMergeConfirm && (
         <>
           <div className="fixed inset-0 bg-black/20 z-50" onClick={() => setShowMergeConfirm(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[440px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 w-[calc(100vw-2rem)] sm:w-[440px]">
             <h2 className="text-lg font-bold text-gray-900 mb-1">
               Merge {selectedIds.size} Drafts
             </h2>
