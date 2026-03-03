@@ -19,7 +19,7 @@ export default async function UserLayout({
   return (
     <div className="flex h-screen bg-gray-50">
       <Sidebar role="user" userName={displayName} />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pb-16 md:pb-0">
         {children}
       </main>
     </div>
