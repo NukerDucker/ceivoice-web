@@ -130,16 +130,57 @@ function Avatar({ name, fallback, avatar }: { name: string; fallback: string; av
   );
 }
 
+// ─── Mobile Ticket Card ───────────────────────────────────────────────────────
+
+function TicketCard({ ticket, onClick }: { ticket: UserTicket; onClick: () => void }) {
+  return (
+    <div
+      onClick={onClick}
+      className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col gap-3 cursor-pointer active:bg-orange-50/30 transition-colors"
+    >
+      {/* Top row: ID + Status */}
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-xs text-gray-400">#{ticket.ticketId}</span>
+        <StatusBadge status={ticket.status as Status} />
+      </div>
+
+      {/* Title */}
+      <p className="font-medium text-gray-800 text-sm leading-snug">{ticket.title}</p>
+
+      {/* Bottom row: category, date, assignee */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2">
+          {ticket.category && (
+            <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+              {ticket.category}
+            </span>
+          )}
+          <span className="text-xs text-gray-400">
+            {ticket.date.toLocaleDateString('en-GB', {
+              day: '2-digit', month: 'short', year: 'numeric',
+            })}
+          </span>
+        </div>
+        <Avatar
+          name={ticket.assignee.name}
+          fallback={ticket.assignee.fallback}
+          avatar={ticket.assignee.avatar}
+        />
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function MyRequestsPage() {
-  const [search, setSearch]           = useState('');
-  const [activeStatus, setActiveStatus] = useState<Status | 'all'>('all');
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [search, setSearch]                 = useState('');
+  const [activeStatus, setActiveStatus]     = useState<Status | 'all'>('all');
+  const [isModalOpen, setIsModalOpen]       = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<UserTicket | null>(null);
-  const [tickets, setTickets]         = useState<UserTicket[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [fetchError, setFetchError]   = useState<string | null>(null);
+  const [tickets, setTickets]               = useState<UserTicket[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [fetchError, setFetchError]         = useState<string | null>(null);
 
   useEffect(() => {
     apiFetch<ApiTicketRaw[]>('/tickets/mine')
@@ -171,7 +212,6 @@ export default function MyRequestsPage() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header
           rightContent={
@@ -180,16 +220,18 @@ export default function MyRequestsPage() {
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
             >
               <PlusCircle size={16} />
-              Create New Request
+              {/* Hide label on mobile, show on desktop */}
+              <span className="hidden sm:inline">Create New Request</span>
+              <span className="sm:hidden">New</span>
             </button>
           }
         />
 
-        {/* Summary Pills */}
-        <div className="px-6 pt-4 flex items-center gap-3 flex-wrap">
+        {/* Summary Pills — horizontal scroll on mobile */}
+        <div className="px-4 md:px-6 pt-4 flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
           <button
             onClick={() => setActiveStatus('all')}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
+            className={`px-3 md:px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap shrink-0 ${
               activeStatus === 'all'
                 ? 'bg-gray-900 text-white border-gray-900'
                 : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
@@ -204,7 +246,7 @@ export default function MyRequestsPage() {
               <button
                 key={s}
                 onClick={() => setActiveStatus(s)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
+                className={`px-3 md:px-4 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap shrink-0 ${
                   isActive
                     ? `${cfg.bg} ${cfg.color} border-current`
                     : 'bg-white text-gray-500 border-gray-200 hover:border-gray-400'
@@ -217,7 +259,7 @@ export default function MyRequestsPage() {
         </div>
 
         {/* Search */}
-        <div className="px-6 pt-4">
+        <div className="px-4 md:px-6 pt-3">
           <div className="relative max-w-sm">
             <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
@@ -230,9 +272,33 @@ export default function MyRequestsPage() {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="px-6 pt-4 pb-6 flex-1 overflow-auto">
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        {/* ── MOBILE: Card list ── DESKTOP: Table ── */}
+        <div className="px-4 md:px-6 pt-4 pb-6 flex-1 overflow-auto">
+
+          {/* MOBILE CARDS — shown below md */}
+          <div className="flex flex-col gap-3 md:hidden">
+            {loading ? (
+              <div className="py-16 text-center text-gray-400 text-sm">
+                <Loader2 size={20} className="animate-spin mx-auto mb-2" />
+                Loading tickets…
+              </div>
+            ) : fetchError ? (
+              <div className="py-16 text-center text-red-400 text-sm">{fetchError}</div>
+            ) : filtered.length === 0 ? (
+              <div className="py-16 text-center text-gray-400 text-sm">No requests found.</div>
+            ) : (
+              filtered.map((ticket) => (
+                <TicketCard
+                  key={ticket.ticketId}
+                  ticket={ticket}
+                  onClick={() => setSelectedTicket(ticket)}
+                />
+              ))
+            )}
+          </div>
+
+          {/* DESKTOP TABLE — hidden below md */}
+          <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70">
