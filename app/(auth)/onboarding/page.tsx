@@ -67,7 +67,7 @@ const onSubmit = async (e: React.FormEvent) => {
     const jwt = newSession?.access_token
       ? JSON.parse(atob(newSession.access_token.split('.')[1]))
       : {};
-    const appRole = jwt.app_role ?? 'user';
+    const appRole = ((jwt.app_role ?? 'user') as string).toLowerCase();
     router.push(`/${appRole}/dashboard`);
   } catch (err: unknown) {
     setError(err instanceof Error ? err.message : "Something went wrong");

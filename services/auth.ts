@@ -55,7 +55,7 @@ export const getMe = async () => {
   return {
     user_id: user.id,
     email: user.email ?? '',
-    role: (jwt.app_role ?? 'user') as string,
+    role: ((jwt.app_role ?? 'user') as string).toLowerCase(),
     onboarding_completed: (dbUser?.onboarding_completed ?? false) as boolean,
   };
 };

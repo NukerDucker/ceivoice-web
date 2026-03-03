@@ -72,7 +72,7 @@ export async function proxy(request: NextRequest) {
   const jwt = session?.access_token
     ? JSON.parse(atob(session.access_token.split('.')[1]))
     : {};
-  const appRole = (jwt.app_role ?? 'user') as AppRole;
+  const appRole = ((jwt.app_role ?? 'user') as string).toLowerCase() as AppRole;
 
   if (pathname === '/dashboard') {
     return NextResponse.redirect(new URL(`/${appRole}/dashboard`, origin));
