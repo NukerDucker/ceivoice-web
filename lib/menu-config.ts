@@ -38,6 +38,7 @@ export const menuConfig: Record<Role, MenuItem[]> = {
     { id: 'reports',       label: 'Reports',           icon: BarChart3,       path: '/admin/report'         },
     { id: 'notifications', label: 'Notifications',     icon: Bell,            path: '/admin/notification'   },
     { id: 'settings',      label: 'Settings',          icon: Settings,        path: '/admin/settings'       },
+    { id: 'my-profile',    label: 'My Profile',    icon: User,            path: '/admin/profile'       },
   ],
 
   assignee: [
@@ -45,5 +46,6 @@ export const menuConfig: Record<Role, MenuItem[]> = {
     { id: 'tickets',      label: 'My Tickets',     icon: MessageSquare,   path: '/assignee/tickets'      },
     { id: 'performance',  label: 'My Performance', icon: BarChart2,       path: '/assignee/performance'  },
     { id: 'notification', label: 'Notification',   icon: Bell,            path: '/assignee/notification' },
+    { id: 'my-profile',    label: 'My Profile',    icon: User,            path: '/assignee/profile'       }
   ],
 };
