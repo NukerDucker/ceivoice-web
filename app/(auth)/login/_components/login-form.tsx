@@ -7,6 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { LoginSchema } from "@/lib/validations/auth";
 import { loginWithEmail } from "@/services/auth";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 import {
   Form,
   FormControl,
@@ -69,6 +70,14 @@ export function LoginForm() {
             </FormItem>
           )}
         />
+
+        <Link
+          href="/forget-password"
+          className="block text-sm text-gray-500 hover:text-black -mt-2"
+        >
+          Forgot Password?
+        </Link>
+
         {error && <p className="text-sm text-red-600 text-center">{error}</p>}
         <Button type="submit" disabled={loading} className="w-full">
           {loading ? "Checking credentials..." : "Login"}
