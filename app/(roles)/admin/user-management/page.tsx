@@ -28,7 +28,7 @@ interface ApiUser {
 type ManagedUserEx = ManagedUser & { rawScopes: ApiScope[] };
 
 function mapApiUser(u: ApiUser): ManagedUserEx {
-  const role      = u.role.toLowerCase() as UserRole;
+  const role      = (u.role ?? 'user').toLowerCase() as UserRole;
   const rawScopes = u.scopes ?? [];
   const words     = (u.full_name ?? '').trim().split(/\s+/);
   const fallback  = (words[0]?.[0] ?? '') + (words[1]?.[0] ?? '');
@@ -396,7 +396,7 @@ export default function AdminUserManagementPage() {
     if (filterRole !== 'all' && u.role !== filterRole) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      if (!u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
+      if (!(u.name ?? '').toLowerCase().includes(q) && !(u.email ?? '').toLowerCase().includes(q)) return false;
     }
     return true;
   }), [users, search, filterRole]);
