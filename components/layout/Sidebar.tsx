@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { ChevronDown, LogOut } from 'lucide-react';
+import { ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { menuConfig } from '@/lib/menu-config';
@@ -167,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => setShowMore(true)}
                   className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px]"
                 >
-                  <span className="text-lg font-bold leading-none tracking-widest text-gray-400">···</span>
+                  <ChevronRight size={22} className="text-gray-400" />
                   <span className="text-[10px] font-medium leading-none text-gray-400">More</span>
                 </button>
               )}
@@ -180,7 +180,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 onClick={() => setShowMore(false)}
                 className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px]"
               >
-                <span className="text-[22px] leading-none text-gray-400">‹</span>
+                <ChevronLeft size={22} className="text-gray-400" />
                 <span className="text-[10px] font-medium leading-none text-gray-400">Back</span>
               </button>
 
