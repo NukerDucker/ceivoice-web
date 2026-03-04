@@ -232,7 +232,7 @@ function ResolutionModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-50" onClick={onCancel} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[480px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-[calc(100vw-2rem)] max-w-[480px]">
         <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 ${isSolved ? 'bg-green-100' : 'bg-red-100'}`}>
           {isSolved
             ? <Check size={20} className="text-green-600" />
@@ -311,7 +311,7 @@ function ReassignModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-50" onClick={onCancel} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[480px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-[calc(100vw-2rem)] max-w-[480px]">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
             <GitBranch size={17} className="text-indigo-600" />
@@ -469,10 +469,10 @@ function TicketDetailDrawer({
       {/* Backdrop */}
       <div className="fixed inset-0 bg-black/10 z-30" onClick={onClose} />
 
-      {/* Drawer */}
-      <div className="fixed right-0 top-0 bottom-0 w-[620px] bg-white z-40 shadow-2xl flex flex-col overflow-hidden">
+      {/* Drawer — full-width on mobile, fixed 620px on sm+ */}
+      <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[620px] bg-white z-40 shadow-2xl flex flex-col overflow-hidden">
         {/* Header */}
-        <div className={`border-l-4 ${cfg.borderColor} px-7 pt-6 pb-5 border-b border-gray-100 shrink-0`}>
+        <div className={`border-l-4 ${cfg.borderColor} px-4 sm:px-7 pt-5 sm:pt-6 pb-4 sm:pb-5 border-b border-gray-100 shrink-0`}>
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
               <span className="text-xs font-mono text-gray-400">#{ticket.ticketId}</span>
@@ -517,32 +517,32 @@ function TicketDetailDrawer({
             </span>
           </div>
 
-          {/* Action buttons */}
-          <div className="flex items-center gap-2 mt-4">
+          {/* Action buttons — scrollable row on mobile */}
+          <div className="flex items-center gap-2 mt-4 overflow-x-auto scrollbar-none pb-0.5">
             <button
               onClick={() => handleStatusChange('solving')}
               disabled={ticket.status === 'solving' || ticket.status === 'solved' || ticket.status === 'failed'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs font-semibold hover:bg-yellow-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-yellow-50 text-yellow-700 border border-yellow-200 text-xs font-semibold hover:bg-yellow-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
             >
               <RefreshCw size={12} /> Start Solving
             </button>
             <button
               onClick={() => handleStatusChange('solved')}
               disabled={ticket.status === 'solved'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 text-green-700 border border-green-200 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-green-50 text-green-700 border border-green-200 text-xs font-semibold hover:bg-green-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
             >
               <Check size={12} /> Mark Solved
             </button>
             <button
               onClick={() => handleStatusChange('failed')}
               disabled={ticket.status === 'failed'}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-600 border border-red-200 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 text-red-600 border border-red-200 text-xs font-semibold hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
             >
               <X size={12} /> Mark Failed
             </button>
             <button
               onClick={() => setShowReassign(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100 transition-colors whitespace-nowrap shrink-0"
             >
               <GitBranch size={12} /> Reassign
             </button>
@@ -550,7 +550,7 @@ function TicketDetailDrawer({
         </div>
 
         {/* Section tabs */}
-        <div className="flex items-center gap-1 px-7 py-3 border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-1 px-4 sm:px-7 py-3 border-b border-gray-100 shrink-0">
           {(['comments', 'history'] as const).map((s) => (
             <button
               key={s}
@@ -574,7 +574,7 @@ function TicketDetailDrawer({
         </div>
 
         {/* Participants bar */}
-        <div className="px-7 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
+        <div className="px-4 sm:px-7 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Creator</span>
@@ -614,7 +614,7 @@ function TicketDetailDrawer({
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-7 py-5">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-5">
           {activeSection === 'comments' ? (
             <div className="flex flex-col gap-3">
               {ticket.comments.length === 0 && (
@@ -739,7 +739,7 @@ function TicketDetailDrawer({
         </div>
 
         {/* Comment input */}
-        <div className="px-7 py-4 border-t border-gray-100 bg-white shrink-0">
+        <div className="px-4 sm:px-7 py-4 border-t border-gray-100 bg-white shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold text-gray-500">Post as:</span>
             <button
@@ -823,10 +823,10 @@ function TicketRow({
 
   return (
     <div className={`border-l-4 ${cfg.borderColor} bg-white rounded-xl shadow-sm border border-gray-100 ${isActive ? 'hover:bg-gray-50/40 transition-colors duration-150' : ''}`}>
-      <div className={`flex items-center gap-6 px-6 ${isActive ? 'py-4' : 'py-3'}`}>
+      <div className={`flex items-center gap-3 sm:gap-6 px-3 sm:px-6 ${isActive ? 'py-4' : 'py-3'}`}>
 
         {/* ID + date */}
-        <div className="flex flex-col gap-0.5 w-[120px] shrink-0">
+        <div className="flex flex-col gap-0.5 w-[80px] sm:w-[120px] shrink-0">
           <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
           {active && (
             <span className="text-xs text-gray-500">
@@ -849,11 +849,12 @@ function TicketRow({
             <>
               <button
                 onClick={() => onOpen(active)}
-                className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
+                className="text-sm font-semibold text-gray-800 mb-2 sm:mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
               >
                 {ticket.title}
               </button>
-              <div className="grid grid-cols-4 gap-4">
+              {/* 4-col grid on sm+, 2-col on mobile */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                 {([
                   { label: 'Category', value: ticket.category },
                   { label: 'Priority', value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) },
@@ -862,7 +863,7 @@ function TicketRow({
                 ] as { label: string; value: string }[]).map(({ label, value }) => (
                   <div key={label} className="flex flex-col gap-0.5">
                     <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
-                    <span className="text-xs text-gray-600 font-medium">{value}</span>
+                    <span className="text-xs text-gray-600 font-medium truncate">{value}</span>
                   </div>
                 ))}
               </div>
@@ -872,9 +873,9 @@ function TicketRow({
           )}
         </div>
 
-        {/* Right side */}
-        <div className="flex items-center gap-3 shrink-0">
-          <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full" style={getCatStyle(ticket.category)}>
+        {/* Right side — hide category chip on mobile */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <span className="hidden sm:inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full" style={getCatStyle(ticket.category)}>
             {ticket.category}
           </span>
           <StatusBadge status={ticket.status} readonly />
@@ -916,10 +917,10 @@ interface WorkloadData {
 }
 
 function PerformanceDashboard({ onClose, userName }: { onClose: () => void; userName: string }) {
-  const [perf,    setPerf]    = useState<PerfData | null>(null);
+  const [perf,     setPerf]     = useState<PerfData | null>(null);
   const [workload, setWorkload] = useState<WorkloadData | null>(null);
-  const [loading, setLoading] = useState(true);   // start true — data not yet fetched
-  const [error,   setError]   = useState<string | null>(null);
+  const [loading,  setLoading]  = useState(true);   // start true — data not yet fetched
+  const [error,    setError]    = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([
@@ -978,7 +979,7 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
   return (
     <>
       <div className="fixed inset-0 bg-black/10 z-30" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-[600px]">
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-[calc(100vw-2rem)] max-w-[600px] max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
@@ -995,7 +996,7 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
         </div>
 
         {loading && (
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {['s1','s2','s3','s4','s5','s6'].map((k) => (
               <div key={k} className="rounded-xl border border-gray-100 bg-gray-50 p-4 animate-pulse h-20" />
             ))}
@@ -1010,7 +1011,7 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
 
         {!loading && !error && perf && workload && (
           <>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {stats.map((s) => (
                 <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} p-4`}>
                   <div className={`text-2xl font-bold ${s.color} mb-1`}>{s.value}</div>
@@ -1227,9 +1228,9 @@ export default function AssigneeTicketsPage() {
         <Header />
 
         {/* Sub-header: user info + performance button */}
-        <div className="flex items-center justify-between px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
+        <div className="flex items-center justify-between px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700 shrink-0">
               {currentUserName.charAt(0).toUpperCase()}
             </div>
             <div>
@@ -1239,15 +1240,16 @@ export default function AssigneeTicketsPage() {
           </div>
           <button
             onClick={() => setShowPerformance(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition-colors"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200 text-xs font-semibold text-gray-700 transition-colors whitespace-nowrap"
           >
             <BarChart2 size={14} />
-            My Performance
+            <span className="hidden sm:inline">My Performance</span>
+            <span className="sm:hidden">Stats</span>
           </button>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
+        {/* Filter tabs — scrollable on mobile */}
+        <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
           {STATUS_TABS.map((tab) => {
             const isActive = activeTab === tab.value;
             const count    = counts[tab.value] ?? 0;
@@ -1271,7 +1273,7 @@ export default function AssigneeTicketsPage() {
         </div>
 
         {/* Ticket list */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
           {ticketsLoading ? (
             <div className="flex items-center justify-center py-20 text-gray-400 gap-3">
               <Loader2 size={24} className="animate-spin" />

@@ -11,7 +11,6 @@ import type {
   ApiAssignee,
 } from '@/types/api';
 
-// Re-export TicketDetailModalProps so callers can import it from here
 export interface TicketDetailModalProps {
   ticketId: number;
   onClose:  () => void;
@@ -37,8 +36,7 @@ function userName(u: ApiUser | ApiAssignee | null | undefined): string {
 }
 
 function userInitial(u: ApiUser | ApiAssignee | null | undefined): string {
-  const n = userName(u);
-  return n.charAt(0).toUpperCase();
+  return userName(u).charAt(0).toUpperCase();
 }
 
 function timeAgo(date: string) {
@@ -52,26 +50,22 @@ function timeAgo(date: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailModalProps) {
-  const [ticket,            setTicket]            = useState<ApiTicketDetail | null>(null);
-  const [assigneeList,      setAssigneeList]      = useState<ApiAssignee[]>([]);
-  const [loading,           setLoading]           = useState(true);
-  const [activeTab,         setActiveTab]         = useState<'details' | 'history' | 'comments'>('details');
+  const [ticket,           setTicket]           = useState<ApiTicketDetail | null>(null);
+  const [assigneeList,     setAssigneeList]     = useState<ApiAssignee[]>([]);
+  const [loading,          setLoading]          = useState(true);
+  const [activeTab,        setActiveTab]        = useState<'details' | 'history' | 'comments'>('details');
 
-  // status
-  const [updatingStatus,    setUpdatingStatus]    = useState(false);
-  const [pendingStatus,     setPendingStatus]     = useState<'Solved' | 'Failed' | null>(null);
+  const [updatingStatus,   setUpdatingStatus]   = useState(false);
+  const [pendingStatus,    setPendingStatus]    = useState<'Solved' | 'Failed' | null>(null);
 
-  // comments
-  const [commentText,       setCommentText]       = useState('');
-  const [commentType,       setCommentType]       = useState<'internal' | 'public'>('internal');
-  const [postingComment,    setPostingComment]    = useState(false);
+  const [commentText,      setCommentText]      = useState('');
+  const [commentType,      setCommentType]      = useState<'internal' | 'public'>('internal');
+  const [postingComment,   setPostingComment]   = useState(false);
 
-  // reassign
-  const [showReassign,      setShowReassign]      = useState(false);
-  const [selectedAssignee,  setSelectedAssignee]  = useState<string>('');
-  const [reassigning,       setReassigning]       = useState(false);
+  const [showReassign,     setShowReassign]     = useState(false);
+  const [selectedAssignee, setSelectedAssignee] = useState<string>('');
+  const [reassigning,      setReassigning]      = useState(false);
 
-  // load ticket + assignee list on open
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -80,46 +74,25 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
       apiFetch<ApiAssignee[]>('/tickets/assignee-list'),
     ]).then(([t, a]) => {
       if (cancelled) return;
-      setTicket(t);
-      setAssigneeList(a);
-      setLoading(false);
-    }).catch(() => {
-      if (!cancelled) setLoading(false);
-    });
+      setTicket(t); setAssigneeList(a); setLoading(false);
+    }).catch(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [ticketId]);
 
-  // ── Status change ──────────────────────────────────────────────────────────
-
   const handleStatusClick = (s: typeof STATUS_OPTIONS[number]) => {
-    if (s === 'Solved' || s === 'Failed') {
-      setPendingStatus(s);
-      setActiveTab('comments');
-    } else {
-      commitStatus(s);
-    }
+    if (s === 'Solved' || s === 'Failed') { setPendingStatus(s); setActiveTab('comments'); }
+    else commitStatus(s);
   };
 
   const commitStatus = async (s: string) => {
     if (!ticket) return;
     setUpdatingStatus(true);
     try {
-      await apiFetch(`/tickets/id/${ticket.ticket_id}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ new_status: s }),
-      });
+      await apiFetch(`/tickets/id/${ticket.ticket_id}/status`, { method: 'PATCH', body: JSON.stringify({ new_status: s }) });
       const updated = await apiFetch<ApiTicketDetail>(`/tickets/id/${ticket.ticket_id}`);
-      setTicket(updated);
-      setPendingStatus(null);
-      onUpdate();
-    } catch {
-      // keep current state on error
-    } finally {
-      setUpdatingStatus(false);
-    }
+      setTicket(updated); setPendingStatus(null); onUpdate();
+    } catch { /* keep state */ } finally { setUpdatingStatus(false); }
   };
-
-  // ── Comment ────────────────────────────────────────────────────────────────
 
   const handleComment = async () => {
     if (!ticket || !commentText.trim()) return;
@@ -131,53 +104,36 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
       });
       if (pendingStatus) await commitStatus(pendingStatus);
       const updated = await apiFetch<ApiTicketDetail>(`/tickets/id/${ticket.ticket_id}`);
-      setTicket(updated);
-      setCommentText('');
-    } catch {
-      // silent
-    } finally {
-      setPostingComment(false);
-    }
+      setTicket(updated); setCommentText('');
+    } catch { /* silent */ } finally { setPostingComment(false); }
   };
-
-  // ── Reassign ───────────────────────────────────────────────────────────────
 
   const handleReassign = async () => {
     if (!ticket || !selectedAssignee) return;
     setReassigning(true);
     try {
-      await apiFetch(`/tickets/id/${ticket.ticket_id}/assign`, {
-        method: 'POST',
-        body: JSON.stringify({ assignee_id: selectedAssignee }),
-      });
+      await apiFetch(`/tickets/id/${ticket.ticket_id}/assign`, { method: 'POST', body: JSON.stringify({ assignee_id: selectedAssignee }) });
       const updated = await apiFetch<ApiTicketDetail>(`/tickets/id/${ticket.ticket_id}`);
-      setTicket(updated);
-      setShowReassign(false);
-      setSelectedAssignee('');
-      onUpdate();
-    } catch {
-      // silent
-    } finally {
-      setReassigning(false);
-    }
+      setTicket(updated); setShowReassign(false); setSelectedAssignee(''); onUpdate();
+    } catch { /* silent */ } finally { setReassigning(false); }
   };
 
   const currentStatus = ticket?.status?.name ?? '';
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-slate-200 shrink-0">
+        <div className="flex items-start justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-200 shrink-0">
           <div className="flex-1 min-w-0 pr-4">
             {ticket && (
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
                   #{ticket.ticket_id}
                 </span>
@@ -188,7 +144,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                 )}
               </div>
             )}
-            <h2 className="text-lg font-bold text-slate-900 leading-snug">
+            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
               {loading ? 'Loading…' : (ticket?.title ?? '(Untitled)')}
             </h2>
           </div>
@@ -197,13 +153,13 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
           </button>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-200 shrink-0 px-6">
+        {/* Tabs — scrollable on mobile so they never wrap */}
+        <div className="flex border-b border-slate-200 shrink-0 px-4 sm:px-6 overflow-x-auto scrollbar-none">
           {(['details', 'history', 'comments'] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`py-3 px-1 mr-6 text-sm font-semibold border-b-2 transition-all ${
+              className={`py-3 px-1 mr-4 sm:mr-6 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
                 activeTab === tab
                   ? 'border-blue-600 text-blue-600'
                   : 'border-transparent text-slate-500 hover:text-slate-700'
@@ -215,38 +171,37 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
           {loading && (
             <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Loading ticket…</div>
           )}
 
           {!loading && ticket && (
-
             <>
               {/* ── DETAILS TAB ── */}
               {activeTab === 'details' && (
                 <div className="space-y-5">
 
-                  {/* Info cards */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                  {/* Info cards — 3 cols on sm+, single row on mobile */}
+                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
+                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-3 border border-slate-200">
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Priority</p>
-                      <span className="text-sm font-bold capitalize text-slate-800">{ticket.priority}</span>
+                      <span className="text-xs sm:text-sm font-bold capitalize text-slate-800">{ticket.priority}</span>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-3 border border-slate-200">
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Deadline</p>
-                      <span className="text-sm font-bold text-slate-800">
+                      <span className="text-xs sm:text-sm font-bold text-slate-800">
                         {ticket.deadline ? new Date(ticket.deadline).toLocaleDateString() : '—'}
                       </span>
                     </div>
-                    <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-3 border border-slate-200">
                       <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Opened</p>
-                      <span className="text-sm font-semibold text-slate-700">{timeAgo(ticket.created_at)}</span>
+                      <span className="text-xs sm:text-sm font-semibold text-slate-700">{timeAgo(ticket.created_at)}</span>
                     </div>
                   </div>
 
                   {ticket.summary && (
-                    <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                    <div className="bg-slate-50 rounded-xl p-3 sm:p-4 border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Summary</p>
                       <p className="text-sm text-slate-700">{ticket.summary}</p>
                     </div>
@@ -264,7 +219,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                             key={s}
                             onClick={() => handleStatusClick(s)}
                             disabled={updatingStatus}
-                            className={`px-4 py-2 rounded-lg text-xs font-bold transition-all border-2 disabled:opacity-50 ${
+                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all border-2 disabled:opacity-50 ${
                               isActive ? 'border-current shadow-md scale-[1.02]' : 'border-transparent opacity-60 hover:opacity-90'
                             }`}
                             style={{ background: st.bg, color: st.text }}
@@ -288,21 +243,20 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                       </button>
                     </div>
 
-                    {/* Current assignee */}
-                    <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100 w-fit">
+                    <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100 w-fit max-w-full">
                       <div className="w-7 h-7 rounded-full bg-orange-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
                         {userInitial(ticket.assignee)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-800">{userName(ticket.assignee)}</p>
+                        <p className="text-xs font-semibold text-slate-800 truncate">{userName(ticket.assignee)}</p>
                         <p className="text-[10px] text-slate-400">Current assignee</p>
                       </div>
                     </div>
 
                     {showReassign && (
-                      <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+                      <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-3 sm:p-4 space-y-3">
                         <p className="text-xs text-orange-700 font-medium">Select an assignee to redirect this ticket:</p>
-                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
                           {assigneeList
                             .filter((a) => a.user_id !== ticket.assignee?.user_id)
                             .map((a) => (
@@ -352,8 +306,6 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
               {activeTab === 'history' && (
                 <div className="space-y-3">
                   <p className="text-xs text-slate-400 font-medium">Read-only audit trail of all status changes and reassignments.</p>
-
-                  {/* Build combined timeline from status_history + assignment_history */}
                   {(() => {
                     type TimelineEntry =
                       | { kind: 'status'; item: ApiStatusHistory }
@@ -362,11 +314,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                     const entries: TimelineEntry[] = [
                       ...ticket.status_history.map((h): TimelineEntry => ({ kind: 'status', item: h })),
                       ...ticket.assignment_history.map((h): TimelineEntry => ({ kind: 'assign', item: h })),
-                    ].sort((a, b) => {
-                      const ta = a.kind === 'status' ? a.item.changed_at : a.item.changed_at;
-                      const tb = b.kind === 'status' ? b.item.changed_at : b.item.changed_at;
-                      return new Date(ta).getTime() - new Date(tb).getTime();
-                    });
+                    ].sort((a, b) => new Date(a.item.changed_at).getTime() - new Date(b.item.changed_at).getTime());
 
                     if (entries.length === 0) {
                       return <p className="text-sm text-slate-400 text-center py-8">No history recorded yet.</p>;
@@ -392,7 +340,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                     <p className="text-xs text-slate-500">
                                       By: <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
                                     </p>
-                                    <div className="flex items-center gap-2 mt-2">
+                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
                                       {oldSt && h.old_status && (
                                         <>
                                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: oldSt.bg, color: oldSt.text }}>
@@ -438,16 +386,17 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
 
               {/* ── COMMUNICATION TAB ── */}
               {activeTab === 'comments' && (
-                <div className="flex gap-4">
+                // Stacks vertically on mobile, side-by-side on sm+
+                <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1 flex flex-col gap-4 min-w-0">
 
                     {/* Resolution banner */}
                     {pendingStatus && (
-                      <div className={`rounded-xl px-4 py-3 border flex items-start gap-3 ${
+                      <div className={`rounded-xl px-3 sm:px-4 py-3 border flex items-start gap-3 ${
                         pendingStatus === 'Solved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
                       }`}>
                         <span className="text-lg shrink-0">{pendingStatus === 'Solved' ? '✅' : '❌'}</span>
-                        <div>
+                        <div className="min-w-0">
                           <p className={`text-xs font-bold ${pendingStatus === 'Solved' ? 'text-green-700' : 'text-red-700'}`}>
                             Resolution comment required to mark as {pendingStatus.toUpperCase()}
                           </p>
@@ -471,8 +420,8 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                             c.visibility === 'PRIVATE' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <div className="flex items-center gap-2">
+                          <div className="flex items-start sm:items-center justify-between gap-2 mb-1">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-xs font-bold text-slate-800">{userName(c.user)}</span>
                               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                                 c.visibility === 'PRIVATE' ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'
@@ -480,7 +429,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                 {c.visibility === 'PRIVATE' ? '🔒 INTERNAL' : '🌐 PUBLIC'}
                               </span>
                             </div>
-                            <span className="text-[10px] text-slate-400">{timeAgo(c.created_at)}</span>
+                            <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(c.created_at)}</span>
                           </div>
                           <p className="text-sm text-slate-700">{c.content}</p>
                         </div>
@@ -514,7 +463,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                           : 'Write a public reply visible to the customer…'}
                         className="w-full p-3 text-sm text-slate-700 resize-none outline-none min-h-[80px] bg-white"
                       />
-                      <div className="flex justify-end px-3 pb-3 gap-2">
+                      <div className="flex justify-end px-3 pb-3 gap-2 flex-wrap">
                         {pendingStatus && (
                           <button
                             onClick={() => setPendingStatus(null)}
@@ -532,19 +481,15 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                             : 'bg-slate-900 hover:bg-slate-700'
                           }`}
                         >
-                          {postingComment
-                            ? 'Posting…'
-                            : pendingStatus
-                            ? `Confirm & Mark ${pendingStatus.toUpperCase()}`
-                            : 'Post Comment'}
+                          {postingComment ? 'Posting…' : pendingStatus ? `Confirm & Mark ${pendingStatus.toUpperCase()}` : 'Post Comment'}
                         </button>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right sidebar */}
-                  <div className="w-52 shrink-0 flex flex-col gap-4">
-                    <div>
+                  {/* Right sidebar — full width on mobile, fixed width on sm+ */}
+                  <div className="w-full sm:w-52 shrink-0 flex flex-row sm:flex-col gap-3 sm:gap-4">
+                    <div className="flex-1 sm:flex-none">
                       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assignee</p>
                       <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
                         <div className="w-7 h-7 rounded-full bg-orange-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
@@ -557,7 +502,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                       </div>
                     </div>
                     {(ticket.followers?.length ?? 0) > 0 && (
-                      <div>
+                      <div className="flex-1 sm:flex-none">
                         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Followers</p>
                         <div className="space-y-1.5">
                           {ticket.followers?.map((f, i) => (

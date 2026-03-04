@@ -78,7 +78,7 @@ function StatCard({ label, value, sub, subColor, bgColor }: {
   return (
     <div className="rounded-2xl p-4 flex flex-col gap-1" style={{ background: bgColor }}>
       <p className="text-xs font-medium text-slate-600">{label}</p>
-      <p className="text-4xl font-bold text-slate-900">{value}</p>
+      <p className="text-3xl sm:text-4xl font-bold text-slate-900">{value}</p>
       <p className="text-xs font-medium" style={{ color: subColor }}>{sub}</p>
     </div>
   );
@@ -127,108 +127,133 @@ export default function AssigneeDashboardPage() {
   return (
     <>
       <div className="flex-1 overflow-y-auto">
-          <Header />
+        <Header />
 
-          <div className="px-8 py-6 space-y-5">
+        <div className="px-4 sm:px-6 lg:px-8 py-4 sm:py-6 space-y-4 sm:space-y-5">
 
-            {/* Stat cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard label="My Active Tickets"  value={loading ? '…' : tickets.length}  sub="Currently assigned to you"  subColor="#6366f1" bgColor="#dbeafe" />
-              <StatCard label="Critical / Urgent"  value={loading ? '…' : criticalCount}   sub="Need immediate action"      subColor="#ef4444" bgColor="#fef3c2" />
-              <StatCard label="Overdue"            value={loading ? '…' : tickets.filter((t) => t.deadline && new Date(t.deadline) < new Date()).length} sub="Past deadline"   subColor="#ef4444" bgColor="#fee2e2" />
-              <StatCard label="No Deadline"        value={loading ? '…' : tickets.filter((t) => !t.deadline).length}          sub="Deadline not set"           subColor="#64748b" bgColor="#f1f5f9" />
-            </div>
+          {/* Stat cards — 2 cols on mobile, 4 on large */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <StatCard label="My Active Tickets"  value={loading ? '…' : tickets.length}  sub="Currently assigned to you"  subColor="#6366f1" bgColor="#dbeafe" />
+            <StatCard label="Critical / Urgent"  value={loading ? '…' : criticalCount}   sub="Need immediate action"      subColor="#ef4444" bgColor="#fef3c2" />
+            <StatCard label="Overdue"            value={loading ? '…' : tickets.filter((t) => t.deadline && new Date(t.deadline) < new Date()).length} sub="Past deadline" subColor="#ef4444" bgColor="#fee2e2" />
+            <StatCard label="No Deadline"        value={loading ? '…' : tickets.filter((t) => !t.deadline).length} sub="Deadline not set" subColor="#64748b" bgColor="#f1f5f9" />
+          </div>
 
-            {/* Active workload */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center">
-                    <ClipboardList size={16} className="text-blue-600" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-bold text-slate-900">Active Workload</h3>
-                    <p className="text-xs text-slate-500">Your open tickets — solved & failed excluded</p>
-                  </div>
+          {/* Active workload */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+
+            {/* Card header — stacks on mobile */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-4 sm:px-5 py-4 border-b border-slate-200">
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 bg-blue-100 rounded flex items-center justify-center shrink-0">
+                  <ClipboardList size={16} className="text-blue-600" />
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 font-medium">Sort by:</span>
-                  <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
-                    {([{ key: "deadline", label: "Deadline" }, { key: "priority", label: "Priority" }] as const).map((opt) => (
-                      <button
-                        key={opt.key}
-                        onClick={() => setSortBy(opt.key)}
-                        className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
-                        style={{
-                          background: sortBy === opt.key ? '#fff' : 'transparent',
-                          color:      sortBy === opt.key ? '#0f172a' : '#64748b',
-                          boxShadow:  sortBy === opt.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                        }}
-                      >
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Active Workload</h3>
+                  <p className="text-xs text-slate-500">Your open tickets — solved & failed excluded</p>
                 </div>
               </div>
-
-              {loading ? (
-                <div className="text-center py-12 text-sm text-slate-400">Loading tickets…</div>
-              ) : error ? (
-                <div className="text-center py-12 text-sm text-red-500">{error}</div>
-              ) : sorted.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-2xl mb-2">🎉</p>
-                  <p className="text-sm font-semibold text-slate-500">All caught up! No active tickets.</p>
+              <div className="flex items-center gap-2 self-start sm:self-auto">
+                <span className="text-xs text-slate-500 font-medium">Sort by:</span>
+                <div className="flex bg-slate-100 rounded-lg p-1 gap-1">
+                  {([{ key: "deadline", label: "Deadline" }, { key: "priority", label: "Priority" }] as const).map((opt) => (
+                    <button
+                      key={opt.key}
+                      onClick={() => setSortBy(opt.key)}
+                      className="text-xs px-3 py-1.5 rounded-md font-semibold transition-all"
+                      style={{
+                        background: sortBy === opt.key ? '#fff' : 'transparent',
+                        color:      sortBy === opt.key ? '#0f172a' : '#64748b',
+                        boxShadow:  sortBy === opt.key ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                      }}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
                 </div>
-              ) : (
-                <div className="divide-y divide-slate-100">
-                  {sorted.map((t) => {
-                    const cs       = getCatStyle(t.category?.name ?? '');
-                    const st       = STATUS_STYLES[t.status?.name ?? ''] ?? { bg: '#f1f5f9', text: '#475569' };
-                    const pr       = PRIORITY_STYLE[t.priority]           ?? PRIORITY_STYLE.medium;
-                    const timeLeft = timeUntil(t.deadline);
-                    return (
-                      <div
-                        key={t.ticket_id}
-                        className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors cursor-pointer group"
-                        onClick={() => setSelectedId(t.ticket_id)}
-                      >
-                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: pr.dot }} />
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-bold text-slate-400">#{t.ticket_id}</span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
-                              {t.category?.name ?? 'General'}
-                            </span>
-                          </div>
-                          <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                            {t.title ?? '(Untitled)'}
-                          </p>
-                          <p className="text-xs text-slate-400 mt-0.5">Opened {timeAgo(t.created_at)}</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-12 text-sm text-slate-400">Loading tickets…</div>
+            ) : error ? (
+              <div className="text-center py-12 text-sm text-red-500">{error}</div>
+            ) : sorted.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-2xl mb-2">🎉</p>
+                <p className="text-sm font-semibold text-slate-500">All caught up! No active tickets.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100">
+                {sorted.map((t) => {
+                  const cs       = getCatStyle(t.category?.name ?? '');
+                  const st       = STATUS_STYLES[t.status?.name ?? ''] ?? { bg: '#f1f5f9', text: '#475569' };
+                  const pr       = PRIORITY_STYLE[t.priority]           ?? PRIORITY_STYLE.medium;
+                  const timeLeft = timeUntil(t.deadline);
+                  return (
+                    <div
+                      key={t.ticket_id}
+                      className="flex items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors cursor-pointer group"
+                      onClick={() => setSelectedId(t.ticket_id)}
+                    >
+                      {/* Priority dot — hidden on very small, shown sm+ */}
+                      <div className="hidden sm:block w-2 h-2 rounded-full shrink-0 mt-1 sm:mt-0" style={{ background: pr.dot }} />
+
+                      {/* Main content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          {/* Priority dot visible on mobile inline */}
+                          <div className="sm:hidden w-2 h-2 rounded-full shrink-0" style={{ background: pr.dot }} />
+                          <span className="text-xs font-bold text-slate-400">#{t.ticket_id}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
+                            {t.category?.name ?? 'General'}
+                          </span>
                         </div>
-                        <div className="shrink-0 flex flex-col items-center">
-                          <p className="text-[10px] text-slate-400 mb-1">Time remaining</p>
-                          <span className={`text-xs font-bold px-3 py-1 rounded-full ${timeLeft.urgent ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
+                        <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                          {t.title ?? '(Untitled)'}
+                        </p>
+                        <p className="text-xs text-slate-400 mt-0.5">Opened {timeAgo(t.created_at)}</p>
+
+                        {/* On mobile: show status + deadline inline below title */}
+                        <div className="flex items-center gap-2 mt-2 sm:hidden flex-wrap">
+                          <span
+                            className="text-xs font-bold px-2.5 py-0.5 rounded-full"
+                            style={{ background: st.bg, color: st.text }}
+                          >
+                            {t.status?.name ?? '—'}
+                          </span>
+                          <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${timeLeft.urgent ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
                             {timeLeft.urgent && '⚠ '}{timeLeft.label}
                           </span>
                         </div>
-                        <div className="shrink-0 flex flex-col items-center">
-                          <p className="text-[10px] text-slate-400 mb-1">Status</p>
-                          <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
-                            {t.status?.name ?? '—'}
-                          </span>
-                        </div>
-                        <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
 
+                      {/* Time remaining — desktop only */}
+                      <div className="hidden sm:flex shrink-0 flex-col items-center">
+                        <p className="text-[10px] text-slate-400 mb-1">Time remaining</p>
+                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${timeLeft.urgent ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
+                          {timeLeft.urgent && '⚠ '}{timeLeft.label}
+                        </span>
+                      </div>
+
+                      {/* Status — desktop only */}
+                      <div className="hidden sm:flex shrink-0 flex-col items-center">
+                        <p className="text-[10px] text-slate-400 mb-1">Status</p>
+                        <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
+                          {t.status?.name ?? '—'}
+                        </span>
+                      </div>
+
+                      <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0 mt-1 sm:mt-0" />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
+
         </div>
+      </div>
 
       {selectedId !== null && (
         <TicketDetailModal
