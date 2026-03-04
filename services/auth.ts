@@ -1,4 +1,4 @@
-// ceivoice-web/services/auth.service.ts
+// ceivoice-web/services/auth.ts
 import { createClient } from '@/lib/supabase/client';
 
 export const loginWithEmail = async (email: string, password: string) => {
@@ -61,3 +61,41 @@ export const getMe = async () => {
 };
 
 export type UserProfile = Awaited<ReturnType<typeof getMe>>;
+
+// ─── Password Reset Flow ──────────────────────────────────────────────────────
+
+/**
+ * Step 1 — Send a 6-digit OTP to the user's email.
+ * shouldCreateUser: false so only existing accounts can trigger a reset.
+ */
+export const sendPasswordResetOtp = async (email: string) => {
+  const supabase = createClient();
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false },
+  });
+  if (error) throw new Error(error.message);
+};
+
+/**
+ * Step 2 — Verify the OTP the user typed in.
+ * On success, Supabase sets an active session so updatePassword can run.
+ */
+export const verifyPasswordResetOtp = async (email: string, token: string) => {
+  const supabase = createClient();
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: 'email',
+  });
+  if (error) throw new Error(error.message);
+};
+
+/**
+ * Step 3 — Set the new password. Requires an active session from verifyOtp.
+ */
+export const updatePassword = async (newPassword: string) => {
+  const supabase = createClient();
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw new Error(error.message);
+};
