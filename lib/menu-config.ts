@@ -42,7 +42,7 @@ export const menuConfig: Record<Role, MenuItem[]> = {
 
   assignee: [
     { id: 'dashboard',    label: 'Dashboard',      icon: LayoutDashboard, path: '/assignee/dashboard'    },
-    { id: 'tickets',      label: 'Assigned Tickets', icon: MessageSquare,   path: '/assignee/tickets'      },
+    { id: 'tickets',      label: 'My Tickets',     icon: MessageSquare,   path: '/assignee/tickets'      },
     { id: 'performance',  label: 'My Performance', icon: BarChart2,       path: '/assignee/performance'  },
     { id: 'notification', label: 'Notification',   icon: Bell,            path: '/assignee/notification' },
   ],
