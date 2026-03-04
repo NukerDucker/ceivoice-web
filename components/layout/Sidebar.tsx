@@ -35,7 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     router.push('/login');
   };
 
-  // First 4 in bottom bar, rest in More drawer
+  // First 4 in bottom bar, rest in page 2
   const tabItems  = items.slice(0, 4);
   const moreItems = items.slice(4);
 
@@ -131,110 +131,87 @@ export const Sidebar: React.FC<SidebarProps> = ({
           MOBILE BOTTOM TAB BAR — hidden on desktop
       ───────────────────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-
-        {/* More drawer */}
-        {showMore && (
-          <>
-            <div className="fixed inset-0 bg-black/20 z-40" onClick={() => setShowMore(false)} />
-            <div className="absolute bottom-full left-0 right-0 z-50 bg-white rounded-t-2xl shadow-2xl">
-
-              {/* Handle */}
-              <div className="flex justify-center pt-3 pb-1">
-                <div className="w-10 h-1 bg-gray-200 rounded-full" />
-              </div>
-
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100">
-                <span className="text-sm font-bold text-gray-700">More</span>
-                <button
-                  onClick={() => setShowMore(false)}
-                  className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-gray-200 transition-colors"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Items */}
-              <div className="px-4 py-3 flex flex-col gap-1">
-                {moreItems.map((item) => {
-                  const Icon     = item.icon;
-                  const isActive = activeId === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => { router.push(item.path); setShowMore(false); }}
-                      className={`flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all text-left ${
-                        isActive
-                          ? 'bg-orange-50 text-orange-500'
-                          : 'text-gray-600 hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                        isActive ? 'bg-orange-100' : 'bg-gray-100'
-                      }`}>
-                        <Icon size={18} className={isActive ? 'text-orange-500' : 'text-gray-500'} />
-                      </div>
-                      <span className="text-sm font-medium">{item.label}</span>
-                      {isActive && (
-                        <div className="ml-auto w-2 h-2 rounded-full bg-orange-500" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Bottom safe area */}
-              <div className="h-4" />
-            </div>
-          </>
-        )}
-
-        {/* Bottom tab bar */}
         <div className="flex items-center justify-around px-2 py-1 pb-safe">
-          {tabItems.map((item) => {
-            const Icon     = item.icon;
-            const isActive = activeId === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => router.push(item.path)}
-                className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] relative"
-              >
-                {isActive && (
-                  <span className="absolute inset-0 bg-orange-500/10 rounded-xl" />
-                )}
-                <Icon
-                  size={22}
-                  className={`relative z-10 transition-all duration-200 ${
-                    isActive ? 'text-orange-500 scale-110' : 'text-gray-400'
-                  }`}
-                />
-                <span className={`relative z-10 text-[10px] font-medium leading-none ${
-                  isActive ? 'text-orange-500' : 'text-gray-400'
-                }`}>
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
 
-          {/* More button */}
-          {moreItems.length > 0 && (
-            <button
-              onClick={() => setShowMore((o) => !o)}
-              className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] relative"
-            >
-              {showMore && <span className="absolute inset-0 bg-orange-500/10 rounded-xl" />}
-              <span className={`relative z-10 text-lg font-bold leading-none tracking-widest ${
-                showMore ? 'text-orange-500' : 'text-gray-400'
-              }`}>···</span>
-              <span className={`relative z-10 text-[10px] font-medium leading-none ${
-                showMore ? 'text-orange-500' : 'text-gray-400'
-              }`}>
-                More
-              </span>
-            </button>
+          {!showMore ? (
+            /* ── Page 1 ── */
+            <>
+              {tabItems.map((item) => {
+                const Icon     = item.icon;
+                const isActive = activeId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => router.push(item.path)}
+                    className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] relative"
+                  >
+                    {isActive && <span className="absolute inset-0 bg-orange-500/10 rounded-xl" />}
+                    <Icon
+                      size={22}
+                      className={`relative z-10 transition-all duration-200 ${
+                        isActive ? 'text-orange-500 scale-110' : 'text-gray-400'
+                      }`}
+                    />
+                    <span className={`relative z-10 text-[10px] font-medium leading-none ${
+                      isActive ? 'text-orange-500' : 'text-gray-400'
+                    }`}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+
+              {/* More button */}
+              {moreItems.length > 0 && (
+                <button
+                  onClick={() => setShowMore(true)}
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px]"
+                >
+                  <span className="text-lg font-bold leading-none tracking-widest text-gray-400">···</span>
+                  <span className="text-[10px] font-medium leading-none text-gray-400">More</span>
+                </button>
+              )}
+            </>
+          ) : (
+            /* ── Page 2 ── */
+            <>
+              {/* Back button */}
+              <button
+                onClick={() => setShowMore(false)}
+                className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px]"
+              >
+                <span className="text-[22px] leading-none text-gray-400">‹</span>
+                <span className="text-[10px] font-medium leading-none text-gray-400">Back</span>
+              </button>
+
+              {/* Remaining items */}
+              {moreItems.map((item) => {
+                const Icon     = item.icon;
+                const isActive = activeId === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => router.push(item.path)}
+                    className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] relative"
+                  >
+                    {isActive && <span className="absolute inset-0 bg-orange-500/10 rounded-xl" />}
+                    <Icon
+                      size={22}
+                      className={`relative z-10 transition-all duration-200 ${
+                        isActive ? 'text-orange-500 scale-110' : 'text-gray-400'
+                      }`}
+                    />
+                    <span className={`relative z-10 text-[10px] font-medium leading-none ${
+                      isActive ? 'text-orange-500' : 'text-gray-400'
+                    }`}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              })}
+            </>
           )}
+
         </div>
       </nav>
     </>
