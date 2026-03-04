@@ -131,7 +131,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           MOBILE BOTTOM TAB BAR — hidden on desktop
       ───────────────────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
-        <div className="flex items-center justify-around px-2 py-1 pb-safe">
+        <div className="flex items-center justify-around px-2 h-[60px]">
 
           {!showMore ? (
             /* ── Page 1 ── */
@@ -143,13 +143,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     key={item.id}
                     onClick={() => router.push(item.path)}
-                    className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] relative"
+                    className="flex flex-col items-center justify-center gap-1 px-3 rounded-xl transition-all duration-200 min-w-[56px] h-full relative"
                   >
                     {isActive && <span className="absolute inset-0 bg-orange-500/10 rounded-xl" />}
                     <Icon
                       size={22}
                       className={`relative z-10 transition-all duration-200 ${
-                        isActive ? 'text-orange-500 scale-110' : 'text-gray-400'
+                        isActive ? 'text-orange-500' : 'text-gray-400'
                       }`}
                     />
                     <span className={`relative z-10 text-[10px] font-medium leading-none ${
@@ -165,7 +165,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {moreItems.length > 0 && (
                 <button
                   onClick={() => setShowMore(true)}
-                  className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px]"
+                  className="flex flex-col items-center justify-center gap-1 px-3 rounded-xl transition-all duration-200 min-w-[56px] h-full"
                 >
                   <ChevronRight size={22} className="text-gray-400" />
                   <span className="text-[10px] font-medium leading-none text-gray-400">More</span>
@@ -178,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {/* Back button */}
               <button
                 onClick={() => setShowMore(false)}
-                className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px]"
+                className="flex flex-col items-center justify-center gap-1 px-3 rounded-xl transition-all duration-200 min-w-[56px] h-full"
               >
                 <ChevronLeft size={22} className="text-gray-400" />
                 <span className="text-[10px] font-medium leading-none text-gray-400">Back</span>
@@ -192,13 +192,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     key={item.id}
                     onClick={() => router.push(item.path)}
-                    className="flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all duration-200 min-w-[56px] relative"
+                    className="flex flex-col items-center justify-center gap-1 px-3 rounded-xl transition-all duration-200 min-w-[56px] h-full relative"
                   >
                     {isActive && <span className="absolute inset-0 bg-orange-500/10 rounded-xl" />}
                     <Icon
                       size={22}
                       className={`relative z-10 transition-all duration-200 ${
-                        isActive ? 'text-orange-500 scale-110' : 'text-gray-400'
+                        isActive ? 'text-orange-500' : 'text-gray-400'
                       }`}
                     />
                     <span className={`relative z-10 text-[10px] font-medium leading-none ${
