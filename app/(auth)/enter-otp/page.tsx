@@ -3,11 +3,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 interface EnterOtpPageProps {
-  searchParams: { email?: string };
+  searchParams: Promise<{ email?: string }>;
 }
 
-export default function EnterOtpPage({ searchParams }: EnterOtpPageProps) {
-  const email = searchParams.email ?? "";
+export default async function EnterOtpPage({ searchParams }: EnterOtpPageProps) {
+  const { email = "" } = await searchParams;
 
   return (
     <div className="rounded-2xl border border-gray-100 p-8 shadow-sm">
