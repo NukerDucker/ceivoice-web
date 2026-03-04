@@ -14,6 +14,9 @@ const PUBLIC_PATHS = [
   '/auth/callback',
   '/request-submitted',
   '/track',
+  '/forget-password',
+  '/enter-otp',
+  '/reset-password',
 ];
 
 const ROLE_HIERARCHY: Record<AppRole, number> = {
