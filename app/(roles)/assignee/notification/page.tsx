@@ -45,7 +45,6 @@ function buildNotifications(active: ApiTicket[], resolved: ApiTicket[]): Notific
     const titleStr   = t.title ? `"${t.title}"` : `#${t.ticket_id}`;
     const statusName = t.status?.name?.toLowerCase() ?? 'assigned';
 
-    // Deadline alert
     if (t.deadline) {
       const daysUntil = Math.ceil((new Date(t.deadline).getTime() - now) / 86400000);
       if (daysUntil <= 7) {
@@ -209,7 +208,7 @@ function NotificationCard({
   const cfg = TYPE_CONFIG[notification.type];
 
   return (
-    <div className={`flex items-start gap-4 px-5 py-4 rounded-2xl border transition-all group ${
+    <div className={`flex items-start gap-3 sm:gap-4 px-4 sm:px-5 py-4 rounded-2xl border transition-all group ${
       notification.read
         ? 'bg-white border-gray-100'
         : 'bg-blue-50/30 border-blue-100'
@@ -235,10 +234,36 @@ function NotificationCard({
         </div>
         <p className="text-xs font-semibold text-gray-800 mb-0.5">{notification.title}</p>
         <p className="text-[11px] text-gray-500 leading-relaxed">{notification.description}</p>
+
+        {/* Actions — inline below text on mobile, hover overlay on desktop */}
+        <div className="flex items-center gap-1 mt-2 sm:hidden">
+          {!notification.read && (
+            <button
+              onClick={() => onRead(notification.id)}
+              title="Mark as read"
+              className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+            >
+              <Check size={13} />
+            </button>
+          )}
+          <button
+            onClick={() => onDelete(notification.id)}
+            title="Dismiss"
+            className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+          >
+            <Trash2 size={13} />
+          </button>
+          <button
+            title="View ticket"
+            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
+          >
+            <ChevronRight size={13} />
+          </button>
+        </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+      {/* Actions — desktop hover overlay (unchanged) */}
+      <div className="hidden sm:flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
         {!notification.read && (
           <button
             onClick={() => onRead(notification.id)}
@@ -304,85 +329,87 @@ export default function AssigneeNotificationsPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-        <Header />
+      <Header />
 
-        {/* ── Page header ── */}
-        <div className="flex items-center justify-between px-8 py-5 bg-white border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white">
-              <Bell size={14} />
-            </div>
-            <div>
-              <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
-              <p className="text-[11px] text-gray-400 mt-0.5">
-                {loading ? 'Loading…' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
-              </p>
-            </div>
+      {/* ── Page header ── */}
+      <div className="flex items-center justify-between px-4 sm:px-8 py-4 sm:py-5 bg-white border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-gray-900 flex items-center justify-center text-white shrink-0">
+            <Bell size={14} />
           </div>
-          {unreadCount > 0 && (
-            <button
-              onClick={markAllRead}
-              className="flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-            >
-              <Check size={12} /> Mark all as read
-            </button>
-          )}
+          <div>
+            <h1 className="text-sm font-bold text-gray-900">Notifications</h1>
+            <p className="text-[11px] text-gray-400 mt-0.5">
+              {loading ? 'Loading…' : unreadCount > 0 ? `${unreadCount} unread` : 'All caught up'}
+            </p>
+          </div>
         </div>
-
-        {/* ── Filter tabs ── */}
-        <div className="flex items-center gap-1 px-8 py-3 bg-white border-b border-gray-100 shrink-0 overflow-x-auto">
-          {FILTERS.map((f) => {
-            const count = f.id === 'all'
-              ? notifications.length
-              : notifications.filter((n) => n.type === f.id).length;
-            const isActive = activeFilter === f.id;
-            return (
-              <button
-                key={f.id}
-                onClick={() => setActiveFilter(f.id)}
-                className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
-                  isActive
-                    ? 'bg-gray-900 text-white'
-                    : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
-                }`}
-              >
-                {f.label}
-                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
-                  isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
-                }`}>{count}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* ── List ── */}
-        <div className="flex-1 overflow-y-auto px-8 py-6">
-          {loading ? (
-            <div className="flex items-center justify-center h-48 text-gray-400">
-              <p className="text-xs font-semibold">Loading notifications…</p>
-            </div>
-          ) : error ? (
-            <div className="flex items-center justify-center h-48 text-red-400">
-              <p className="text-xs font-semibold">{error}</p>
-            </div>
-          ) : filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-gray-300">
-              <Bell size={28} className="mb-2" />
-              <p className="text-xs font-semibold">No notifications</p>
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2 max-w-3xl">
-              {filtered.map((n) => (
-                <NotificationCard
-                  key={n.id}
-                  notification={n}
-                  onRead={markRead}
-                  onDelete={dismiss}
-                />
-              ))}
-            </div>
-          )}
-        </div>
+        {unreadCount > 0 && (
+          <button
+            onClick={markAllRead}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 sm:px-4 py-2 rounded-xl border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors whitespace-nowrap"
+          >
+            <Check size={12} />
+            {/* Hide label text on very small screens */}
+            <span className="hidden xs:inline sm:inline">Mark all as read</span>
+          </button>
+        )}
       </div>
+
+      {/* ── Filter tabs — scrollable on mobile ── */}
+      <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-white border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
+        {FILTERS.map((f) => {
+          const count = f.id === 'all'
+            ? notifications.length
+            : notifications.filter((n) => n.type === f.id).length;
+          const isActive = activeFilter === f.id;
+          return (
+            <button
+              key={f.id}
+              onClick={() => setActiveFilter(f.id)}
+              className={`flex items-center gap-1.5 px-3 sm:px-4 py-2 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                isActive
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              {f.label}
+              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                isActive ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-400'
+              }`}>{count}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* ── List ── */}
+      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
+        {loading ? (
+          <div className="flex items-center justify-center h-48 text-gray-400">
+            <p className="text-xs font-semibold">Loading notifications…</p>
+          </div>
+        ) : error ? (
+          <div className="flex items-center justify-center h-48 text-red-400">
+            <p className="text-xs font-semibold">{error}</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-48 text-gray-300">
+            <Bell size={28} className="mb-2" />
+            <p className="text-xs font-semibold">No notifications</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-2 max-w-3xl">
+            {filtered.map((n) => (
+              <NotificationCard
+                key={n.id}
+                notification={n}
+                onRead={markRead}
+                onDelete={dismiss}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
