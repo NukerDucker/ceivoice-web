@@ -164,7 +164,7 @@ function Avatar({ user, size = 'sm' }: {
   user: { user_id: string; full_name?: string | null; user_name?: string | null } | null;
   size?: 'sm' | 'md';
 }) {
-  const sz = size === 'md' ? 'w-9 h-9 text-[11px]' : 'w-7 h-7 text-[10px]';
+  const sz = size === 'md' ? 'w-9 h-9 text-sm' : 'w-7 h-7 text-[10px]';
   const id = user?.user_id ?? '0';
   return (
     <div className={`${sz} rounded-full bg-gradient-to-br ${avatarColor(id)} flex items-center justify-center shrink-0 shadow-sm`}>
@@ -178,7 +178,7 @@ function Avatar({ user, size = 'sm' }: {
 function StatusBadge({ status }: { status: TicketStatus }) {
   const c = STATUS_CONFIG[status];
   return (
-    <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full border ${c.bg} ${c.color} ${c.border}`}>
+    <span className={`inline-flex items-center gap-1.5 text-sm font-bold px-2.5 py-1 rounded-full border ${c.bg} ${c.color} ${c.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${c.dot}`} />
       {c.label.toUpperCase()}
     </span>
@@ -212,7 +212,7 @@ function StatusDropdown({ current, role, onChangeStatus }: {
     <>
       <div className="relative inline-flex items-center">
         <div className={`flex items-center rounded-full border ${STATUS_CONFIG[current].border} overflow-hidden select-none`}>
-          <span className={`text-[11px] font-bold px-3 py-1.5 ${STATUS_CONFIG[current].color} whitespace-nowrap`}>
+          <span className={`text-sm font-bold px-3 py-1.5 ${STATUS_CONFIG[current].color} whitespace-nowrap`}>
             {STATUS_CONFIG[current].label.toUpperCase()}
           </span>
           {transitions.length > 0 && (
@@ -232,7 +232,7 @@ function StatusDropdown({ current, role, onChangeStatus }: {
                 <button
                   key={s}
                   onClick={() => handleSelect(s)}
-                  className="w-full flex items-center gap-2 px-4 py-2.5 text-[11px] hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-sm hover:bg-gray-50 transition-colors"
                 >
                   <span className={`w-1.5 h-1.5 rounded-full ${STATUS_CONFIG[s].dot}`} />
                   <span className={`font-bold ${STATUS_CONFIG[s].color}`}>{STATUS_CONFIG[s].label}</span>
@@ -336,7 +336,7 @@ function ReassignModal({ currentAssigneeId, onConfirm, onCancel }: {
                   <Avatar user={a} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800 truncate">{displayName(a)}</p>
-                    <p className="text-[10px] text-gray-400 truncate">{a.email}</p>
+                    <p className="text-xs text-gray-400 truncate">{a.email}</p>
                   </div>
                   {sel && <Check size={13} className="text-blue-500 shrink-0" />}
                 </button>
@@ -369,20 +369,19 @@ function CommentBubble({ comment, viewerRole }: { comment: TicketComment; viewer
     <div className={`rounded-2xl px-4 py-3 ${isInternal ? 'bg-amber-50 border border-amber-100' : 'bg-white border border-gray-100'}`}>
       <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-gray-700">{displayName(comment.user)}</span>
-          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
+          <span className="text-xs font-semibold text-gray-700">{displayName(comment.user)}</span>          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full uppercase ${
             comment.user.role === 'admin'    ? 'bg-violet-100 text-violet-600' :
             comment.user.role === 'assignee' ? 'bg-blue-100 text-blue-600' :
             'bg-gray-100 text-gray-500'
           }`}>{comment.user.role}</span>
           {isInternal
-            ? <span className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full uppercase"><Lock size={8} /> Internal</span>
-            : <span className="flex items-center gap-0.5 text-[9px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full uppercase"><Globe size={8} /> Public</span>
+            ? <span className="flex items-center gap-0.5 text-[10px] font-bold text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded-full uppercase"><Lock size={8} /> Internal</span>
+            : <span className="flex items-center gap-0.5 text-[10px] font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full uppercase"><Globe size={8} /> Public</span>
           }
         </div>
         <span className="text-[10px] text-gray-400">{timeAgo(comment.created_at)}</span>
       </div>
-      <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{comment.content}</p>
+      <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{comment.content}</p>
     </div>
   );
 }
@@ -437,7 +436,7 @@ function CommentComposer({ role, onSubmit }: {
         <button
           disabled={!content.trim() || submitting}
           onClick={handleSubmit}
-          className="flex items-center gap-1.5 text-[11px] font-bold px-4 py-1.5 rounded-full bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+          className="flex items-center gap-1.5 text-sm font-bold px-4 py-1.5 rounded-full bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
         >
           {submitting ? <Loader2 size={12} className="animate-spin" /> : <Send size={11} />}
           Send
@@ -483,7 +482,7 @@ function HistoryLog({ statusHistory, assignmentHistory }: {
             {i < entries.length - 1 && <div className="w-px flex-1 bg-gray-100 mt-1" />}
           </div>
           <div className="pb-3 flex-1 min-w-0">
-            <p className="text-xs text-gray-700">{e.description}</p>
+            <p className="text-sm text-gray-700">{e.description}</p>
             <p className="text-[10px] text-gray-400 mt-0.5">{e.by} · {timeAgo(e.date)}</p>
           </div>
         </div>
@@ -539,7 +538,7 @@ function InlineEditField({ label, value, onSave, multiline = false }: {
           </div>
         </div>
       ) : (
-        <p className="text-xs text-gray-700 leading-relaxed">
+        <p className="text-sm text-gray-700 leading-relaxed">
           {value || <span className="text-gray-300 italic">Not set</span>}
         </p>
       )}
@@ -691,8 +690,8 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
           <ArrowLeft size={14} /> Back
         </button>
         <div className="flex-1 flex items-center gap-2 min-w-0">
-          <span className="text-xs font-bold text-gray-300 shrink-0">#{ticket.ticket_id}</span>
-          <h1 className="text-sm font-bold text-gray-800 truncate">{ticket.title}</h1>
+          <span className="text-sm font-bold text-gray-300 shrink-0">#{ticket.ticket_id}</span>
+          <h1 className="text-base font-bold text-gray-800 truncate">{ticket.title}</h1>
         </div>
         <div className="shrink-0">
           <StatusDropdown current={currentStatus} role={role} onChangeStatus={handleStatusChange} />
@@ -719,24 +718,24 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-3 border-t border-gray-50">
                 <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Category</p>
-                  <span className="text-[11px] font-semibold text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Category</p>
+                  <span className="text-sm font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded-full">
                     {ticket.category?.name ?? '—'}
                   </span>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Priority</p>
-                  <span className="text-[11px] text-gray-600">{ticket.priority}</span>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1">Priority</p>
+                  <span className="text-sm text-gray-600">{ticket.priority}</span>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Clock size={9} /> Created</p>
-                  <span className="text-[11px] text-gray-600">{formatDate(ticket.created_at)}</span>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1"><Clock size={9} /> Created</p>
+                  <span className="text-sm text-gray-600">{formatDate(ticket.created_at)}</span>
                 </div>
                 <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1"><Calendar size={9} /> Deadline</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1"><Calendar size={9} /> Deadline</p>
                   {ticket.deadline
-                    ? <span className="text-[11px] text-gray-600">{formatDate(ticket.deadline)}</span>
-                    : <span className="text-[11px] text-gray-300 italic">Not set</span>}
+                    ? <span className="text-sm text-gray-600">{formatDate(ticket.deadline)}</span>
+                    : <span className="text-sm text-gray-300 italic">Not set</span>}
                 </div>
               </div>
             </div>
@@ -748,7 +747,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
               ) : (
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Summary</p>
-                  <p className="text-xs text-gray-700 leading-relaxed">{ticket.summary || <span className="text-gray-300 italic">No summary.</span>}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{ticket.summary || <span className="text-gray-300 italic">No summary.</span>}</p>
                 </div>
               )}
             </div>
@@ -760,7 +759,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
               ) : (
                 <div>
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Suggested Solution</p>
-                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
                     {ticket.suggested_solution || <span className="text-gray-300 italic">No suggested solution.</span>}
                   </p>
                 </div>
@@ -779,7 +778,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                   {ticket.ticket_requests.map(({ request }) => (
                     <div key={request.request_id} className="bg-white rounded-xl border border-gray-100 p-3">
                       <p className="text-[10px] text-gray-400 mb-1">{request.email}</p>
-                      <p className="text-xs text-gray-700 leading-relaxed">{request.message}</p>
+                      <p className="text-sm text-gray-700 leading-relaxed">{request.message}</p>
                     </div>
                   ))}
                 </div>
@@ -849,13 +848,13 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
 
               {/* Creator */}
               <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><User size={9} /> Creator</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><User size={9} /> Creator</p>
                 {ticket.creator ? (
                   <div className="flex items-center gap-2">
                     <Avatar user={ticket.creator} />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-700 truncate">{displayName(ticket.creator)}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{ticket.creator.email}</p>
+                      <p className="text-sm font-semibold text-gray-700 truncate">{displayName(ticket.creator)}</p>
+                      <p className="text-xs text-gray-400 truncate">{ticket.creator.email}</p>
                     </div>
                   </div>
                 ) : (
@@ -865,13 +864,13 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
 
               {/* Assignee */}
               <div>
-                <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><Briefcase size={9} /> Assignee</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><Briefcase size={9} /> Assignee</p>
                 {ticket.assignee ? (
                   <div className="flex items-center gap-2">
                     <Avatar user={ticket.assignee} />
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-gray-700 truncate">{displayName(ticket.assignee)}</p>
-                      <p className="text-[10px] text-gray-400 truncate">{ticket.assignee.email}</p>
+                      <p className="text-sm font-semibold text-gray-700 truncate">{displayName(ticket.assignee)}</p>
+                      <p className="text-xs text-gray-400 truncate">{ticket.assignee.email}</p>
                     </div>
                   </div>
                 ) : (
@@ -882,7 +881,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
               {/* Followers */}
               {ticket.followers.length > 0 && (
                 <div>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><Tag size={9} /> Followers</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><Tag size={9} /> Followers</p>
                   <div className="flex flex-wrap gap-1.5">
                     {ticket.followers.map(({ user: f }) => (
                       <div key={f.user_id} title={`${displayName(f)} (${f.email})`}>
@@ -908,7 +907,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                 ].map(({ label, value }) => (
                   <div key={label} className="flex items-center justify-between">
                     <span className="text-[10px] text-gray-400">{label}</span>
-                    <span className="text-[11px] font-semibold text-gray-600">{value}</span>
+                    <span className="text-sm font-semibold text-gray-600">{value}</span>
                   </div>
                 ))}
               </div>
