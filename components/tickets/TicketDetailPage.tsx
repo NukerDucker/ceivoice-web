@@ -203,10 +203,11 @@ function StatusBadge({ status }: { status: TicketStatus }) {
 
 // ─── Status Dropdown ──────────────────────────────────────────────────────────
 
-function StatusDropdown({ current, role, onChangeStatus }: {
+function StatusDropdown({ current, role, onChangeStatus, onReassign }: {
   current: TicketStatus;
   role: UserRole;
   onChangeStatus: (s: TicketStatus) => void;
+  onReassign: () => void;
 }) {
   const [open, setOpen]                     = useState(false);
   const [requireComment, setRequireComment] = useState<TicketStatus | null>(null);
@@ -218,7 +219,11 @@ function StatusDropdown({ current, role, onChangeStatus }: {
   if (!canChange) return <StatusBadge status={current} />;
 
   function handleSelect(s: TicketStatus) {
-    if (s === 'solved' || s === 'failed') {
+    setOpen(false);
+    if (s === 'reassigned') {
+      // Open reassign modal — status will update after person is picked
+      onReassign();
+    } else if (s === 'solved' || s === 'failed') {
       setRequireComment(s);
     } else {
       onChangeStatus(s);
@@ -694,13 +699,19 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
   async function handleReassign(userId: string) {
     if (!ticket) return;
     try {
+      // Assign the person
       await apiFetch(`/tickets/id/${ticketId}/assign`, {
         method: 'POST',
         body: JSON.stringify({ assignee_id: userId }),
       });
+      // Set status back to New after reassigning
+      await apiFetch(`/tickets/id/${ticketId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify({ new_status: 'New' }),
+      });
       setShowReassign(false);
       const updated = await apiFetch<TicketDetail>(`/tickets/id/${ticketId}`);
-      setTicket(updated);
+      setTicket((prev) => prev ? { ...updated, comments: prev.comments, status_history: prev.status_history, assignment_history: prev.assignment_history } : updated);
     } catch {}
   }
 
@@ -774,7 +785,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
           <h1 className="text-base font-bold text-gray-800 truncate">{ticket.title}</h1>
         </div>
         <div className="shrink-0">
-          <StatusDropdown current={currentStatus} role={role} onChangeStatus={handleStatusChange} />
+          <StatusDropdown current={currentStatus} role={role} onChangeStatus={handleStatusChange} onReassign={() => setShowReassign(true)} />
         </div>
       </div>
 
