@@ -217,6 +217,7 @@ function ReviewTicketInner() {
           summary: summaryVal,
           suggested_solution: solutionVal,
           ...(categoryId ? { category_id: categoryId } : {}),
+          ...(assigneeId ? { assignee_user_id: assigneeId } : {}),
           ...(deadline ? { deadline } : {}),
         }),
       });
@@ -283,7 +284,10 @@ function ReviewTicketInner() {
   return (
     <div className="flex h-screen font-sans bg-gray-100 text-gray-900 overflow-hidden">
       <main className="flex-1 flex flex-col overflow-hidden">
-        <Header title="Review and Edit Draft Ticket" subtitle={subtitle} />
+        <Header
+          title={ticket.status?.name === 'Draft' ? 'Review and Edit Draft Ticket' : `Edit Ticket (${ticket.status?.name})`}
+          subtitle={subtitle}
+        />
 
         {/*
           Layout:
@@ -492,18 +496,21 @@ function ReviewTicketInner() {
                   className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-semibold border-[1.5px] border-amber-300 bg-amber-50 text-amber-600 transition-opacity ${
                     saveStatus === 'saving' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-amber-100 cursor-pointer'
                   }`}
+                  title={ticket.status?.name === 'Draft' ? 'Save changes to draft' : 'Save changes to ticket'}
                 >
-                  {saveStatus === 'saving' ? 'Saving...' : 'Save Draft'}
+                  {saveStatus === 'saving' ? 'Saving...' : (ticket.status?.name === 'Draft' ? 'Save Draft' : 'Update Ticket')}
                 </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={submitStatus === 'submitting'}
-                  className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
-                    submitStatus === 'submitting' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-100 cursor-pointer'
-                  }`}
-                >
-                  {submitStatus === 'submitting' ? 'Approving...' : 'Approve as New Ticket'}
-                </button>
+                {ticket.status?.name === 'Draft' && (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitStatus === 'submitting'}
+                    className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
+                      submitStatus === 'submitting' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-100 cursor-pointer'
+                    }`}
+                  >
+                    {submitStatus === 'submitting' ? 'Approving...' : 'Approve as New Ticket'}
+                  </button>
+                )}
               </div>
 
             </div>
