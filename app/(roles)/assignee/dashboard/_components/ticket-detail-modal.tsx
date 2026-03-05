@@ -237,9 +237,9 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                       <p className="text-sm font-bold text-slate-700">Reassignment</p>
                       <button
                         onClick={() => setShowReassign(!showReassign)}
-                        disabled={ticket.status === 'Solving' || ticket.status === 'Solved'}
+                        disabled={ticket.status?.name === 'Solving' || ticket.status?.name === 'Solved'}
                         className="text-xs font-semibold px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 rounded-lg transition-colors border border-orange-200 disabled:opacity-40 disabled:cursor-not-allowed"
-                        title={ticket.status === 'Solving' || ticket.status === 'Solved' ? 'Cannot reassign tickets in Solving or Solved status' : 'Reassign ticket to another assignee'}
+                        title={ticket.status?.name === 'Solving' || ticket.status?.name === 'Solved' ? 'Cannot reassign tickets in Solving or Solved status' : 'Reassign ticket to another assignee'}
                       >
                         ↗ Reassign Ticket
                       </button>
