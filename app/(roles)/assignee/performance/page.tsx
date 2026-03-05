@@ -120,8 +120,9 @@ export default function AssigneePerformancePage() {
     [resolvedTickets, cutoff],
   );
 
-  const solvedCount = perfData?.total_solved ?? resolvedInPeriod.filter((t) => t.status?.name === 'Solved').length;
-  const failedCount = perfData?.total_failed ?? resolvedInPeriod.filter((t) => t.status?.name === 'Failed').length;
+  // Always derived from resolvedInPeriod so counts match the list below
+  const solvedCount = resolvedInPeriod.filter((t) => t.status?.name === 'Solved').length;
+  const failedCount = resolvedInPeriod.filter((t) => t.status?.name === 'Failed').length;
 
   if (loading && !perfData) {
     return (

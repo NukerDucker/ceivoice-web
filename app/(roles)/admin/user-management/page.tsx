@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Search, ChevronDown, ChevronUp,
-  Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle,
+  Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle, Check,
 } from 'lucide-react';
 import { Header }  from '@/components/layout/UserManagementTB';
 import type { ManagedUser, UserRole } from '@/types';
@@ -116,7 +116,6 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
 }) {
   const [scopeOpen,       setScopeOpen]       = useState(false);
   const [confirmAdminFor, setConfirmAdminFor] = useState<string | null>(null);
-  const available = SCOPE_OPTIONS.filter((s) => !user.scopes.includes(s));
 
   return (
     <div className="px-4 sm:px-6 pb-5 pt-2 bg-gray-50/60 border-t border-gray-100">
@@ -178,46 +177,74 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
           </div>
         </div>
 
-        {/* ── Scope Tags ── */}
+        {/* ── Scope Tags (Multi-Select Menu) ── */}
         <div className="flex flex-col gap-3">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
             <Tag size={10} /> Scope Tags <span className="font-normal text-gray-300">(EP06-ST002)</span>
           </p>
           {user.role === 'assignee' ? (
-            <>
-              <div className="flex flex-wrap gap-1.5 min-h-6">
-                {user.scopes.length > 0
-                  ? user.scopes.map((s) => <ScopeTag key={s} label={s} onRemove={() => onScopeRemove(user.id, s)} />)
-                  : <span className="text-[10px] text-gray-300 italic">No scopes assigned yet</span>
-                }
-              </div>
-              {available.length > 0 && (
-                <div className="relative w-fit">
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setScopeOpen((o) => !o); }}
-                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-800 transition-colors"
-                  >
-                    + Add scope
-                  </button>
-                  {scopeOpen && (
-                    <>
-                      <div className="fixed inset-0 z-10" onClick={() => setScopeOpen(false)} />
-                      <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden min-w-40 max-h-48 overflow-y-auto">
-                        {available.map((s) => (
-                          <button
-                            key={s}
-                            onClick={(e) => { e.stopPropagation(); onScopeAdd(user.id, s); setScopeOpen(false); }}
-                            className="w-full text-left px-4 py-2 text-[11px] text-gray-700 hover:bg-blue-50 hover:text-blue-700 transition-colors"
-                          >
-                            {s}
-                          </button>
-                        ))}
-                      </div>
-                    </>
+            <div className="relative">
+              {/* Trigger button */}
+              <button
+                onClick={(e) => { e.stopPropagation(); setScopeOpen((o) => !o); }}
+                className="w-full flex items-start justify-between gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors min-h-[36px]"
+              >
+                <span className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                  {user.scopes.length > 0 ? (
+                    user.scopes.map((s) => (
+                      <span
+                        key={s}
+                        className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100"
+                      >
+                        {s}
+                        <span
+                          role="button"
+                          onClick={(e) => { e.stopPropagation(); onScopeRemove(user.id, s); }}
+                          className="hover:text-blue-900 cursor-pointer transition-colors leading-none"
+                        >
+                          <X size={9} />
+                        </span>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-[10px] text-gray-300 italic">Select scopes…</span>
                   )}
-                </div>
+                </span>
+                <ChevronDown
+                  size={12}
+                  className={`text-gray-400 shrink-0 mt-0.5 transition-transform duration-150 ${scopeOpen ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              {/* Dropdown */}
+              {scopeOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setScopeOpen(false)} />
+                  <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden w-full max-h-56 overflow-y-auto">
+                    {SCOPE_OPTIONS.map((s) => {
+                      const selected = user.scopes.includes(s);
+                      return (
+                        <button
+                          key={s}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            selected ? onScopeRemove(user.id, s) : onScopeAdd(user.id, s);
+                          }}
+                          className={`w-full flex items-center justify-between px-4 py-2 text-[11px] transition-colors ${
+                            selected
+                              ? 'bg-blue-50 text-blue-700 font-semibold'
+                              : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                          }`}
+                        >
+                          <span>{s}</span>
+                          {selected && <Check size={11} className="text-blue-500 shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
               )}
-            </>
+            </div>
           ) : (
             <p className="text-[10px] text-gray-300 italic">
               {user.role === 'admin' ? 'Admins do not use scopes.' : 'Promote to Assignee to assign scopes.'}
