@@ -9,6 +9,7 @@ import {
   History, Users, MessageSquare,
 } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
+import type { ApiHistoryEntry } from '@/types/api';
 
 // ─── Types (matching your Prisma schema) ─────────────────────────────────────
 
@@ -561,12 +562,38 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
   useEffect(() => {
     (async () => {
       try {
-        const [t, u] = await Promise.all([
+        const [t, comments, historyRes] = await Promise.all([
           apiFetch<TicketDetail>(`/tickets/id/${ticketId}`),
-          apiFetch<CurrentUser>('/auth/me'),
+          apiFetch<TicketComment[]>(`/tickets/id/${ticketId}/comments`),
+          apiFetch<{ history: ApiHistoryEntry[] }>(`/tickets/id/${ticketId}/history`),
         ]);
-        setTicket(t);
-        setCurrentUser(u);
+        setTicket({ ...t, comments, status_history: historyRes.history
+          .filter((h) => h.type === 'status_change')
+          .map((h, i) => ({
+            history_id: i,
+            changed_at: h.timestamp,
+            change_reason: h.change_reason ?? null,
+            old_status: h.old_status ? { name: h.old_status } : null,
+            new_status: h.new_status ? { name: h.new_status } : null,
+            changed_by: h.changed_by ? { user_id: h.changed_by.user_id, full_name: h.changed_by.name, user_name: null, email: '' } : null,
+          })),
+          assignment_history: historyRes.history
+          .filter((h) => h.type === 'assignment_change')
+          .map((h, i) => ({
+            assignment_id: i,
+            changed_at: h.timestamp,
+            change_reason: h.change_reason ?? null,
+            old_assignee: h.old_assignee ? { user_id: h.old_assignee.user_id, full_name: h.old_assignee.name, user_name: null, email: '' } : null,
+            new_assignee: h.new_assignee ? { user_id: h.new_assignee.user_id, full_name: h.new_assignee.name, user_name: null, email: '' } : null,
+            changed_by: h.changed_by ? { user_id: h.changed_by.user_id, full_name: h.changed_by.name, user_name: null, email: '' } : { user_id: '', full_name: 'System', user_name: null, email: '' },
+          })),
+        });
+        // Get current user role from Supabase session metadata
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        const role = (user?.user_metadata?.role ?? user?.app_metadata?.role ?? 'user') as string;
+        setCurrentUser({ user_id: user?.id ?? '', full_name: user?.user_metadata?.full_name ?? null, role });
       } catch (e) {
         setError('Failed to load ticket.');
       } finally {
@@ -601,13 +628,11 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
   async function handleReassign(userId: string) {
     if (!ticket) return;
     try {
-      await apiFetch(`/tickets/id/${ticketId}/assignee`, {
-        method: 'PATCH',
-        body: JSON.stringify({ assignee_user_id: userId }),
+      await apiFetch(`/tickets/id/${ticketId}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ assignee_id: userId }),
       });
-      // Optimistically update assignee from the reassign list
       setShowReassign(false);
-      // Re-fetch to get updated assignment_history
       const updated = await apiFetch<TicketDetail>(`/tickets/id/${ticketId}`);
       setTicket(updated);
     } catch {}
@@ -628,7 +653,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
     if (!ticket) return;
     try {
       await apiFetch(`/tickets/id/${ticketId}`, {
-        method: 'PATCH',
+        method: 'PUT',
         body: JSON.stringify({ [field]: value }),
       });
       setTicket((t) => t ? { ...t, [field]: value } : t);
