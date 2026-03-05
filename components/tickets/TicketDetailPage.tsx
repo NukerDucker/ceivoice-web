@@ -13,7 +13,7 @@ import type { ApiHistoryEntry } from '@/types/api';
 
 // ─── Types (matching your Prisma schema) ─────────────────────────────────────
 
-type TicketStatus = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew';
+type TicketStatus = 'draft' | 'new' | 'assigned' | 'solving' | 'solved' | 'failed' | 'renew' | 'reassigned';
 type CommentVisibility = 'PUBLIC' | 'PRIVATE';
 type UserRole = 'admin' | 'assignee' | 'user';
 
@@ -87,35 +87,39 @@ interface CurrentUser {
 const STATUS_CONFIG: Record<TicketStatus, {
   label: string; color: string; bg: string; border: string; dot: string; borderLeft: string;
 }> = {
-  draft:    { label: 'Draft',    color: 'text-gray-500',   bg: 'bg-gray-100',  border: 'border-gray-300',   dot: 'bg-gray-400',   borderLeft: 'border-l-gray-400'   },
-  new:      { label: 'New',      color: 'text-blue-600',   bg: 'bg-blue-50',   border: 'border-blue-400',   dot: 'bg-blue-500',   borderLeft: 'border-l-blue-400'   },
-  assigned: { label: 'Assigned', color: 'text-indigo-600', bg: 'bg-indigo-50', border: 'border-indigo-400', dot: 'bg-indigo-500', borderLeft: 'border-l-indigo-400' },
-  solving:  { label: 'Solving',  color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-400', dot: 'bg-yellow-500', borderLeft: 'border-l-yellow-400' },
-  solved:   { label: 'Solved',   color: 'text-green-600',  bg: 'bg-green-50',  border: 'border-green-500',  dot: 'bg-green-500',  borderLeft: 'border-l-green-500'  },
-  failed:   { label: 'Failed',   color: 'text-red-500',    bg: 'bg-red-50',    border: 'border-red-400',    dot: 'bg-red-500',    borderLeft: 'border-l-red-500'    },
-  renew:    { label: 'Renew',    color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-400', dot: 'bg-orange-500', borderLeft: 'border-l-orange-400' },
+  draft:      { label: 'Draft',      color: 'text-gray-500',   bg: 'bg-gray-100',   border: 'border-gray-300',   dot: 'bg-gray-400',   borderLeft: 'border-l-gray-400'    },
+  new:        { label: 'New',        color: 'text-blue-600',   bg: 'bg-blue-50',    border: 'border-blue-400',   dot: 'bg-blue-500',   borderLeft: 'border-l-blue-400'    },
+  assigned:   { label: 'Assigned',   color: 'text-indigo-600', bg: 'bg-indigo-50',  border: 'border-indigo-400', dot: 'bg-indigo-500', borderLeft: 'border-l-indigo-400'  },
+  solving:    { label: 'Solving',    color: 'text-yellow-600', bg: 'bg-yellow-50',  border: 'border-yellow-400', dot: 'bg-yellow-500', borderLeft: 'border-l-yellow-400'  },
+  solved:     { label: 'Solved',     color: 'text-green-600',  bg: 'bg-green-50',   border: 'border-green-500',  dot: 'bg-green-500',  borderLeft: 'border-l-green-500'   },
+  failed:     { label: 'Failed',     color: 'text-red-500',    bg: 'bg-red-50',     border: 'border-red-400',    dot: 'bg-red-500',    borderLeft: 'border-l-red-500'     },
+  renew:      { label: 'Renew',      color: 'text-orange-600', bg: 'bg-orange-50',  border: 'border-orange-400', dot: 'bg-orange-500', borderLeft: 'border-l-orange-400'  },
+  reassigned: { label: 'Reassigned', color: 'text-purple-600', bg: 'bg-purple-50',  border: 'border-purple-400', dot: 'bg-purple-500', borderLeft: 'border-l-purple-400'  },
 };
 
 // Maps your DB status names to local type
 const STATUS_NAME_MAP: Record<string, TicketStatus> = {
   Draft: 'draft', New: 'new', Assigned: 'assigned',
-  Solving: 'solving', Solved: 'solved', Failed: 'failed', Renew: 'renew',
+  Solving: 'solving', Solved: 'solved', Failed: 'failed',
+  Renew: 'renew', Reassigned: 'reassigned',
 };
 
 // Maps local type back to API string
 const STATUS_TO_API: Record<TicketStatus, string> = {
   draft: 'Draft', new: 'New', assigned: 'Assigned',
-  solving: 'Solving', solved: 'Solved', failed: 'Failed', renew: 'Renew',
+  solving: 'Solving', solved: 'Solved', failed: 'Failed',
+  renew: 'Renew', reassigned: 'Reassigned',
 };
 
 const VALID_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
-  draft:    ['new'],
-  new:      ['assigned', 'solving', 'solved', 'failed'],
-  assigned: ['solving', 'solved', 'failed'],
-  solving:  ['solved', 'failed'],
-  solved:   ['renew'],
-  failed:   ['renew'],
-  renew:    ['new', 'assigned'],
+  draft:      ['new'],
+  new:        ['assigned', 'reassigned', 'solving', 'solved', 'failed'],
+  assigned:   ['reassigned', 'solving', 'solved', 'failed'],
+  solving:    ['solved', 'failed'],
+  solved:     ['renew'],
+  failed:     ['reassigned', 'renew'],
+  renew:      ['reassigned', 'assigned'],
+  reassigned: ['assigned', 'solving'],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -359,6 +363,51 @@ function ReassignModal({ currentAssigneeId, onConfirm, onCancel }: {
   );
 }
 
+// ─── Deadline Edit Modal ──────────────────────────────────────────────────────
+
+function DeadlineEditModal({ current, onConfirm, onCancel }: {
+  current: string | null;
+  onConfirm: (iso: string) => void;
+  onCancel: () => void;
+}) {
+  // Convert ISO to local datetime-local format
+  const toLocal = (iso: string | null) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const [value, setValue] = useState(toLocal(current));
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-xl border border-gray-100 w-full max-w-sm mx-4 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Calendar size={18} className="text-gray-500" />
+          <h3 className="text-sm font-bold text-gray-800">Edit Deadline</h3>
+        </div>
+        <input
+          type="datetime-local"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-full text-xs border border-gray-200 rounded-xl px-3 py-2.5 outline-none focus:border-gray-300"
+        />
+        <div className="flex justify-end gap-2 mt-4">
+          <button onClick={onCancel} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700">Cancel</button>
+          <button
+            disabled={!value}
+            onClick={() => value && onConfirm(new Date(value).toISOString())}
+            className="px-4 py-2 text-xs font-bold rounded-full bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Comment Bubble ───────────────────────────────────────────────────────────
 
 function CommentBubble({ comment, viewerRole }: { comment: TicketComment; viewerRole: UserRole }) {
@@ -452,7 +501,6 @@ function HistoryLog({ statusHistory, assignmentHistory }: {
   statusHistory:     StatusHistoryEntry[];
   assignmentHistory: AssignmentHistoryEntry[];
 }) {
-  // Merge and sort both histories by date descending
   type Entry = { date: string; description: string; by: string };
 
   const entries: Entry[] = [
@@ -551,12 +599,13 @@ function InlineEditField({ label, value, onSave, multiline = false }: {
 export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
   const router = useRouter();
 
-  const [ticket,       setTicket]       = useState<TicketDetail | null>(null);
-  const [currentUser,  setCurrentUser]  = useState<CurrentUser | null>(null);
-  const [loading,      setLoading]      = useState(true);
-  const [error,        setError]        = useState<string | null>(null);
-  const [showReassign, setShowReassign] = useState(false);
-  const [activeTab,    setActiveTab]    = useState<'comments' | 'history'>('comments');
+  const [ticket,          setTicket]          = useState<TicketDetail | null>(null);
+  const [currentUser,     setCurrentUser]     = useState<CurrentUser | null>(null);
+  const [loading,         setLoading]         = useState(true);
+  const [error,           setError]           = useState<string | null>(null);
+  const [showReassign,    setShowReassign]    = useState(false);
+  const [showDeadline,    setShowDeadline]    = useState(false);
+  const [activeTab,       setActiveTab]       = useState<'comments' | 'history'>('comments');
 
   useEffect(() => {
     (async () => {
@@ -587,7 +636,6 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
             changed_by: h.changed_by ? { user_id: h.changed_by.user_id, full_name: h.changed_by.name, user_name: null, email: '' } : { user_id: '', full_name: 'System', user_name: null, email: '' },
           })),
         });
-        // Get current user role from Supabase session metadata
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -637,6 +685,18 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
     } catch {}
   }
 
+  async function handleDeadlineSave(iso: string) {
+    if (!ticket) return;
+    try {
+      await apiFetch(`/tickets/id/${ticketId}`, {
+        method: 'PUT',
+        body: JSON.stringify({ deadline: iso }),
+      });
+      setTicket((t) => t ? { ...t, deadline: iso } : t);
+      setShowDeadline(false);
+    } catch {}
+  }
+
   async function handleCommentSubmit(content: string, visibility: CommentVisibility) {
     if (!ticket) return;
     try {
@@ -678,6 +738,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
   const visibleComments = ticket.comments.filter(
     (c) => role !== 'user' || c.visibility === 'PUBLIC'
   );
+
   return (
     <div className="flex flex-col h-full bg-gray-50 overflow-hidden">
 
@@ -731,8 +792,19 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1"><Clock size={9} /> Created</p>
                   <span className="text-sm text-gray-600">{formatDate(ticket.created_at)}</span>
                 </div>
+                {/* ── Deadline with edit button ── */}
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1"><Calendar size={9} /> Deadline</p>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Calendar size={9} /> Deadline</p>
+                    {canAct && (
+                      <button
+                        onClick={() => setShowDeadline(true)}
+                        className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
+                      >
+                        <Edit2 size={9} /> Edit
+                      </button>
+                    )}
+                  </div>
                   {ticket.deadline
                     ? <span className="text-sm text-gray-600">{formatDate(ticket.deadline)}</span>
                     : <span className="text-sm text-gray-300 italic">Not set</span>}
@@ -766,7 +838,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
               )}
             </div>
 
-            {/* Original requests (from ticket_requests) */}
+            {/* Original requests */}
             {ticket.ticket_requests.length > 0 && (
               <details className="bg-gray-50 rounded-2xl border border-gray-100 p-4 group">
                 <summary className="text-[10px] font-bold text-gray-400 uppercase tracking-widest cursor-pointer select-none list-none flex items-center gap-1.5">
@@ -862,9 +934,19 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                 )}
               </div>
 
-              {/* Assignee */}
+              {/* Assignee — with edit button for admin/assignee */}
               <div>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide mb-2 flex items-center gap-1"><Briefcase size={9} /> Assignee</p>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Briefcase size={9} /> Assignee</p>
+                  {canAct && (
+                    <button
+                      onClick={() => setShowReassign(true)}
+                      className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
+                    >
+                      <Edit2 size={9} /> Edit
+                    </button>
+                  )}
+                </div>
                 {ticket.assignee ? (
                   <div className="flex items-center gap-2">
                     <Avatar user={ticket.assignee} />
@@ -874,7 +956,12 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                     </div>
                   </div>
                 ) : (
-                  <p className="text-[10px] text-gray-300 italic">Unassigned</p>
+                  <button
+                    onClick={() => setShowReassign(true)}
+                    className="text-[10px] text-indigo-500 hover:text-indigo-700 italic transition-colors"
+                  >
+                    + Assign someone
+                  </button>
                 )}
               </div>
 
@@ -922,6 +1009,14 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
           currentAssigneeId={ticket.assignee?.user_id ?? null}
           onConfirm={handleReassign}
           onCancel={() => setShowReassign(false)}
+        />
+      )}
+
+      {showDeadline && (
+        <DeadlineEditModal
+          current={ticket.deadline}
+          onConfirm={handleDeadlineSave}
+          onCancel={() => setShowDeadline(false)}
         />
       )}
     </div>
