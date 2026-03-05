@@ -776,21 +776,25 @@ function TicketDetailDrawer({
 function TicketRow({
   ticket,
   onOpen,
+  onOpenResolved,
 }: {
-  ticket:  AssigneeTicket | ResolvedTicket;
-  onOpen?: (t: AssigneeTicket) => void;
+  ticket:           AssigneeTicket | ResolvedTicket;
+  onOpen?:          (t: AssigneeTicket) => void;
+  onOpenResolved?:  (t: ResolvedTicket) => void;
 }) {
   const cfg      = STATUS_CONFIG[ticket.status];
   const isActive = 'deadline' in ticket;
-  const active   = isActive ? (ticket as AssigneeTicket)   : null;
+  const active   = isActive ? (ticket as AssigneeTicket)  : null;
   const resolved = !isActive ? (ticket as ResolvedTicket) : null;
   const dl       = active ? deadlineLabel(active.deadline) : null;
   const formattedDate = ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`border-l-4 ${cfg.borderColor} bg-white rounded-xl shadow-sm border border-gray-100 ${isActive ? 'hover:bg-gray-50/40 transition-colors duration-150' : resolved ? 'hover:bg-gray-50/40 cursor-pointer transition-colors duration-150' : ''}`}
-      onClick={resolved ? () => (document.activeElement as HTMLElement)?.blur?.() : undefined}
-    >
+    <div className={`border-l-4 ${cfg.borderColor} bg-white rounded-xl shadow-sm border border-gray-100 ${
+      (active && onOpen) || (resolved && onOpenResolved)
+        ? 'hover:bg-gray-50/40 transition-colors duration-150'
+        : ''
+    }`}>
       <div className={`flex items-center gap-3 sm:gap-6 px-3 sm:px-6 ${isActive ? 'py-4' : 'py-3'}`}>
 
         <div className="flex flex-col gap-0.5 w-[80px] sm:w-[120px] shrink-0">
@@ -833,8 +837,15 @@ function TicketRow({
                 ))}
               </div>
             </>
+          ) : resolved && onOpenResolved ? (
+            <button
+              onClick={() => onOpenResolved(resolved)}
+              className="text-sm font-semibold text-gray-700 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all w-full"
+            >
+              {ticket.title}
+            </button>
           ) : (
-            <span className="text-sm font-semibold text-gray-700 text-left">{ticket.title}</span>
+            <span className="text-sm font-semibold text-gray-700">{ticket.title}</span>
           )}
         </div>
 
@@ -854,9 +865,20 @@ function TicketRow({
             </div>
           )}
           {resolved && (
-            <span className="text-xs text-gray-400">
-              {resolved.resolvedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-            </span>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-gray-400">
+                {resolved.resolvedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+              </span>
+              {onOpenResolved && (
+                <button
+                  onClick={() => onOpenResolved(resolved)}
+                  className="text-gray-300 hover:text-gray-700 transition-colors"
+                  title="View ticket"
+                >
+                  <Eye size={13} />
+                </button>
+              )}
+            </div>
           )}
         </div>
 
@@ -1280,7 +1302,7 @@ export default function AssigneeTicketsPage() {
                   <TicketRow
                     key={t.ticketId}
                     ticket={t}
-                    onOpen={(active) => handleOpenResolvedTicket(t)}
+                    onOpenResolved={handleOpenResolvedTicket}
                   />
                 ))
               )}
