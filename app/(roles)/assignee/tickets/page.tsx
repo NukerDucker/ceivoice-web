@@ -22,12 +22,6 @@ import type {
 } from '@/types';
 import type { ApiUser, ApiTicket as ApiTicketRaw, ApiComment, ApiHistoryEntry } from '@/types/api';
 
-// ─── Backend API types ────────────────────────────────────────────────────────
-
-
-
-// ─── Data mappers ─────────────────────────────────────────────────────────────
-
 function apiUserName(u?: ApiUser | null): string {
   return u?.full_name ?? u?.user_name ?? u?.email ?? 'Unknown';
 }
@@ -109,8 +103,6 @@ function mapHistoryEntry(h: ApiHistoryEntry): TicketHistoryEntry {
   };
 }
 
-// ─── Status config (same palette as admin page) ───────────────────────────────
-
 const STATUS_CONFIG: Record<
   TicketStatus,
   { label: string; borderColor: string; badgeBorder: string; badgeText: string; bg: string }
@@ -124,7 +116,6 @@ const STATUS_CONFIG: Record<
   renew:    { label: 'RENEW',    borderColor: 'border-l-orange-400', badgeBorder: 'border-orange-500', badgeText: 'text-orange-600', bg: 'bg-orange-50' },
 };
 
-// Statuses an assignee is allowed to move to
 const ASSIGNEE_ALLOWED_STATUSES: TicketStatus[] = ['new', 'assigned', 'solving', 'solved', 'failed', 'renew'];
 
 const STATUS_TABS: { label: string; value: TicketStatus | 'all' | 'resolved' }[] = [
@@ -140,8 +131,6 @@ const STATUS_API_MAP: Record<string, string> = {
   draft: 'Draft', new: 'New', assigned: 'Assigned',
   solving: 'Solving', solved: 'Solved', failed: 'Failed', renew: 'Renew',
 };
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function timeAgo(date: Date): string {
   const diff = Date.now() - date.getTime();
@@ -161,8 +150,6 @@ function deadlineLabel(deadline: Date): { text: string; urgent: boolean } {
   if (h < 24) return { text: `${Math.round(h)}h left`, urgent: false };
   return { text: `${Math.floor(h / 24)}d left`, urgent: false };
 }
-
-// ─── Status Badge (same style as admin) ───────────────────────────────────────
 
 function StatusBadge({
   status,
@@ -215,8 +202,6 @@ function StatusBadge({
   );
 }
 
-// ─── Resolution Comment Modal (required for Solved / Failed) ─────────────────
-
 function ResolutionModal({
   targetStatus,
   onConfirm,
@@ -232,7 +217,9 @@ function ResolutionModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-50" onClick={onCancel} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-[calc(100vw-2rem)] max-w-[480px]">
+      <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-full sm:max-w-[480px]">
+        {/* Mobile drag handle */}
+        <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4 sm:hidden" />
         <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 ${isSolved ? 'bg-green-100' : 'bg-red-100'}`}>
           {isSolved
             ? <Check size={20} className="text-green-600" />
@@ -280,8 +267,6 @@ function ResolutionModal({
   );
 }
 
-// ─── Reassign Modal ───────────────────────────────────────────────────────────
-
 function ReassignModal({
   currentAssignee,
   availableAssignees,
@@ -303,7 +288,6 @@ function ReassignModal({
         : [...prev, a],
     );
 
-  // Exclude current assignee from the list
   const candidates = availableAssignees.filter(
     (a) => apiUserName(a) !== currentAssignee.name,
   );
@@ -311,7 +295,9 @@ function ReassignModal({
   return (
     <>
       <div className="fixed inset-0 bg-black/20 z-50" onClick={onCancel} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-[calc(100vw-2rem)] max-w-[480px]">
+      <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
+        {/* Mobile drag handle */}
+        <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4 sm:hidden" />
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
             <GitBranch size={17} className="text-indigo-600" />
@@ -334,7 +320,7 @@ function ReassignModal({
         {candidates.length === 0 ? (
           <p className="text-xs text-gray-400 text-center py-6">No other assignees available.</p>
         ) : (
-          <div className="flex flex-col gap-1.5 max-h-52 overflow-y-auto mb-3">
+          <div className="flex flex-col gap-1.5 max-h-[40vh] sm:max-h-52 overflow-y-auto mb-3">
             {candidates.map((a) => {
               const name = apiUserName(a);
               const isSelected = selected.some((x) => x.user_id === a.user_id);
@@ -342,7 +328,7 @@ function ReassignModal({
                 <button
                   key={a.user_id}
                   onClick={() => toggle(a)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-xl border transition-all text-left ${
+                  className={`flex items-center gap-3 px-4 py-3.5 sm:py-3 rounded-xl border transition-all text-left ${
                     isSelected
                       ? 'border-indigo-400 bg-indigo-50'
                       : 'border-gray-100 hover:border-gray-200 hover:bg-gray-50'
@@ -368,7 +354,6 @@ function ReassignModal({
           </div>
         )}
 
-        {/* Selected summary chips */}
         {selected.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-3 p-2.5 bg-gray-50 rounded-xl border border-gray-100">
             {selected.map((a) => (
@@ -408,8 +393,6 @@ function ReassignModal({
     </>
   );
 }
-
-// ─── Ticket Detail Drawer ─────────────────────────────────────────────────────
 
 function TicketDetailDrawer({
   ticket,
@@ -457,7 +440,6 @@ function TicketDetailDrawer({
 
   const dl = deadlineLabel(ticket.deadline);
 
-  // Participants — sourced directly from ticket data
   const participants = {
     creator:   ticket.creator,
     assignees: [ticket.assignee],
@@ -466,12 +448,9 @@ function TicketDetailDrawer({
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-black/10 z-30" onClick={onClose} />
 
-      {/* Drawer — full-width on mobile, fixed 620px on sm+ */}
       <div className="fixed right-0 top-0 bottom-0 w-full sm:w-[620px] bg-white z-40 shadow-2xl flex flex-col overflow-hidden">
-        {/* Header */}
         <div className={`border-l-4 ${cfg.borderColor} px-4 sm:px-7 pt-5 sm:pt-6 pb-4 sm:pb-5 border-b border-gray-100 shrink-0`}>
           <div className="flex items-start justify-between gap-4 mb-3">
             <div>
@@ -483,13 +462,11 @@ function TicketDetailDrawer({
             </button>
           </div>
 
-          {/* Meta row */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
             <StatusBadge status={ticket.status} onChange={handleStatusChange} />
 
-            {/* Priority */}
             <span
-              className="text-[11px] font-bold px-3 py-1.5 rounded-full border"
+              className="text-[11px] font-bold px-3 py-1.5 rounded-full border shrink-0"
               style={{
                 backgroundColor: PRIORITY_STYLE[ticket.priority].bg,
                 color: PRIORITY_STYLE[ticket.priority].color,
@@ -499,16 +476,14 @@ function TicketDetailDrawer({
               {ticket.priority.toUpperCase()}
             </span>
 
-            {/* Category */}
             <span
-              className="text-[11px] font-semibold px-3 py-1.5 rounded-full"
+              className="text-[11px] font-semibold px-3 py-1.5 rounded-full shrink-0"
               style={getCatStyle(ticket.category)}
             >
               {ticket.category}
             </span>
 
-            {/* Deadline */}
-            <span className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-full ${
+            <span className={`flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-full shrink-0 ${
               dl.urgent ? 'bg-red-50 text-red-500' : 'bg-gray-100 text-gray-500'
             }`}>
               {dl.urgent && <AlertTriangle size={10} />}
@@ -517,7 +492,6 @@ function TicketDetailDrawer({
             </span>
           </div>
 
-          {/* Action buttons — scrollable row on mobile */}
           <div className="flex items-center gap-2 mt-4 overflow-x-auto scrollbar-none pb-0.5">
             <button
               onClick={() => handleStatusChange('solving')}
@@ -551,13 +525,12 @@ function TicketDetailDrawer({
           </div>
         </div>
 
-        {/* Section tabs */}
-        <div className="flex items-center gap-1 px-4 sm:px-7 py-3 border-b border-gray-100 shrink-0">
+        <div className="flex items-center gap-1 px-4 sm:px-7 py-3 border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
           {(['comments', 'history'] as const).map((s) => (
             <button
               key={s}
               onClick={() => setActiveSection(s)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all capitalize ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all capitalize whitespace-nowrap shrink-0 ${
                 activeSection === s ? 'bg-gray-900 text-white' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
               }`}
             >
@@ -566,47 +539,45 @@ function TicketDetailDrawer({
             </button>
           ))}
 
-          {/* Participants pill */}
-          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-100">
+          <div className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-100 shrink-0">
             <Users size={12} className="text-gray-400" />
-            <span className="text-[11px] text-gray-500 font-medium">
+            <span className="text-[11px] text-gray-500 font-medium whitespace-nowrap">
               {1 + participants.assignees.length + participants.followers.length} participants
             </span>
           </div>
         </div>
 
-        {/* Participants bar */}
         <div className="px-4 sm:px-7 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
-          <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Creator</span>
-              <span className="text-[11px] font-medium text-gray-600 bg-white border border-gray-200 rounded-full px-2.5 py-0.5">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-14 sm:w-auto">Creator</span>
+              <span className="text-[11px] font-medium text-gray-600 bg-white border border-gray-200 rounded-full px-2.5 py-0.5 truncate max-w-[180px]">
                 {participants.creator}
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Assignee</span>
-              <div className="flex items-center gap-1.5 bg-white border border-indigo-200 rounded-full px-2.5 py-0.5">
-                <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700">
+              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-14 sm:w-auto">Assignee</span>
+              <div className="flex items-center gap-1.5 bg-white border border-indigo-200 rounded-full px-2.5 py-0.5 max-w-[180px]">
+                <div className="w-4 h-4 rounded-full bg-indigo-200 flex items-center justify-center text-[9px] font-bold text-indigo-700 shrink-0">
                   {ticket.assignee.name.charAt(0)}
                 </div>
-                <span className="text-[11px] font-medium text-indigo-700">{ticket.assignee.name}</span>
+                <span className="text-[11px] font-medium text-indigo-700 truncate">{ticket.assignee.name}</span>
               </div>
             </div>
             {participants.followers.length > 0 && (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Followers</span>
-                <div className="flex items-center gap-1">
+                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide w-14 sm:w-auto">Followers</span>
+                <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
                   {participants.followers.map((f) => (
                     <div
                       key={f.name}
                       title={f.name}
-                      className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 border border-white -ml-1 first:ml-0"
+                      className="w-5 h-5 rounded-full bg-gray-200 flex items-center justify-center text-[9px] font-bold text-gray-600 border border-white -ml-1 first:ml-0 shrink-0"
                     >
                       {f.name.charAt(0)}
                     </div>
                   ))}
-                  <span className="text-[11px] text-gray-400 ml-1.5">
+                  <span className="text-[11px] text-gray-400 ml-1.5 truncate max-w-[120px]">
                     {participants.followers.map((f) => f.name).join(', ')}
                   </span>
                 </div>
@@ -615,7 +586,6 @@ function TicketDetailDrawer({
           </div>
         </div>
 
-        {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-7 py-5">
           {activeSection === 'comments' ? (
             <div className="flex flex-col gap-3">
@@ -680,7 +650,6 @@ function TicketDetailDrawer({
                     </div>
                     <div className={`flex-1 pb-4 rounded-xl px-3 py-2.5 border text-xs ${cardBg}`}>
                       {isReassignment ? (
-                        /* ── Reassignment entry ─────────────────────────── */
                         <>
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="font-semibold text-indigo-700">{h.action}</span>
@@ -708,7 +677,6 @@ function TicketDetailDrawer({
                           )}
                         </>
                       ) : (
-                        /* ── Status-change entry ────────────────────────── */
                         <>
                           <div className="flex items-center gap-2 mb-1">
                             <span className="font-semibold text-gray-800">{h.action}</span>
@@ -740,8 +708,7 @@ function TicketDetailDrawer({
           )}
         </div>
 
-        {/* Comment input */}
-        <div className="px-4 sm:px-7 py-4 border-t border-gray-100 bg-white shrink-0">
+        <div className="px-4 sm:px-7 py-3 sm:py-4 border-t border-gray-100 bg-white shrink-0">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-xs font-semibold text-gray-500">Post as:</span>
             <button
@@ -770,13 +737,13 @@ function TicketDetailDrawer({
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder={commentType === 'internal' ? 'Write an internal note…' : 'Write a public reply to the client…'}
-              className="flex-1 h-20 text-sm text-gray-700 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-gray-200 placeholder-gray-300"
+              className="flex-1 h-16 sm:h-20 text-sm text-gray-700 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-gray-200 placeholder-gray-300"
               onKeyDown={(e) => { if (e.key === 'Enter' && e.metaKey) handlePost(); }}
             />
             <button
               onClick={handlePost}
               disabled={!commentText.trim()}
-              className="w-10 h-10 rounded-xl bg-gray-900 hover:bg-gray-800 disabled:bg-gray-200 text-white flex items-center justify-center transition-colors disabled:cursor-not-allowed shrink-0 mb-0.5"
+              className="w-11 h-11 rounded-xl bg-gray-900 hover:bg-gray-800 disabled:bg-gray-200 text-white flex items-center justify-center transition-colors disabled:cursor-not-allowed shrink-0 mb-0.5"
             >
               <Send size={14} />
             </button>
@@ -784,7 +751,6 @@ function TicketDetailDrawer({
         </div>
       </div>
 
-      {/* Modals */}
       {pendingStatus && (
         <ResolutionModal
           targetStatus={pendingStatus}
@@ -807,8 +773,6 @@ function TicketDetailDrawer({
   );
 }
 
-// ─── Ticket Row (active + resolved) ──────────────────────────────────────────
-
 function TicketRow({
   ticket,
   onOpen,
@@ -824,10 +788,11 @@ function TicketRow({
   const formattedDate = ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
 
   return (
-    <div className={`border-l-4 ${cfg.borderColor} bg-white rounded-xl shadow-sm border border-gray-100 ${isActive ? 'hover:bg-gray-50/40 transition-colors duration-150' : ''}`}>
+    <div className={`border-l-4 ${cfg.borderColor} bg-white rounded-xl shadow-sm border border-gray-100 ${isActive ? 'hover:bg-gray-50/40 transition-colors duration-150' : resolved ? 'hover:bg-gray-50/40 cursor-pointer transition-colors duration-150' : ''}`}
+      onClick={resolved ? () => (document.activeElement as HTMLElement)?.blur?.() : undefined}
+    >
       <div className={`flex items-center gap-3 sm:gap-6 px-3 sm:px-6 ${isActive ? 'py-4' : 'py-3'}`}>
 
-        {/* ID + date */}
         <div className="flex flex-col gap-0.5 w-[80px] sm:w-[120px] shrink-0">
           <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
           {active && (
@@ -845,7 +810,6 @@ function TicketRow({
           )}
         </div>
 
-        {/* Title + meta */}
         <div className="flex-1 min-w-0">
           {active && onOpen ? (
             <>
@@ -855,7 +819,6 @@ function TicketRow({
               >
                 {ticket.title}
               </button>
-              {/* 4-col grid on sm+, 2-col on mobile */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
                 {([
                   { label: 'Category', value: ticket.category },
@@ -871,11 +834,10 @@ function TicketRow({
               </div>
             </>
           ) : (
-            <span className="text-sm font-semibold text-gray-700">{ticket.title}</span>
+            <span className="text-sm font-semibold text-gray-700 text-left">{ticket.title}</span>
           )}
         </div>
 
-        {/* Right side — hide category chip on mobile */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <span className="hidden sm:inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full" style={getCatStyle(ticket.category)}>
             {ticket.category}
@@ -902,12 +864,11 @@ function TicketRow({
     </div>
   );
 }
-// ─── Performance Dashboard ────────────────────────────────────────────────────
 
 interface PerfData {
   total_solved: number;
   total_failed: number;
-  success_rate: string;          // e.g. "83.33%"
+  success_rate: string;
   avg_resolution_time_hours: number | null;
   resolved_by_category: { category: string; count: number }[];
 }
@@ -921,7 +882,7 @@ interface WorkloadData {
 function PerformanceDashboard({ onClose, userName }: { onClose: () => void; userName: string }) {
   const [perf,     setPerf]     = useState<PerfData | null>(null);
   const [workload, setWorkload] = useState<WorkloadData | null>(null);
-  const [loading,  setLoading]  = useState(true);   // start true — data not yet fetched
+  const [loading,  setLoading]  = useState(true);
   const [error,    setError]    = useState<string | null>(null);
 
   useEffect(() => {
@@ -981,7 +942,9 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
   return (
     <>
       <div className="fixed inset-0 bg-black/10 z-30" onClick={onClose} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 bg-white rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-[calc(100vw-2rem)] max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-40 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-full sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+        {/* Mobile drag handle */}
+        <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4 sm:hidden" />
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
@@ -1047,8 +1010,6 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
-
 export default function AssigneeTicketsPage() {
   const [activeTab,        setActiveTab]        = useState<TicketStatus | 'all' | 'resolved'>('all');
   const [activeTickets,    setActiveTickets]    = useState<AssigneeTicket[]>([]);
@@ -1059,7 +1020,6 @@ export default function AssigneeTicketsPage() {
   const [showPerformance,  setShowPerformance]  = useState(false);
   const [currentUserName,  setCurrentUserName]  = useState('Assignee');
 
-  // ── Load logged-in user name from Supabase ─────────────────────────────────
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -1073,7 +1033,6 @@ export default function AssigneeTicketsPage() {
     });
   }, []);
 
-  // ── Initial data fetch ─────────────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
       apiFetch<ApiTicketRaw[]>('/tickets/assigned'),
@@ -1089,7 +1048,6 @@ export default function AssigneeTicketsPage() {
       .finally(() => setTicketsLoading(false));
   }, []);
 
-  // ── Open ticket: also fetch comments + history ─────────────────────────────
   const handleOpenTicket = useCallback(async (ticket: AssigneeTicket) => {
     setOpenTicket(ticket);
     try {
@@ -1108,7 +1066,43 @@ export default function AssigneeTicketsPage() {
     }
   }, []);
 
-  // ── Status change ──────────────────────────────────────────────────────────
+  // ── ADDED: open a resolved ticket in the drawer (view-only) ───────────────
+  const handleOpenResolvedTicket = useCallback(async (ticket: ResolvedTicket) => {
+    // Build a minimal AssigneeTicket so the existing drawer can render immediately
+    const shell: AssigneeTicket = {
+      ticketId:  ticket.ticketId,
+      title:     ticket.title,
+      category:  ticket.category,
+      status:    ticket.status as TicketStatus,
+      priority:  ticket.priority,
+      date:      ticket.date,
+      deadline:  ticket.resolvedDate,
+      assignee:  { name: '…', fallback: '?', role: '', department: '' },
+      creator:   '',
+      followers: [],
+      history:   [],
+      comments:  [],
+    };
+    setOpenTicket(shell);
+    try {
+      const [rawComments, historyRes, fullRaw] = await Promise.all([
+        apiFetch<ApiComment[]>(`/tickets/id/${ticket.ticketId}/comments`),
+        apiFetch<{ history: ApiHistoryEntry[] }>(`/tickets/id/${ticket.ticketId}/history`),
+        apiFetch<ApiTicketRaw>(`/tickets/id/${ticket.ticketId}`),
+      ]);
+      const comments = rawComments.map(mapApiComment);
+      const history  = (historyRes.history ?? []).map(mapHistoryEntry);
+      setOpenTicket({
+        ...mapApiTicket(fullRaw),
+        status:   ticket.status as TicketStatus,
+        comments,
+        history,
+      });
+    } catch (err) {
+      console.error('fetch resolved ticket details:', err);
+    }
+  }, []);
+
   const handleStatusChange = useCallback(async (id: string, status: TicketStatus, comment?: string) => {
     try {
       await apiFetch(`/tickets/id/${id}/status`, {
@@ -1155,9 +1149,7 @@ export default function AssigneeTicketsPage() {
     });
   }, [currentUserName]);
 
-  // ── Reassign ───────────────────────────────────────────────────────────────
   const handleReassign = useCallback(async (id: string, users: ApiUser[], note: string) => {
-    // Assign to the first selected user (primary); remaining are just noted
     const primary = users[0];
     if (!primary) return;
     try {
@@ -1188,7 +1180,6 @@ export default function AssigneeTicketsPage() {
     });
   }, [currentUserName]);
 
-  // ── Post comment ───────────────────────────────────────────────────────────
   const handleCommentPost = useCallback(async (id: string, text: string, type: 'internal' | 'public') => {
     try {
       await apiFetch(`/tickets/id/${id}/comments`, {
@@ -1208,7 +1199,6 @@ export default function AssigneeTicketsPage() {
     );
   }, [currentUserName]);
 
-  // ── Derived state ──────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     if (activeTab === 'resolved') return [];
     return activeTickets.filter((t) => activeTab === 'all' || t.status === activeTab);
@@ -1229,7 +1219,6 @@ export default function AssigneeTicketsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
-        {/* Sub-header: user info + performance button */}
         <div className="flex items-center justify-between px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700 shrink-0">
@@ -1250,7 +1239,6 @@ export default function AssigneeTicketsPage() {
           </button>
         </div>
 
-        {/* Filter tabs — scrollable on mobile */}
         <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
           {STATUS_TABS.map((tab) => {
             const isActive = activeTab === tab.value;
@@ -1274,7 +1262,6 @@ export default function AssigneeTicketsPage() {
           })}
         </div>
 
-        {/* Ticket list */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
           {ticketsLoading ? (
             <div className="flex items-center justify-center py-20 text-gray-400 gap-3">
@@ -1289,7 +1276,13 @@ export default function AssigneeTicketsPage() {
                   <p className="text-sm font-medium">No resolved tickets yet</p>
                 </div>
               ) : (
-                resolvedTickets.map((t) => <TicketRow key={t.ticketId} ticket={t} />)
+                resolvedTickets.map((t) => (
+                  <TicketRow
+                    key={t.ticketId}
+                    ticket={t}
+                    onOpen={(active) => handleOpenResolvedTicket(t)}
+                  />
+                ))
               )}
             </div>
           ) : filtered.length > 0 ? (
@@ -1308,7 +1301,6 @@ export default function AssigneeTicketsPage() {
         </div>
       </div>
 
-      {/* Ticket Detail Drawer */}
       {openTicket && (
         <TicketDetailDrawer
           ticket={openTicket}
@@ -1320,7 +1312,6 @@ export default function AssigneeTicketsPage() {
         />
       )}
 
-      {/* Performance Modal */}
       {showPerformance && (
         <PerformanceDashboard onClose={() => setShowPerformance(false)} userName={currentUserName} />
       )}
