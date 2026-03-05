@@ -13,6 +13,8 @@ export function EnterOtpForm({ email }: EnterOtpFormProps) {
   const router = useRouter();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [countdown, setCountdown] = useState(59);
   const [canResend, setCanResend] = useState(false);
@@ -41,23 +43,30 @@ export function EnterOtpForm({ email }: EnterOtpFormProps) {
   const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
-    const newOtp = [...otp];
+    const newOtp = ["", "", "", "", "", ""];
     pasted.split("").forEach((char, i) => { newOtp[i] = char; });
     setOtp(newOtp);
     inputRefs.current[Math.min(pasted.length, 5)]?.focus();
   };
 
   const handleResend = async () => {
+    setIsResending(true);
+    setError(null);
+    setResendSuccess(false);
+
     try {
       await sendPasswordResetOtp(email);
-    } catch {
-      // silently fail — user already sees the form
+      setResendSuccess(true);
+      setCountdown(59);
+      setCanResend(false);
+      setOtp(["", "", "", "", "", ""]);
+      inputRefs.current[0]?.focus();
+      setTimeout(() => setResendSuccess(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to resend. Try again.");
+    } finally {
+      setIsResending(false);
     }
-    setCountdown(59);
-    setCanResend(false);
-    setOtp(["", "", "", "", "", ""]);
-    setError(null);
-    inputRefs.current[0]?.focus();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -101,10 +110,16 @@ export function EnterOtpForm({ email }: EnterOtpFormProps) {
         ))}
       </div>
 
+      {/* Countdown / Resend */}
       <div className="flex items-center gap-2 text-sm text-gray-500">
         {canResend ? (
-          <button type="button" onClick={handleResend} className="text-black underline font-medium">
-            Resend code
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={isResending}
+            className="text-black underline font-medium disabled:opacity-50"
+          >
+            {isResending ? "Sending..." : "Resend code"}
           </button>
         ) : (
           <>
@@ -117,6 +132,16 @@ export function EnterOtpForm({ email }: EnterOtpFormProps) {
         )}
       </div>
 
+      {/* Resend success */}
+      {resendSuccess && (
+        <div className="rounded-lg bg-green-50 border border-green-200 px-3 py-2">
+          <p className="text-sm text-green-700">
+            A new code has been sent to <span className="font-semibold">{email}</span>
+          </p>
+        </div>
+      )}
+
+      {/* Error */}
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-3 py-2">
           <p className="text-sm text-red-600">{error}</p>
