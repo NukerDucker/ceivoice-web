@@ -79,7 +79,7 @@ interface TicketDetail {
 interface CurrentUser {
   user_id:   string;
   full_name: string | null;
-  role:      string;
+  role:      UserRole; // ✅ CHANGED: was `string`, now `UserRole`
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -120,6 +120,18 @@ const VALID_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
   failed:     ['reassigned', 'renew'],
   renew:      ['reassigned', 'assigned'],
   reassigned: ['assigned', 'solving'],
+};
+
+// Transitions available to assignee role only (can only reassign)
+const ASSIGNEE_TRANSITIONS: Record<TicketStatus, TicketStatus[]> = {
+  draft:      [],
+  new:        ['reassigned'],
+  assigned:   ['reassigned'],
+  solving:    [],
+  solved:     [],
+  failed:     ['reassigned'],
+  renew:      ['reassigned'],
+  reassigned: [],
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -198,7 +210,9 @@ function StatusDropdown({ current, role, onChangeStatus }: {
 }) {
   const [open, setOpen]                     = useState(false);
   const [requireComment, setRequireComment] = useState<TicketStatus | null>(null);
-  const transitions = VALID_TRANSITIONS[current] ?? [];
+  const transitions = role === 'assignee'
+    ? (ASSIGNEE_TRANSITIONS[current] ?? [])
+    : (VALID_TRANSITIONS[current] ?? []);
   const canChange   = role === 'admin' || role === 'assignee';
 
   if (!canChange) return <StatusBadge status={current} />;
@@ -442,7 +456,8 @@ function CommentComposer({ role, onSubmit }: {
   onSubmit: (content: string, visibility: CommentVisibility) => Promise<void>;
 }) {
   const [content,    setContent]    = useState('');
-  const [visibility, setVisibility] = useState<CommentVisibility>('PUBLIC');  const [submitting, setSubmitting] = useState(false);
+  const [visibility, setVisibility] = useState<CommentVisibility>('PUBLIC');
+  const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit() {
     if (!content.trim()) return;
@@ -639,7 +654,9 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
-        const role = (user?.user_metadata?.role ?? user?.app_metadata?.role ?? 'user') as string;
+        // ✅ CHANGED: Added .toLowerCase() and cast to UserRole so 'Admin'/'Assignee' from
+        //    Supabase metadata correctly matches the role checks (canEdit, canAct, etc.)
+        const role = (user?.user_metadata?.role ?? user?.app_metadata?.role ?? 'user').toLowerCase() as UserRole;
         setCurrentUser({ user_id: user?.id ?? '', full_name: user?.user_metadata?.full_name ?? null, role });
       } catch (e) {
         setError('Failed to load ticket.');
@@ -796,7 +813,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Calendar size={9} /> Deadline</p>
-                    {canAct && (
+                    {canEdit && (
                       <button
                         onClick={() => setShowDeadline(true)}
                         className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
@@ -934,11 +951,11 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                 )}
               </div>
 
-              {/* Assignee — with edit button for admin/assignee */}
+              {/* Assignee */}
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Briefcase size={9} /> Assignee</p>
-                  {canAct && (
+                  {canEdit && (
                     <button
                       onClick={() => setShowReassign(true)}
                       className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
