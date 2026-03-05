@@ -57,7 +57,7 @@ function StatusBadge({ status, onChange }: { status: TicketStatus; onChange: (s:
           {cfg.label}
         </span>
         <button
-          onClick={() => setOpen((o) => !o)}
+          onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
           className={`px-2 py-1.5 border-l ${cfg.badgeBorder} ${cfg.badgeText} hover:opacity-70 transition-opacity`}
         >
           <ChevronDown size={12} />
@@ -107,7 +107,8 @@ function TicketRow({
   const cfg     = STATUS_CONFIG[status];
   const created = new Date(ticket.created_at);
 
-  const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
+  // ── FIXED: now navigates to the ticket detail page ──
+  const handleReview = () => router.push(`/admin/tickets/${ticket.ticket_id}`);
 
   const handleStatusChange = (s: TicketStatus) => {
     setStatus(s);
