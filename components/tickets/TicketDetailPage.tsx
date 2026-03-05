@@ -718,7 +718,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
   async function handleDeadlineSave(iso: string) {
     if (!ticket) return;
     try {
-      await apiFetch(`/tickets/id/${ticketId}`, {
+      await apiFetch(`/tickets/id/${ticketId}/deadline`, {
         method: 'PUT',
         body: JSON.stringify({ deadline: iso }),
       });
