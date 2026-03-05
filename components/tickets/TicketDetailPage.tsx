@@ -651,12 +651,14 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
             changed_by: h.changed_by ? { user_id: h.changed_by.user_id, full_name: h.changed_by.name, user_name: null, email: '' } : { user_id: '', full_name: 'System', user_name: null, email: '' },
           })),
         });
+        // Read role directly from JWT claims (app_role is injected by Supabase hook)
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
-        const { data: { user } } = await supabase.auth.getUser();
-        // ✅ CHANGED: Added .toLowerCase() and cast to UserRole so 'Admin'/'Assignee' from
-        //    Supabase metadata correctly matches the role checks (canEdit, canAct, etc.)
-        const role = (user?.user_metadata?.role ?? user?.app_metadata?.role ?? 'user').toLowerCase() as UserRole;
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token ?? '';
+        const claims = token ? JSON.parse(atob(token.split('.')[1])) : {};
+        const role = (claims.app_role ?? 'user').toLowerCase() as UserRole;
+        const user = session?.user;
         setCurrentUser({ user_id: user?.id ?? '', full_name: user?.user_metadata?.full_name ?? null, role });
       } catch (e) {
         setError('Failed to load ticket.');
