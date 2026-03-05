@@ -765,6 +765,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
 
   const canEdit = role === 'admin';
   const canAct  = role === 'admin' || role === 'assignee';
+  const canActOnStatus = ['new', 'assigned', 'failed'].includes(currentStatus);
   const visibleComments = ticket.comments.filter(
     (c) => role !== 'user' || c.visibility === 'PUBLIC'
   );
@@ -826,7 +827,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Calendar size={9} /> Deadline</p>
-                    {canEdit && (
+                    {canEdit && canActOnStatus && (
                       <button
                         onClick={() => setShowDeadline(true)}
                         className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
@@ -930,7 +931,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
           <div className="space-y-4">
 
             {/* Actions */}
-            {canAct && (
+            {canAct && canActOnStatus && (
               <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Actions</p>
                 <button
@@ -968,7 +969,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wide flex items-center gap-1"><Briefcase size={9} /> Assignee</p>
-                  {canEdit && (
+                  {canEdit && canActOnStatus && (
                     <button
                       onClick={() => setShowReassign(true)}
                       className="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-0.5 transition-colors"
