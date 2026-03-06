@@ -107,7 +107,6 @@ function TicketRow({
   const cfg     = STATUS_CONFIG[status];
   const created = new Date(ticket.created_at);
 
-  // ── FIXED: now navigates to the ticket detail page ──
   const handleReview = () => router.push(`/admin/tickets/${ticket.ticket_id}`);
 
   const handleStatusChange = (s: TicketStatus) => {
@@ -217,16 +216,17 @@ function TicketRow({
             {ticket.title ?? '(Untitled)'}
           </button>
 
-          <div className="grid grid-cols-4 gap-4">
+          {/* ── FIXED: flex with fixed-width columns so every row aligns ── */}
+          <div className="flex items-start">
             {[
-              { label: 'Category',  value: ticket.category?.name ?? '—' },
-              { label: 'Priority',  value: 'N/A'                        },
-              { label: 'Assignee',  value: ticket.assignee?.full_name ?? ticket.assignee?.user_name ?? 'Unassigned' },
-              { label: 'Ticket-Id', value: `#${ticket.ticket_id}`       },
-            ].map(({ label, value }) => (
-              <div key={label} className="flex flex-col gap-0.5">
+              { label: 'Category',  value: ticket.category?.name ?? '—',                                             width: 'w-[160px]' },
+              { label: 'Priority',  value: 'N/A',                                                                    width: 'w-[100px]' },
+              { label: 'Assignee',  value: ticket.assignee?.full_name ?? ticket.assignee?.user_name ?? 'Unassigned',  width: 'w-[200px]' },
+              { label: 'Ticket-Id', value: `#${ticket.ticket_id}`,                                                   width: 'w-[100px]' },
+            ].map(({ label, value, width }) => (
+              <div key={label} className={`flex flex-col gap-0.5 ${width} shrink-0`}>
                 <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
-                <span className="text-xs text-gray-600 font-medium">{value}</span>
+                <span className="text-xs text-gray-600 font-medium truncate">{value}</span>
               </div>
             ))}
           </div>

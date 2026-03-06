@@ -218,7 +218,6 @@ function ResolutionModal({
     <>
       <div className="fixed inset-0 bg-black/20 z-50" onClick={onCancel} />
       <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-full sm:max-w-[480px]">
-        {/* Mobile drag handle */}
         <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4 sm:hidden" />
         <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-4 ${isSolved ? 'bg-green-100' : 'bg-red-100'}`}>
           {isSolved
@@ -296,7 +295,6 @@ function ReassignModal({
     <>
       <div className="fixed inset-0 bg-black/20 z-50" onClick={onCancel} />
       <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-50 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-full sm:max-w-[480px] max-h-[90vh] overflow-y-auto">
-        {/* Mobile drag handle */}
         <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4 sm:hidden" />
         <div className="flex items-center gap-3 mb-5">
           <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center">
@@ -821,7 +819,24 @@ function TicketRow({
               >
                 {ticket.title}
               </button>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+
+              {/* ── FIXED: flex with fixed-width columns so every row aligns ── */}
+              <div className="hidden sm:flex items-start">
+                {([
+                  { label: 'Category', value: ticket.category,                                                                       width: 'w-[160px]' },
+                  { label: 'Priority', value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1),                    width: 'w-[100px]' },
+                  { label: 'Assignee', value: active.assignee.name,                                                                  width: 'w-[200px]' },
+                  { label: 'Comments', value: `${active.comments.length} comment${active.comments.length !== 1 ? 's' : ''}`,         width: 'w-[120px]' },
+                ] as { label: string; value: string; width: string }[]).map(({ label, value, width }) => (
+                  <div key={label} className={`flex flex-col gap-0.5 ${width} shrink-0`}>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
+                    <span className="text-xs text-gray-600 font-medium truncate">{value}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Mobile: 2-col grid (unchanged) */}
+              <div className="grid grid-cols-2 gap-2 sm:hidden">
                 {([
                   { label: 'Category', value: ticket.category },
                   { label: 'Priority', value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) },
@@ -963,7 +978,6 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
     <>
       <div className="fixed inset-0 bg-black/10 z-30" onClick={onClose} />
       <div className="fixed bottom-0 left-0 right-0 sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 z-40 bg-white rounded-t-2xl sm:rounded-2xl shadow-xl border border-gray-100 p-5 sm:p-8 w-full sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        {/* Mobile drag handle */}
         <div className="w-10 h-1 rounded-full bg-gray-200 mx-auto mb-4 sm:hidden" />
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-3">
@@ -1086,9 +1100,7 @@ export default function AssigneeTicketsPage() {
     }
   }, []);
 
-  // ── ADDED: open a resolved ticket in the drawer (view-only) ───────────────
   const handleOpenResolvedTicket = useCallback(async (ticket: ResolvedTicket) => {
-    // Build a minimal AssigneeTicket so the existing drawer can render immediately
     const shell: AssigneeTicket = {
       ticketId:  ticket.ticketId,
       title:     ticket.title,
