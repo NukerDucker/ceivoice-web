@@ -72,7 +72,7 @@ interface SuggestedMerge {
   id: number;
   suggested_parent_id: number;
   suggested_child_id: number;
-  similarity_score: number;
+  similarity_reason: string | null;
   created_at: string;
   suggested_parent: SuggestedMergeTicket;
   suggested_child: SuggestedMergeTicket;
@@ -83,15 +83,10 @@ interface MergeGroup {
   childIds: number[];
   parent: SuggestedMergeTicket;
   children: SuggestedMergeTicket[];
-  avgSimilarity: number;
+  reason: string | null;
 }
 
 // ─── Cluster suggestions by parent ticket ────────────────────────────────────
-
-// Normalize score: if stored as 0–1 decimal, convert to 0–100
-function normalizeScore(score: number): number {
-  return Math.round(score <= 1 ? score * 100 : score);
-}
 
 function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
   const groupMap = new Map<number, MergeGroup>();
@@ -105,18 +100,13 @@ function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
         existing.childIds.push(s.suggested_child_id);
         existing.children.push(s.suggested_child);
       }
-      // Recalculate avg
-      const scores = suggestions
-        .filter((x) => x.suggested_parent_id === parentId)
-        .map((x) => normalizeScore(x.similarity_score));
-      existing.avgSimilarity = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     } else {
       groupMap.set(parentId, {
         parentId,
         childIds: [s.suggested_child_id],
         parent: s.suggested_parent,
         children: [s.suggested_child],
-        avgSimilarity: normalizeScore(s.similarity_score),
+        reason: s.similarity_reason,
       });
     }
   }
@@ -135,10 +125,7 @@ function MergeGroupCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const matchColor =
-    group.avgSimilarity >= 90 ? 'bg-green-50 text-green-700 border-green-200' :
-    group.avgSimilarity >= 75 ? 'bg-amber-50 text-amber-700 border-amber-200' :
-                                'bg-red-50 text-red-600 border-red-200';
+
 
   return (
     <div
@@ -163,9 +150,11 @@ function MergeGroupCard({
           <span className="text-xs font-semibold text-gray-600">
             {1 + group.children.length} tickets to merge
           </span>
-          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${matchColor}`}>
-            <Bot size={9} />{group.avgSimilarity}% match
-          </span>
+          {group.reason && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border bg-violet-50 text-violet-600 border-violet-200 max-w-[200px] truncate">
+              <Bot size={9} />{group.reason}
+            </span>
+          )}
         </div>
         <Merge size={13} className="text-violet-400" />
       </div>
@@ -541,17 +530,20 @@ export default function AdminDraftQueuePage() {
   const [search,           setSearch]           = useState('');
   const [showSuggestMerge, setShowSuggestMerge] = useState(false);
 
-  const loadDrafts = useCallback(() => {
-    let cancelled = false;
+  const fetchDrafts = useCallback(async () => {
     setLoading(true);
     setError(null);
-    apiFetch<ApiDraft[]>(`/admin/drafts?t=${Date.now()}`)
-      .then((data) => { if (!cancelled) { setDrafts(data); setLoading(false); } })
-      .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
-    return () => { cancelled = true; };
+    try {
+      const data = await apiFetch<ApiDraft[]>(`/admin/drafts?t=${Date.now()}`);
+      setDrafts(data);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load drafts');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => loadDrafts(), [loadDrafts]);
+  useEffect(() => { fetchDrafts(); }, [fetchDrafts]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return drafts;
@@ -595,7 +587,7 @@ export default function AdminDraftQueuePage() {
       });
       setShowMergeConfirm(false);
       setSelectedIds(new Set());
-      loadDrafts();
+      await fetchDrafts();
       router.push(`/admin/review-ticket?id=${parentId}`);
     } catch (err: unknown) {
       setMergeError(err instanceof Error ? err.message : 'Merge failed');
@@ -708,7 +700,7 @@ export default function AdminDraftQueuePage() {
       {showSuggestMerge && (
         <SuggestMergeModal
           onClose={() => setShowSuggestMerge(false)}
-          onMergeComplete={loadDrafts}
+          onMergeComplete={fetchDrafts}
         />
       )}
 
