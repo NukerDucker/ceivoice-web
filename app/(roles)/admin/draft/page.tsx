@@ -87,18 +87,24 @@ interface MergeGroup {
 }
 
 // ─── Cluster suggestions by parent ticket ────────────────────────────────────
+// FIX 3 & 4: Deduplicate children across groups and filter out parent/child conflicts
 
 function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
   const groupMap = new Map<number, MergeGroup>();
+  const assignedChildren = new Set<number>(); // FIX 3: track claimed children
 
   for (const s of suggestions) {
     const parentId = s.suggested_parent_id;
-    const existing = groupMap.get(parentId);
 
+    // FIX 3: skip if this child is already claimed by another group
+    if (assignedChildren.has(s.suggested_child_id)) continue;
+
+    const existing = groupMap.get(parentId);
     if (existing) {
       if (!existing.childIds.includes(s.suggested_child_id)) {
         existing.childIds.push(s.suggested_child_id);
         existing.children.push(s.suggested_child);
+        assignedChildren.add(s.suggested_child_id);
       }
     } else {
       groupMap.set(parentId, {
@@ -108,10 +114,18 @@ function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
         children: [s.suggested_child],
         reason: s.similarity_reason,
       });
+      assignedChildren.add(s.suggested_child_id);
     }
   }
 
-  return Array.from(groupMap.values());
+  // FIX 4: remove groups where the parent ticket is also a child in another group
+  const allChildIds = new Set(
+    Array.from(groupMap.values()).flatMap((g) => g.childIds)
+  );
+
+  return Array.from(groupMap.values()).filter(
+    (g) => !allChildIds.has(g.parentId)
+  );
 }
 
 // ─── Merge Group Card ─────────────────────────────────────────────────────────
@@ -125,8 +139,6 @@ function MergeGroupCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-
-
   return (
     <div
       onClick={onToggle}
@@ -654,8 +666,9 @@ export default function AdminDraftQueuePage() {
           </div>
         </div>
 
-        {/* Draft list */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
+        {/* FIX 1: Added min-h-0 so flex child can shrink and overflow-y-auto activates correctly.
+            Also added pb-28 so content isn't hidden behind the MergePopup floating bar. */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6 pb-28">
           {loading ? (
             <div className="flex flex-col items-center justify-center py-20 text-gray-400">
               <p className="text-sm font-medium">Loading drafts…</p>
