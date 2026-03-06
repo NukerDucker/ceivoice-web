@@ -73,6 +73,7 @@ interface SuggestedMerge {
   suggested_parent_id: number;
   suggested_child_id: number;
   similarity_reason: string | null;
+  is_merged: boolean;
   created_at: string;
   suggested_parent: SuggestedMergeTicket;
   suggested_child: SuggestedMergeTicket;
@@ -233,7 +234,8 @@ function SuggestMergeModal({
     setError(null);
     try {
       const data = await apiFetch<{ suggested_merges: SuggestedMerge[] }>('/admin/suggested-merges');
-      const clustered = clusterMerges(data.suggested_merges ?? []);
+      const pending = (data.suggested_merges ?? []).filter((s) => !s.is_merged);
+      const clustered = clusterMerges(pending);
       setGroups(clustered);
       setSelected(new Set(clustered.map((g) => g.parentId)));
     } catch (err: unknown) {
