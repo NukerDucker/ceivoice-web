@@ -88,6 +88,11 @@ interface MergeGroup {
 
 // ─── Cluster suggestions by parent ticket ────────────────────────────────────
 
+// Normalize score: if stored as 0–1 decimal, convert to 0–100
+function normalizeScore(score: number): number {
+  return Math.round(score <= 1 ? score * 100 : score);
+}
+
 function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
   const groupMap = new Map<number, MergeGroup>();
 
@@ -103,7 +108,7 @@ function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
       // Recalculate avg
       const scores = suggestions
         .filter((x) => x.suggested_parent_id === parentId)
-        .map((x) => x.similarity_score);
+        .map((x) => normalizeScore(x.similarity_score));
       existing.avgSimilarity = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     } else {
       groupMap.set(parentId, {
@@ -111,7 +116,7 @@ function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
         childIds: [s.suggested_child_id],
         parent: s.suggested_parent,
         children: [s.suggested_child],
-        avgSimilarity: Math.round(s.similarity_score),
+        avgSimilarity: normalizeScore(s.similarity_score),
       });
     }
   }
@@ -540,7 +545,7 @@ export default function AdminDraftQueuePage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
-    apiFetch<ApiDraft[]>('/admin/drafts')
+    apiFetch<ApiDraft[]>(`/admin/drafts?t=${Date.now()}`)
       .then((data) => { if (!cancelled) { setDrafts(data); setLoading(false); } })
       .catch((err: Error) => { if (!cancelled) { setError(err.message); setLoading(false); } });
     return () => { cancelled = true; };
