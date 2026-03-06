@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Search, Merge, X, Bot } from 'lucide-react';
+import { Search, Merge, X, Bot, Sparkles, ChevronRight, Users, AlertCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/DraftTB';
 import { apiFetch } from '@/lib/api-client';
@@ -59,6 +59,338 @@ function ConfidencePill({ value }: { value: number }) {
   );
 }
 
+// ─── Suggest Merge Types ──────────────────────────────────────────────────────
+
+interface SuggestedMerge {
+  ticket_id_1: number;
+  ticket_id_2: number;
+  similarity_score: number;
+  ticket_1?: {
+    ticket_id: number;
+    title: string;
+    ticket_requests?: { request?: { email?: string } }[];
+    category?: { name: string };
+  };
+  ticket_2?: {
+    ticket_id: number;
+    title: string;
+    ticket_requests?: { request?: { email?: string } }[];
+    category?: { name: string };
+  };
+}
+
+interface MergeGroup {
+  parentId: number;
+  childIds: number[];
+  tickets: NonNullable<SuggestedMerge['ticket_1']>[];
+  avgSimilarity: number;
+}
+
+// ─── Cluster pairwise suggestions into groups ─────────────────────────────────
+
+function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
+  const groups: Map<number, Set<number>> = new Map();
+
+  for (const s of suggestions) {
+    const id1 = s.ticket_id_1;
+    const id2 = s.ticket_id_2;
+    let foundKey: number | null = null;
+    for (const [key, set] of groups) {
+      if (set.has(id1) || set.has(id2)) { foundKey = key; break; }
+    }
+    if (foundKey !== null) {
+      groups.get(foundKey)!.add(id1);
+      groups.get(foundKey)!.add(id2);
+    } else {
+      groups.set(id1, new Set([id1, id2]));
+    }
+  }
+
+  return Array.from(groups.entries()).map(([, idSet]) => {
+    const ids = Array.from(idSet).sort((a, b) => a - b);
+    const [first, ...rest] = ids;
+    const ticketMap = new Map<number, NonNullable<SuggestedMerge['ticket_1']>>();
+    for (const s of suggestions) {
+      if (s.ticket_1) ticketMap.set(s.ticket_id_1, s.ticket_1);
+      if (s.ticket_2) ticketMap.set(s.ticket_id_2, s.ticket_2);
+    }
+    const tickets = ids.map((id) => ticketMap.get(id)).filter(Boolean) as NonNullable<SuggestedMerge['ticket_1']>[];
+    const pairs = suggestions.filter((s) => idSet.has(s.ticket_id_1) && idSet.has(s.ticket_id_2));
+    const avgSimilarity = pairs.length
+      ? Math.round(pairs.reduce((acc, s) => acc + s.similarity_score, 0) / pairs.length)
+      : 0;
+    return { parentId: first, childIds: rest, tickets, avgSimilarity };
+  });
+}
+
+// ─── Suggest Merge — Group Card ───────────────────────────────────────────────
+
+function MergeGroupCard({
+  group,
+  selected,
+  onToggle,
+}: {
+  group: MergeGroup;
+  selected: boolean;
+  onToggle: () => void;
+}) {
+  const parent   = group.tickets.find((t) => t.ticket_id === group.parentId);
+  const children = group.tickets.filter((t) => t.ticket_id !== group.parentId);
+  const followers = group.tickets
+    .flatMap((t) => t.ticket_requests?.map((r) => r.request?.email).filter(Boolean) ?? [])
+    .filter((email, i, arr) => arr.indexOf(email) === i) as string[];
+
+  const matchColor =
+    group.avgSimilarity >= 90 ? 'bg-green-50 text-green-700 border-green-200' :
+    group.avgSimilarity >= 75 ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                'bg-red-50 text-red-600 border-red-200';
+
+  return (
+    <div
+      onClick={onToggle}
+      className={`cursor-pointer rounded-xl border-2 transition-all duration-150 overflow-hidden
+        ${selected ? 'border-violet-400 bg-violet-50/40 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'}`}
+    >
+      {/* Card header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center gap-2">
+          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors
+            ${selected ? 'bg-violet-500 border-violet-500' : 'border-gray-300'}`}>
+            {selected && (
+              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 10 10">
+                <path d="M1.5 5l2.5 2.5 4.5-4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </div>
+          <span className="text-xs font-semibold text-gray-600">{group.tickets.length} tickets to merge</span>
+          <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${matchColor}`}>
+            <Bot size={9} />{group.avgSimilarity}% match
+          </span>
+        </div>
+        <Merge size={13} className="text-violet-400" />
+      </div>
+
+      {/* Tickets */}
+      <div className="px-4 py-3">
+        <div className="flex items-start gap-2 mb-2">
+          <span className="shrink-0 mt-0.5 text-[9px] font-bold px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded uppercase tracking-wide">
+            Parent
+          </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-gray-800 leading-snug">{parent?.title ?? '(Untitled)'}</p>
+            <p className="text-[11px] text-gray-400 mt-0.5">#{parent?.ticket_id}</p>
+          </div>
+        </div>
+        {children.map((child) => (
+          <div key={child.ticket_id} className="flex items-start gap-2 ml-6 mt-2">
+            <ChevronRight size={12} className="text-gray-300 mt-0.5 shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs text-gray-600 font-medium leading-snug">{child.title}</p>
+              <p className="text-[11px] text-gray-400">#{child.ticket_id}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Followers */}
+      {followers.length > 0 && (
+        <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+          <Users size={11} className="text-gray-400 shrink-0" />
+          <div className="flex flex-wrap gap-1">
+            {followers.slice(0, 3).map((email) => (
+              <span key={email} className="text-[10px] text-gray-500 bg-white border border-gray-200 px-1.5 py-0.5 rounded-md font-mono truncate max-w-[160px]">
+                {email}
+              </span>
+            ))}
+            {followers.length > 3 && (
+              <span className="text-[10px] text-gray-400">+{followers.length - 3} more followers</span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Suggest Merge Modal ──────────────────────────────────────────────────────
+
+function SuggestMergeModal({
+  onClose,
+  onMergeComplete,
+}: {
+  onClose: () => void;
+  onMergeComplete: () => void;
+}) {
+  const [loading,       setLoading]       = useState(true);
+  const [error,         setError]         = useState<string | null>(null);
+  const [groups,        setGroups]        = useState<MergeGroup[]>([]);
+  const [selectedGroups, setSelected]     = useState<Set<number>>(new Set());
+  const [merging,       setMerging]       = useState(false);
+  const [mergeError,    setMergeError]    = useState<string | null>(null);
+  const [done,          setDone]          = useState(false);
+
+  const fetchSuggestions = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await apiFetch<{ suggested_merges: SuggestedMerge[] }>('/admin/suggested-merges');
+      const clustered = clusterMerges(data.suggested_merges ?? []);
+      setGroups(clustered);
+      setSelected(new Set(clustered.map((g) => g.parentId)));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load suggestions');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { fetchSuggestions(); }, [fetchSuggestions]);
+
+  const toggleGroup = (parentId: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(parentId)) next.delete(parentId); else next.add(parentId);
+      return next;
+    });
+  };
+
+  const handleMergeAll = async () => {
+    const toMerge = groups.filter((g) => selectedGroups.has(g.parentId));
+    if (toMerge.length === 0) return;
+    setMerging(true);
+    setMergeError(null);
+    try {
+      for (const group of toMerge) {
+        if (group.childIds.length === 0) continue;
+        await apiFetch(`/admin/${group.parentId}/merge`, {
+          method: 'POST',
+          body: JSON.stringify({ child_ticket_ids: group.childIds }),
+        });
+      }
+      setDone(true);
+      onMergeComplete();
+    } catch (err: unknown) {
+      setMergeError(err instanceof Error ? err.message : 'Merge failed');
+    } finally {
+      setMerging(false);
+    }
+  };
+
+  const selectedCount = groups.filter((g) => selectedGroups.has(g.parentId)).length;
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/25 backdrop-blur-[2px] z-50" onClick={onClose} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50
+        w-[calc(100vw-2rem)] sm:w-[520px] max-h-[80vh]
+        bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 bg-violet-100 rounded-lg flex items-center justify-center">
+              <Sparkles size={14} className="text-violet-600" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-gray-900">AI Merge Suggestions</h2>
+              <p className="text-[11px] text-gray-400">Similar tickets grouped by AI</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+          >
+            <X size={14} className="text-gray-400" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Loader2 size={28} className="animate-spin mb-3 text-violet-400" />
+              <p className="text-sm font-medium">Analysing tickets…</p>
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center py-16 text-red-400">
+              <AlertCircle size={28} className="mb-3" />
+              <p className="text-sm font-medium">Failed to load suggestions</p>
+              <p className="text-[11px] mt-1 opacity-70">{error}</p>
+              <button onClick={fetchSuggestions} className="mt-4 text-xs text-violet-600 hover:underline">
+                Try again
+              </button>
+            </div>
+          ) : done ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-600">
+              <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mb-3">
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24">
+                  <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </div>
+              <p className="text-sm font-bold text-gray-800">Merge complete!</p>
+              <p className="text-xs text-gray-400 mt-1">Tickets merged and followers assigned.</p>
+              <button
+                onClick={onClose}
+                className="mt-5 px-4 py-2 bg-gray-900 text-white text-xs font-semibold rounded-xl hover:bg-gray-800 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          ) : groups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <Bot size={28} className="mb-3 opacity-40" />
+              <p className="text-sm font-medium">No merge suggestions</p>
+              <p className="text-[11px] mt-1 opacity-70">All drafts look unique to the AI.</p>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-3">
+              <p className="text-[11px] text-gray-400 mb-1">
+                {groups.length} group{groups.length !== 1 ? 's' : ''} found · select which to merge
+              </p>
+              {groups.map((group) => (
+                <MergeGroupCard
+                  key={group.parentId}
+                  group={group}
+                  selected={selectedGroups.has(group.parentId)}
+                  onToggle={() => toggleGroup(group.parentId)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!loading && !error && !done && groups.length > 0 && (
+          <div className="px-6 py-4 border-t border-gray-100 shrink-0">
+            {mergeError && <p className="text-xs text-red-500 mb-2">{mergeError}</p>}
+            <div className="flex gap-3">
+              <button
+                onClick={handleMergeAll}
+                disabled={merging || selectedCount === 0}
+                className="flex-1 flex items-center justify-center gap-2 bg-gray-900 hover:bg-gray-800
+                  disabled:opacity-50 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors"
+              >
+                {merging
+                  ? <><Loader2 size={14} className="animate-spin" /> Merging…</>
+                  : <><Merge size={14} /> Merge {selectedCount} group{selectedCount !== 1 ? 's' : ''}</>
+                }
+              </button>
+              <button
+                onClick={onClose}
+                disabled={merging}
+                className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl
+                  hover:bg-gray-50 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
 // ─── Draft Row ────────────────────────────────────────────────────────────────
 
 function DraftRow({
@@ -95,8 +427,6 @@ function DraftRow({
 
         {/* Main content */}
         <div className="flex-1 min-w-0">
-
-          {/* Top line: ID + time + AI badge */}
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
             <span className="text-gray-300">·</span>
@@ -112,7 +442,6 @@ function DraftRow({
             <span className="text-[10px] text-gray-400 hidden sm:inline">{timeAgoFull(ticket.created_at)}</span>
           </div>
 
-          {/* Title */}
           <button
             onClick={handleReview}
             className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
@@ -120,13 +449,10 @@ function DraftRow({
             {ticket.title ?? '(Untitled)'}
           </button>
 
-          {/* Meta grid: 2-col on mobile, 4-col on desktop */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Original Email</span>
-              <span className="text-xs text-gray-600 font-medium truncate">
-                {request?.email ?? '—'}
-              </span>
+              <span className="text-xs text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Submitted</span>
@@ -154,7 +480,6 @@ function DraftRow({
             Review
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -176,8 +501,6 @@ function MergePopup({
   return (
     <div className="fixed bottom-6 left-4 right-4 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-auto z-50">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 bg-white px-5 py-4 rounded-2xl shadow-xl border border-gray-100">
-
-        {/* Count + IDs */}
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <div className="flex items-center gap-2">
             <span className="bg-gray-900 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center">
@@ -188,17 +511,13 @@ function MergePopup({
           <div className="hidden sm:block w-px h-5 bg-gray-200" />
           <div className="flex items-center gap-1.5 flex-wrap">
             {selectedIds.slice(0, 3).map((id) => (
-              <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">
-                #{id}
-              </span>
+              <span key={id} className="text-[11px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-md font-mono">#{id}</span>
             ))}
             {selectedIds.length > 3 && (
               <span className="text-[11px] text-gray-400">+{selectedIds.length - 3} more</span>
             )}
           </div>
         </div>
-
-        {/* Actions */}
         <div className="flex items-center gap-2 w-full sm:w-auto">
           <div className="hidden sm:block w-px h-5 bg-gray-200" />
           <button
@@ -216,7 +535,6 @@ function MergePopup({
             <span className="hidden sm:inline">Clear</span>
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -226,14 +544,15 @@ function MergePopup({
 
 export default function AdminDraftQueuePage() {
   const router = useRouter();
-  const [drafts,           setDrafts]           = useState<ApiDraft[]>([]);
-  const [loading,          setLoading]          = useState(true);
-  const [error,            setError]            = useState<string | null>(null);
-  const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set());
-  const [showMergeConfirm, setShowMergeConfirm] = useState(false);
-  const [merging,          setMerging]          = useState(false);
-  const [mergeError,       setMergeError]       = useState<string | null>(null);
-  const [search,           setSearch]           = useState('');
+  const [drafts,            setDrafts]           = useState<ApiDraft[]>([]);
+  const [loading,           setLoading]          = useState(true);
+  const [error,             setError]            = useState<string | null>(null);
+  const [selectedIds,       setSelectedIds]      = useState<Set<number>>(new Set());
+  const [showMergeConfirm,  setShowMergeConfirm] = useState(false);
+  const [merging,           setMerging]          = useState(false);
+  const [mergeError,        setMergeError]       = useState<string | null>(null);
+  const [search,            setSearch]           = useState('');
+  const [showSuggestMerge,  setShowSuggestMerge] = useState(false); // ← NEW
 
   const loadDrafts = useCallback(() => {
     let cancelled = false;
@@ -332,16 +651,30 @@ export default function AdminDraftQueuePage() {
             </div>
           </div>
 
-          {/* Search: full width on mobile, fixed width on desktop */}
-          <div className="relative w-full sm:w-64">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search drafts…"
-              className="w-full pl-8 pr-4 py-1.5 text-xs border border-gray-200 rounded-full bg-gray-50 outline-none focus:border-gray-300 transition-colors"
-            />
+          {/* Right side: Suggest Merge button + Search */}
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+
+            {/* ── Suggest Merge Button ── */}
+            <button
+              onClick={() => setShowSuggestMerge(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-violet-200
+                bg-violet-50 hover:bg-violet-100 text-violet-600 text-xs font-semibold transition-colors whitespace-nowrap"
+            >
+              <Sparkles size={12} />
+              Suggest Merge
+            </button>
+
+            {/* Search */}
+            <div className="relative flex-1 sm:w-64">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search drafts…"
+                className="w-full pl-8 pr-4 py-1.5 text-xs border border-gray-200 rounded-full bg-gray-50 outline-none focus:border-gray-300 transition-colors"
+              />
+            </div>
           </div>
         </div>
 
@@ -387,7 +720,15 @@ export default function AdminDraftQueuePage() {
         onMerge={handleMerge}
       />
 
-      {/* Merge confirm modal */}
+      {/* ── Suggest Merge Modal ── */}
+      {showSuggestMerge && (
+        <SuggestMergeModal
+          onClose={() => setShowSuggestMerge(false)}
+          onMergeComplete={loadDrafts}
+        />
+      )}
+
+      {/* Manual merge confirm modal */}
       {showMergeConfirm && (
         <>
           <div className="fixed inset-0 bg-black/20 z-50" onClick={() => setShowMergeConfirm(false)} />
@@ -415,9 +756,7 @@ export default function AdminDraftQueuePage() {
                 );
               })}
             </div>
-            {mergeError && (
-              <p className="text-xs text-red-600 mb-3">{mergeError}</p>
-            )}
+            {mergeError && <p className="text-xs text-red-600 mb-3">{mergeError}</p>}
             <div className="flex gap-3">
               <button
                 onClick={handleConfirmMerge}
