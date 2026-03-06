@@ -732,7 +732,7 @@ export default function TicketDetailPage({ ticketId }: { ticketId: string }) {
     try {
       const comment = await apiFetch<TicketComment>(`/tickets/id/${ticketId}/comments`, {
         method: 'POST',
-        body: JSON.stringify({ content, visibility }),
+        body: JSON.stringify({ content, is_internal: visibility === 'PRIVATE' }),
       });
       setTicket((t) => t ? { ...t, comments: [...t.comments, comment] } : t);
     } catch {}
