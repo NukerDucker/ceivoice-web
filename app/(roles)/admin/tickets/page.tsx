@@ -220,7 +220,7 @@ function TicketRow({
           <div className="flex items-start">
             {[
               { label: 'Category',  value: ticket.category?.name ?? '—',                                             width: 'w-[160px]' },
-              { label: 'Priority',  value: 'N/A',                                                                    width: 'w-[100px]' },
+              { label: 'Priority',  value: ticket.priority ?? 'N/A',                                                 width: 'w-[100px]' },
               { label: 'Assignee',  value: ticket.assignee?.full_name ?? ticket.assignee?.user_name ?? 'Unassigned',  width: 'w-[200px]' },
               { label: 'Ticket-Id', value: `#${ticket.ticket_id}`,                                                   width: 'w-[100px]' },
             ].map(({ label, value, width }) => (
