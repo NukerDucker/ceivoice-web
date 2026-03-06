@@ -272,22 +272,18 @@ export default function AdminDashboardPage() {
                   const catStyle = getCatStyle(t.category?.name ?? '');
                   const initials = sender.slice(0, 2).toUpperCase();
                   return (
-                    // On mobile: stack into two rows. On sm+: single flex row.
                     <div key={t.ticket_id} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors">
 
-                      {/* Row 1 (mobile) / Left section (desktop): avatar + email + time */}
+                      {/* Left: avatar + title + time */}
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-xs shrink-0">
                           {initials}
                         </div>
-                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 min-w-0">
-                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                            <span className="truncate max-w-[140px] sm:max-w-40">{req?.email ?? '—'}</span>
-                          </div>
-                          <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
+                        <div className="flex flex-col min-w-0">
+                          <span className="text-sm font-semibold text-slate-900 truncate max-w-[200px] sm:max-w-[280px]">
+                            {t.title ?? `Draft #${t.ticket_id}`}
+                          </span>
+                          <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -296,11 +292,14 @@ export default function AdminDashboardPage() {
                         </div>
                       </div>
 
-                      {/* Row 2 (mobile) / Right section (desktop): title + badge + button */}
+                      {/* Right: email + category badge + Edit button */}
                       <div className="flex items-center gap-2 sm:gap-3 justify-between sm:justify-end shrink-0">
-                        <span className="text-sm font-semibold text-slate-900 truncate max-w-[140px] sm:max-w-[220px]">
-                          {t.title ?? `Draft #${t.ticket_id}`}
-                        </span>
+                        <div className="flex items-center gap-1.5 text-xs text-slate-500 min-w-0">
+                          <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                          </svg>
+                          <span className="truncate max-w-[140px] sm:max-w-40">{req?.email ?? '—'}</span>
+                        </div>
                         <div className="flex items-center gap-2 shrink-0">
                           {t.category && (
                             <span
