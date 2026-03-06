@@ -59,71 +59,67 @@ function ConfidencePill({ value }: { value: number }) {
   );
 }
 
-// ─── Suggest Merge Types ──────────────────────────────────────────────────────
+// ─── Suggest Merge Types — matches actual db.service response ─────────────────
+
+interface SuggestedMergeTicket {
+  ticket_id: number;
+  title: string;
+  summary: string;
+  status?: { name: string };
+}
 
 interface SuggestedMerge {
-  ticket_id_1: number;
-  ticket_id_2: number;
+  id: number;
+  suggested_parent_id: number;
+  suggested_child_id: number;
   similarity_score: number;
-  ticket_1?: {
-    ticket_id: number;
-    title: string;
-    ticket_requests?: { request?: { email?: string } }[];
-    category?: { name: string };
-  };
-  ticket_2?: {
-    ticket_id: number;
-    title: string;
-    ticket_requests?: { request?: { email?: string } }[];
-    category?: { name: string };
-  };
+  created_at: string;
+  suggested_parent: SuggestedMergeTicket;
+  suggested_child: SuggestedMergeTicket;
 }
 
 interface MergeGroup {
   parentId: number;
   childIds: number[];
-  tickets: NonNullable<SuggestedMerge['ticket_1']>[];
+  parent: SuggestedMergeTicket;
+  children: SuggestedMergeTicket[];
   avgSimilarity: number;
 }
 
-// ─── Cluster pairwise suggestions into groups ─────────────────────────────────
+// ─── Cluster suggestions by parent ticket ────────────────────────────────────
 
 function clusterMerges(suggestions: SuggestedMerge[]): MergeGroup[] {
-  const groups: Map<number, Set<number>> = new Map();
+  const groupMap = new Map<number, MergeGroup>();
 
   for (const s of suggestions) {
-    const id1 = s.ticket_id_1;
-    const id2 = s.ticket_id_2;
-    let foundKey: number | null = null;
-    for (const [key, set] of groups) {
-      if (set.has(id1) || set.has(id2)) { foundKey = key; break; }
-    }
-    if (foundKey !== null) {
-      groups.get(foundKey)!.add(id1);
-      groups.get(foundKey)!.add(id2);
+    const parentId = s.suggested_parent_id;
+    const existing = groupMap.get(parentId);
+
+    if (existing) {
+      if (!existing.childIds.includes(s.suggested_child_id)) {
+        existing.childIds.push(s.suggested_child_id);
+        existing.children.push(s.suggested_child);
+      }
+      // Recalculate avg
+      const scores = suggestions
+        .filter((x) => x.suggested_parent_id === parentId)
+        .map((x) => x.similarity_score);
+      existing.avgSimilarity = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
     } else {
-      groups.set(id1, new Set([id1, id2]));
+      groupMap.set(parentId, {
+        parentId,
+        childIds: [s.suggested_child_id],
+        parent: s.suggested_parent,
+        children: [s.suggested_child],
+        avgSimilarity: Math.round(s.similarity_score),
+      });
     }
   }
 
-  return Array.from(groups.entries()).map(([, idSet]) => {
-    const ids = Array.from(idSet).sort((a, b) => a - b);
-    const [first, ...rest] = ids;
-    const ticketMap = new Map<number, NonNullable<SuggestedMerge['ticket_1']>>();
-    for (const s of suggestions) {
-      if (s.ticket_1) ticketMap.set(s.ticket_id_1, s.ticket_1);
-      if (s.ticket_2) ticketMap.set(s.ticket_id_2, s.ticket_2);
-    }
-    const tickets = ids.map((id) => ticketMap.get(id)).filter(Boolean) as NonNullable<SuggestedMerge['ticket_1']>[];
-    const pairs = suggestions.filter((s) => idSet.has(s.ticket_id_1) && idSet.has(s.ticket_id_2));
-    const avgSimilarity = pairs.length
-      ? Math.round(pairs.reduce((acc, s) => acc + s.similarity_score, 0) / pairs.length)
-      : 0;
-    return { parentId: first, childIds: rest, tickets, avgSimilarity };
-  });
+  return Array.from(groupMap.values());
 }
 
-// ─── Suggest Merge — Group Card ───────────────────────────────────────────────
+// ─── Merge Group Card ─────────────────────────────────────────────────────────
 
 function MergeGroupCard({
   group,
@@ -134,12 +130,6 @@ function MergeGroupCard({
   selected: boolean;
   onToggle: () => void;
 }) {
-  const parent   = group.tickets.find((t) => t.ticket_id === group.parentId);
-  const children = group.tickets.filter((t) => t.ticket_id !== group.parentId);
-  const followers = group.tickets
-    .flatMap((t) => t.ticket_requests?.map((r) => r.request?.email).filter(Boolean) ?? [])
-    .filter((email, i, arr) => arr.indexOf(email) === i) as string[];
-
   const matchColor =
     group.avgSimilarity >= 90 ? 'bg-green-50 text-green-700 border-green-200' :
     group.avgSimilarity >= 75 ? 'bg-amber-50 text-amber-700 border-amber-200' :
@@ -149,9 +139,12 @@ function MergeGroupCard({
     <div
       onClick={onToggle}
       className={`cursor-pointer rounded-xl border-2 transition-all duration-150 overflow-hidden
-        ${selected ? 'border-violet-400 bg-violet-50/40 shadow-sm' : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'}`}
+        ${selected
+          ? 'border-violet-400 bg-violet-50/40 shadow-sm'
+          : 'border-gray-100 bg-white hover:border-gray-200 hover:bg-gray-50/50'
+        }`}
     >
-      {/* Card header */}
+      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
         <div className="flex items-center gap-2">
           <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-colors
@@ -162,7 +155,9 @@ function MergeGroupCard({
               </svg>
             )}
           </div>
-          <span className="text-xs font-semibold text-gray-600">{group.tickets.length} tickets to merge</span>
+          <span className="text-xs font-semibold text-gray-600">
+            {1 + group.children.length} tickets to merge
+          </span>
           <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${matchColor}`}>
             <Bot size={9} />{group.avgSimilarity}% match
           </span>
@@ -170,44 +165,42 @@ function MergeGroupCard({
         <Merge size={13} className="text-violet-400" />
       </div>
 
-      {/* Tickets */}
+      {/* Ticket list */}
       <div className="px-4 py-3">
+        {/* Parent */}
         <div className="flex items-start gap-2 mb-2">
           <span className="shrink-0 mt-0.5 text-[9px] font-bold px-1.5 py-0.5 bg-violet-100 text-violet-600 rounded uppercase tracking-wide">
             Parent
           </span>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-800 leading-snug">{parent?.title ?? '(Untitled)'}</p>
-            <p className="text-[11px] text-gray-400 mt-0.5">#{parent?.ticket_id}</p>
+            <p className="text-sm font-semibold text-gray-800 leading-snug">
+              {group.parent.title || '(Untitled)'}
+            </p>
+            <p className="text-[11px] text-gray-400 mt-0.5">#{group.parent.ticket_id}</p>
           </div>
         </div>
-        {children.map((child) => (
+
+        {/* Children */}
+        {group.children.map((child) => (
           <div key={child.ticket_id} className="flex items-start gap-2 ml-6 mt-2">
             <ChevronRight size={12} className="text-gray-300 mt-0.5 shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs text-gray-600 font-medium leading-snug">{child.title}</p>
+              <p className="text-xs text-gray-600 font-medium leading-snug">
+                {child.title || '(Untitled)'}
+              </p>
               <p className="text-[11px] text-gray-400">#{child.ticket_id}</p>
             </div>
           </div>
         ))}
       </div>
 
-      {/* Followers */}
-      {followers.length > 0 && (
-        <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
-          <Users size={11} className="text-gray-400 shrink-0" />
-          <div className="flex flex-wrap gap-1">
-            {followers.slice(0, 3).map((email) => (
-              <span key={email} className="text-[10px] text-gray-500 bg-white border border-gray-200 px-1.5 py-0.5 rounded-md font-mono truncate max-w-[160px]">
-                {email}
-              </span>
-            ))}
-            {followers.length > 3 && (
-              <span className="text-[10px] text-gray-400">+{followers.length - 3} more followers</span>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Followers note */}
+      <div className="px-4 py-2.5 bg-gray-50 border-t border-gray-100 flex items-center gap-2">
+        <Users size={11} className="text-gray-400 shrink-0" />
+        <p className="text-[10px] text-gray-500">
+          Requesters from merged tickets will become followers of #{group.parent.ticket_id}
+        </p>
+      </div>
     </div>
   );
 }
@@ -221,13 +214,13 @@ function SuggestMergeModal({
   onClose: () => void;
   onMergeComplete: () => void;
 }) {
-  const [loading,       setLoading]       = useState(true);
-  const [error,         setError]         = useState<string | null>(null);
-  const [groups,        setGroups]        = useState<MergeGroup[]>([]);
-  const [selectedGroups, setSelected]     = useState<Set<number>>(new Set());
-  const [merging,       setMerging]       = useState(false);
-  const [mergeError,    setMergeError]    = useState<string | null>(null);
-  const [done,          setDone]          = useState(false);
+  const [loading,        setLoading]    = useState(true);
+  const [error,          setError]      = useState<string | null>(null);
+  const [groups,         setGroups]     = useState<MergeGroup[]>([]);
+  const [selectedGroups, setSelected]   = useState<Set<number>>(new Set());
+  const [merging,        setMerging]    = useState(false);
+  const [mergeError,     setMergeError] = useState<string | null>(null);
+  const [done,           setDone]       = useState(false);
 
   const fetchSuggestions = useCallback(async () => {
     setLoading(true);
@@ -261,7 +254,6 @@ function SuggestMergeModal({
     setMergeError(null);
     try {
       for (const group of toMerge) {
-        if (group.childIds.length === 0) continue;
         await apiFetch(`/admin/${group.parentId}/merge`, {
           method: 'POST',
           body: JSON.stringify({ child_ticket_ids: group.childIds }),
@@ -407,15 +399,11 @@ function DraftRow({
   const catName  = ticket.category?.name ?? 'General';
   const catStyle = getCategoryStyle(catName);
 
-  const handleReview = () => {
-    router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
-  };
+  const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
   return (
     <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100">
       <div className="flex items-start sm:items-center gap-3 sm:gap-5 px-4 sm:px-6 py-4">
-
-        {/* Checkbox */}
         <div className="shrink-0 pt-0.5 sm:pt-0">
           <input
             type="checkbox"
@@ -424,8 +412,6 @@ function DraftRow({
             className="w-4 h-4 rounded border-gray-300 accent-gray-900"
           />
         </div>
-
-        {/* Main content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
@@ -441,14 +427,12 @@ function DraftRow({
             </span>
             <span className="text-[10px] text-gray-400 hidden sm:inline">{timeAgoFull(ticket.created_at)}</span>
           </div>
-
           <button
             onClick={handleReview}
             className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
           >
             {ticket.title ?? '(Untitled)'}
           </button>
-
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">Original Email</span>
@@ -470,8 +454,6 @@ function DraftRow({
             </div>
           </div>
         </div>
-
-        {/* Review button */}
         <div className="shrink-0 self-start sm:self-auto">
           <button
             onClick={handleReview}
@@ -544,15 +526,15 @@ function MergePopup({
 
 export default function AdminDraftQueuePage() {
   const router = useRouter();
-  const [drafts,            setDrafts]           = useState<ApiDraft[]>([]);
-  const [loading,           setLoading]          = useState(true);
-  const [error,             setError]            = useState<string | null>(null);
-  const [selectedIds,       setSelectedIds]      = useState<Set<number>>(new Set());
-  const [showMergeConfirm,  setShowMergeConfirm] = useState(false);
-  const [merging,           setMerging]          = useState(false);
-  const [mergeError,        setMergeError]       = useState<string | null>(null);
-  const [search,            setSearch]           = useState('');
-  const [showSuggestMerge,  setShowSuggestMerge] = useState(false); // ← NEW
+  const [drafts,           setDrafts]           = useState<ApiDraft[]>([]);
+  const [loading,          setLoading]          = useState(true);
+  const [error,            setError]            = useState<string | null>(null);
+  const [selectedIds,      setSelectedIds]      = useState<Set<number>>(new Set());
+  const [showMergeConfirm, setShowMergeConfirm] = useState(false);
+  const [merging,          setMerging]          = useState(false);
+  const [mergeError,       setMergeError]       = useState<string | null>(null);
+  const [search,           setSearch]           = useState('');
+  const [showSuggestMerge, setShowSuggestMerge] = useState(false);
 
   const loadDrafts = useCallback(() => {
     let cancelled = false;
@@ -593,8 +575,8 @@ export default function AdminDraftQueuePage() {
     }
   };
 
-  const handleMerge = () => { setMergeError(null); setShowMergeConfirm(true); };
-  const handleClear = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); setMergeError(null); };
+  const handleMerge    = () => { setMergeError(null); setShowMergeConfirm(true); };
+  const handleClear    = () => { setSelectedIds(new Set()); setShowMergeConfirm(false); setMergeError(null); };
 
   const handleConfirmMerge = async () => {
     const ids = Array.from(selectedIds).sort((a, b) => a - b);
@@ -651,10 +633,8 @@ export default function AdminDraftQueuePage() {
             </div>
           </div>
 
-          {/* Right side: Suggest Merge button + Search */}
+          {/* Right: Suggest Merge + Search */}
           <div className="flex items-center gap-2 w-full sm:w-auto">
-
-            {/* ── Suggest Merge Button ── */}
             <button
               onClick={() => setShowSuggestMerge(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-violet-200
@@ -664,7 +644,6 @@ export default function AdminDraftQueuePage() {
               Suggest Merge
             </button>
 
-            {/* Search */}
             <div className="relative flex-1 sm:w-64">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
               <input
@@ -720,7 +699,7 @@ export default function AdminDraftQueuePage() {
         onMerge={handleMerge}
       />
 
-      {/* ── Suggest Merge Modal ── */}
+      {/* Suggest Merge Modal */}
       {showSuggestMerge && (
         <SuggestMergeModal
           onClose={() => setShowSuggestMerge(false)}
