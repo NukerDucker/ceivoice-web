@@ -232,7 +232,12 @@ function ReviewTicketInner() {
   const handleSubmit = async () => {
     setSubmitStatus('submitting');
     try {
-      await apiFetch(`/admin/drafts/${selectedId}/approve`, { method: 'POST' });
+      await apiFetch(`/admin/drafts/${selectedId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({
+          ...(assigneeId ? { assignee_user_id: assigneeId } : {}),
+        }),
+      });
       setSubmitStatus('done');
       router.push('/admin/tickets');
     } catch {
