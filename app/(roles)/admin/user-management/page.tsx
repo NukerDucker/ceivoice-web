@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Search, ChevronDown, ChevronUp,
   Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle, Check,
@@ -114,6 +114,14 @@ function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemo
 }) {
   const [scopeOpen,       setScopeOpen]       = useState(false);
   const [confirmAdminFor, setConfirmAdminFor] = useState<string | null>(null);
+  const scopeTriggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (scopeOpen && scopeTriggerRef.current) {
+      setDropdownRect(scopeTriggerRef.current.getBoundingClientRect());
+    }
+  }, [scopeOpen]);
 
   return (
     <div className="px-4 sm:px-6 pb-5 pt-2 bg-gray-50/60 border-t border-gray-100">
@@ -184,6 +192,7 @@ function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemo
             <div className="relative">
               {/* Trigger button */}
               <button
+                ref={scopeTriggerRef}
                 onClick={(e) => { e.stopPropagation(); setScopeOpen((o) => !o); }}
                 className="w-full flex items-start justify-between gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors min-h-[36px]"
               >
@@ -215,10 +224,13 @@ function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemo
               </button>
 
               {/* Dropdown */}
-              {scopeOpen && (
+              {scopeOpen && dropdownRect && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setScopeOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden w-full max-h-56 overflow-y-auto">
+                  <div
+                    className="fixed z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-y-auto max-h-56"
+                    style={{ top: dropdownRect.bottom + 4, left: dropdownRect.left, width: dropdownRect.width }}
+                  >
                     {scopeOptions.map((s) => {
                       const selected = user.scopes.includes(s);
                       return (
