@@ -64,6 +64,75 @@ function timeUntil(date: string | null) {
   return { label: `${Math.floor(h / 24)}d ${h % 24}h left`, urgent: false };
 }
 
+// ─── Resolution Modal ─────────────────────────────────────────────────────────
+
+function ResolutionModal({
+  targetStatus,
+  onConfirm,
+  onCancel,
+}: {
+  targetStatus: 'Solved' | 'Failed';
+  onConfirm: (comment: string) => void;
+  onCancel: () => void;
+}) {
+  const [comment, setComment] = useState('');
+  const isSolved = targetStatus === 'Solved';
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/20 z-[60]" onClick={onCancel} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-[480px]">
+        {/* Icon */}
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isSolved ? 'bg-green-100' : 'bg-red-100'}`}>
+          {isSolved
+            ? <CheckCircle size={24} className="text-green-600" />
+            : <XCircle    size={24} className="text-red-500"   />}
+        </div>
+
+        <h2 className="text-xl font-bold text-gray-900 mb-1">
+          Mark as {isSolved ? 'Solved' : 'Failed'}
+        </h2>
+        <p className="text-sm text-gray-400 mb-5">
+          A resolution comment is required before closing this ticket.
+        </p>
+
+        <textarea
+          autoFocus
+          value={comment}
+          onChange={(e) => setComment(e.target.value)}
+          placeholder={isSolved
+            ? 'Describe what was done to resolve the issue…'
+            : 'Explain why the ticket could not be resolved…'}
+          className="w-full h-32 text-sm text-gray-700 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-gray-200 placeholder-gray-300"
+        />
+        {comment.trim().length === 0 && (
+          <p className="text-[11px] text-red-400 mt-1.5">A comment is required to continue.</p>
+        )}
+
+        <div className="flex gap-3 mt-4">
+          <button
+            disabled={comment.trim().length === 0}
+            onClick={() => onConfirm(comment.trim())}
+            className={`flex-1 font-semibold py-2.5 rounded-xl transition-colors text-sm text-white ${
+              isSolved
+                ? 'bg-green-500 hover:bg-green-600 disabled:bg-green-200'
+                : 'bg-red-400 hover:bg-red-500 disabled:bg-red-200'
+            } disabled:cursor-not-allowed`}
+          >
+            Confirm — {isSolved ? 'Solved' : 'Failed'}
+          </button>
+          <button
+            onClick={onCancel}
+            className="flex-1 border border-gray-200 text-gray-600 font-semibold py-2.5 rounded-xl hover:bg-gray-50 transition-colors text-sm"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailModalProps) {
@@ -111,9 +180,23 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
   const handleActionClick = (s: typeof STATUS_OPTIONS[number]) => {
     if (s === 'Solved' || s === 'Failed') {
       setPendingStatus(s);
-      setActiveTab('comments');
     } else {
       commitStatus(s);
+    }
+  };
+
+  const handleResolutionConfirm = async (comment: string) => {
+    if (!ticket || !pendingStatus) return;
+    setUpdatingStatus(true);
+    try {
+      await apiFetch(`/tickets/id/${ticket.ticket_id}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ content: comment, is_internal: true }),
+      });
+      await commitStatus(pendingStatus);
+    } catch { /* silent */ } finally {
+      setPendingStatus(null);
+      setUpdatingStatus(false);
     }
   };
 
@@ -377,24 +460,6 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
               {activeTab === 'comments' && (
                 <div className="flex flex-col h-full">
 
-                  {/* Resolution banner */}
-                  {pendingStatus && (
-                    <div className={`mx-5 mt-4 rounded-xl px-4 py-3 border flex items-start gap-3 shrink-0 ${
-                      pendingStatus === 'Solved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                    }`}>
-                      <span className="text-base shrink-0">{pendingStatus === 'Solved' ? '✅' : '❌'}</span>
-                      <div className="min-w-0 flex-1">
-                        <p className={`text-xs font-bold ${pendingStatus === 'Solved' ? 'text-green-700' : 'text-red-700'}`}>
-                          Add a comment to mark as {pendingStatus.toUpperCase()}
-                        </p>
-                        <p className="text-xs text-slate-500 mt-0.5">Please describe the resolution or reason.</p>
-                      </div>
-                      <button onClick={() => setPendingStatus(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
-                        <X size={13} />
-                      </button>
-                    </div>
-                  )}
-
                   {/* Comment thread */}
                   <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                     {commentCount === 0 && (
@@ -478,14 +543,6 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                         ↑
                       </button>
                     </div>
-                    {pendingStatus && (
-                      <div className="flex items-center justify-between mt-2">
-                        <p className="text-[11px] text-slate-400">Comment required to change status</p>
-                        <button onClick={() => setPendingStatus(null)} className="text-[11px] text-slate-400 hover:text-slate-600 underline">
-                          Cancel
-                        </button>
-                      </div>
-                    )}
                   </div>
                 </div>
               )}
@@ -577,6 +634,15 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
           </>
         )}
       </div>
+
+      {/* Resolution modal */}
+      {pendingStatus && (
+        <ResolutionModal
+          targetStatus={pendingStatus}
+          onConfirm={handleResolutionConfirm}
+          onCancel={() => setPendingStatus(null)}
+        />
+      )}
     </div>
   );
 }
