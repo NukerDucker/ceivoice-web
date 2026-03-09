@@ -109,7 +109,7 @@ export default function AssigneeDashboardPage() {
         const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
         return da - db;
       }
-      return (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
+      return (priorityOrder[a.priority?.toLowerCase()] ?? 4) - (priorityOrder[b.priority?.toLowerCase()] ?? 4);
     });
   }, [tickets, sortBy]);
 
@@ -179,7 +179,7 @@ export default function AssigneeDashboardPage() {
                 {sorted.map((t) => {
                   const cs       = getCatStyle(t.category?.name ?? '');
                   const st       = STATUS_STYLES[t.status?.name ?? ''] ?? { bg: '#f1f5f9', text: '#475569' };
-                  const pr       = PRIORITY_STYLE[t.priority]           ?? PRIORITY_STYLE.medium;
+                  const pr       = PRIORITY_STYLE[t.priority?.toLowerCase()] ?? PRIORITY_STYLE.medium;
                   const timeLeft = timeUntil(t.deadline);
                   return (
                     <div
@@ -243,6 +243,14 @@ export default function AssigneeDashboardPage() {
                         <p className="text-[10px] text-slate-400 mb-1">Status</p>
                         <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
                           {t.status?.name ?? '—'}
+                        </span>
+                      </div>
+
+                      {/* Priority — desktop only */}
+                      <div className="hidden sm:flex shrink-0 flex-col items-center">
+                        <p className="text-[10px] text-slate-400 mb-1">Priority</p>
+                        <span className="text-xs font-bold px-3 py-1 rounded-full capitalize" style={{ background: pr.bg, color: pr.color }}>
+                          {t.priority?.toLowerCase() ?? '—'}
                         </span>
                       </div>
 
