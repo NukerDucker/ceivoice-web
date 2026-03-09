@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from 'react';
 import { Tag, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
 import { Header } from '@/components/layout/settingTB';
-import { SCOPE_NAMES } from '@/lib/config';
 import { apiFetch } from '@/lib/api-client';
 
 const TABS = [
@@ -27,9 +26,9 @@ interface UserFromApi {
 }
 
 interface ScopeEntry {
+  scope_id: number;
   label: string;
   color: string;
-  // assignees who currently hold this scope (for delete API calls)
   assignees: { assignee_id: string; scope_id: number }[];
 }
 
@@ -95,47 +94,55 @@ function buildScopeMap(users: UserFromApi[]): Map<string, { assignee_id: string;
 function ScopesTab() {
   const [scopes,   setScopes]   = useState<ScopeEntry[]>([]);
   const [loading,  setLoading]  = useState(true);
+  const [adding,   setAdding]   = useState(false);
   const [newLabel, setNewLabel] = useState('');
   const [error,    setError]    = useState('');
   const [deleting, setDeleting] = useState<string | null>(null);
 
-  // Fetch real assignee data and build scope list
   useEffect(() => {
-    apiFetch<UserFromApi[]>(`${API_BASE}/users`)
-      .then((users) => {
+    Promise.all([
+      apiFetch<{ scope_id: number; scope_name: string }[]>(`${API_BASE}/scopes`),
+      apiFetch<UserFromApi[]>(`${API_BASE}/users`),
+    ])
+      .then(([globalScopes, users]) => {
         const scopeMap = buildScopeMap(users);
-
-        // Union of SCOPE_NAMES + any extra scopes from DB
-        const allLabels = new Set<string>([
-          ...SCOPE_NAMES,
-          ...Array.from(scopeMap.keys()),
-        ]);
-
-        const entries: ScopeEntry[] = Array.from(allLabels).map((label, i) => ({
-          label,
+        const entries: ScopeEntry[] = globalScopes.map((gs, i) => ({
+          scope_id: gs.scope_id,
+          label: gs.scope_name,
           color: SCOPE_COLORS[i % SCOPE_COLORS.length],
-          assignees: scopeMap.get(label) ?? [],
+          assignees: scopeMap.get(gs.scope_name) ?? [],
         }));
-
         setScopes(entries);
       })
       .catch(() => setError('Failed to load scopes. Please refresh.'))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     const trimmed = newLabel.trim();
     if (!trimmed) { setError('Scope name cannot be empty.'); return; }
     if (scopes.some((s) => s.label.toLowerCase() === trimmed.toLowerCase())) {
       setError('A scope with this name already exists.'); return;
     }
-    setScopes((prev) => [...prev, {
-      label: trimmed,
-      color: SCOPE_COLORS[prev.length % SCOPE_COLORS.length],
-      assignees: [],
-    }]);
-    setNewLabel('');
-    setError('');
+    setAdding(true);
+    try {
+      const created = await apiFetch<{ scope_id: number; scope_name: string }>(
+        `${API_BASE}/scopes`,
+        { method: 'POST', body: JSON.stringify({ scope_name: trimmed }) }
+      );
+      setScopes((prev) => [...prev, {
+        scope_id: created.scope_id,
+        label: created.scope_name,
+        color: SCOPE_COLORS[prev.length % SCOPE_COLORS.length],
+        assignees: [],
+      }]);
+      setNewLabel('');
+      setError('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to add scope.');
+    } finally {
+      setAdding(false);
+    }
   };
 
   const handleDelete = async (label: string) => {
@@ -144,12 +151,13 @@ function ScopesTab() {
 
     setDeleting(label);
     try {
-      // Remove scope from every assignee that currently holds it
+      // Remove from every assignee first, then delete from global catalog
       await Promise.all(
         entry.assignees.map(({ assignee_id, scope_id }) =>
           apiFetch(`${API_BASE}/assignees/${assignee_id}/scopes/${scope_id}`, { method: 'DELETE' })
         )
       );
+      await apiFetch(`${API_BASE}/scopes/${entry.scope_id}`, { method: 'DELETE' });
       setScopes((prev) => prev.filter((s) => s.label !== label));
     } catch {
       setError(`Failed to delete scope "${label}". Please try again.`);
