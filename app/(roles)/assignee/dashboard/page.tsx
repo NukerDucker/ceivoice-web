@@ -17,6 +17,7 @@ export interface ApiTicketSummary {
   category:  { category_id: number; name: string } | null;
   status:    { name: string } | null;
   assignee:  { user_id: string; full_name: string | null; user_name: string | null; email: string } | null;
+  creator:   { user_id: string; full_name: string | null; user_name: string | null; email: string } | null;
 }
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
@@ -201,18 +202,29 @@ export default function AssigneeDashboardPage() {
 
                       {/* Main content */}
                       <div className="flex-1 min-w-0">
+
+                        {/* Row 1: ticket id · category tag · creator email · created date */}
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {/* Priority dot visible on mobile inline */}
                           <div className="sm:hidden w-2 h-2 rounded-full shrink-0" style={{ background: pr.dot }} />
                           <span className="text-xs font-bold text-slate-400">#{t.ticket_id}</span>
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
                             {t.category?.name ?? 'General'}
                           </span>
+                          {t.creator?.email && (
+                            <span className="text-[10px] text-slate-500 font-medium">{t.creator.email}</span>
+                          )}
+                          <span className="text-[10px] text-slate-400">
+                            {new Date(t.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
                         </div>
-                        <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
-                          {t.title ?? '(Untitled)'}
-                        </p>
-                        <p className="text-xs text-slate-400 mt-0.5">Opened {timeAgo(t.created_at)}</p>
+
+                        {/* Row 2: title · opened X ago inline */}
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+                            {t.title ?? '(Untitled)'}
+                          </p>
+                          <p className="text-xs text-slate-400 shrink-0">Opened {timeAgo(t.created_at)}</p>
+                        </div>
 
                         {/* On mobile: show status + deadline inline below title */}
                         <div className="flex items-center gap-2 mt-2 sm:hidden flex-wrap">
