@@ -152,11 +152,11 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+      className="fixed inset-0 z-50 bg-black/20 backdrop-blur-sm flex justify-end"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white shadow-2xl w-full max-w-xl h-full flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {loading ? (
