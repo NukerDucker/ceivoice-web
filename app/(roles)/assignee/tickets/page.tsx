@@ -867,16 +867,7 @@ function TicketRow({
             {ticket.category}
           </span>
           <StatusBadge status={ticket.status} readonly />
-          {active && onOpen && (
-            <div className="flex flex-col gap-1">
-              <button onClick={() => onOpen(active)} className="text-gray-300 hover:text-gray-900 transition-colors" title="Open ticket">
-                <Pencil size={13} />
-              </button>
-              <button onClick={() => onOpen(active)} className="text-gray-300 hover:text-gray-600 transition-colors">
-                <MessageSquare size={13} />
-              </button>
-            </div>
-          )}
+    
           {resolved && (
             <div className="flex flex-col items-end gap-1">
               <span className="text-xs text-gray-400">
