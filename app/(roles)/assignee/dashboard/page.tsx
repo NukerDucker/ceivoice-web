@@ -241,7 +241,7 @@ export default function AssigneeDashboardPage() {
                       </div>
 
                       {/* Time remaining — desktop only */}
-                      <div className="hidden sm:flex shrink-0 flex-col items-center">
+                      <div className="hidden sm:flex shrink-0 flex-col items-center w-28">
                         <p className="text-[10px] text-slate-400 mb-1">Time remaining</p>
                         <span className={`text-xs font-bold px-3 py-1 rounded-full ${timeLeft.urgent ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
                           {timeLeft.urgent && '⚠ '}{timeLeft.label}
@@ -249,7 +249,7 @@ export default function AssigneeDashboardPage() {
                       </div>
 
                       {/* Status — desktop only */}
-                      <div className="hidden sm:flex shrink-0 flex-col items-center">
+                      <div className="hidden sm:flex shrink-0 flex-col items-center w-20">
                         <p className="text-[10px] text-slate-400 mb-1">Status</p>
                         <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
                           {t.status?.name ?? '—'}
@@ -257,7 +257,7 @@ export default function AssigneeDashboardPage() {
                       </div>
 
                       {/* Priority — desktop only */}
-                      <div className="hidden sm:flex shrink-0 flex-col items-center">
+                      <div className="hidden sm:flex shrink-0 flex-col items-center w-20">
                         <p className="text-[10px] text-slate-400 mb-1">Priority</p>
                         <span className="text-xs font-bold px-3 py-1 rounded-full capitalize" style={{ background: pr.bg, color: pr.color }}>
                           {t.priority?.toLowerCase() ?? '—'}
