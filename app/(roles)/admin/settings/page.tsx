@@ -1,28 +1,39 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  Tag, Plus, Pencil, Trash2, Check, X, AlertCircle,
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Tag, Plus, Trash2, AlertCircle, Loader2 } from 'lucide-react';
+import { Header } from '@/components/layout/settingTB';
+import { SCOPE_NAMES } from '@/lib/config';
+import { apiFetch } from '@/lib/api-client';
 
 const TABS = [
   { id: 'scopes', label: 'Scope & Categories', icon: <Tag size={13} /> },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
-import { Header }     from '@/components/layout/settingTB';
-import { SCOPE_NAMES } from '@/lib/config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface ScopeCategory {
-  id: string;
-  label: string;
-  color: string;
-  assigneeCount: number;
+interface AssigneeScopeRecord {
+  scope_id: number;
+  scope_name: string;
+  assignee_id: string;
 }
 
-// ─── Seed data ────────────────────────────────────────────────────────────────
+interface UserFromApi {
+  user_id: string;
+  role: string;
+  scopes: AssigneeScopeRecord[];
+}
+
+interface ScopeEntry {
+  label: string;
+  color: string;
+  // assignees who currently hold this scope (for delete API calls)
+  assignees: { assignee_id: string; scope_id: number }[];
+}
+
+// ─── Constants ────────────────────────────────────────────────────────────────
 
 const SCOPE_COLORS = [
   'bg-violet-100 text-violet-700 border-violet-200',
@@ -37,12 +48,7 @@ const SCOPE_COLORS = [
   'bg-cyan-100 text-cyan-700 border-cyan-200',
 ];
 
-const INITIAL_SCOPES: ScopeCategory[] = SCOPE_NAMES.map((label, i) => ({
-  id: `scope-${i}`,
-  label,
-  color: SCOPE_COLORS[i % SCOPE_COLORS.length],
-  assigneeCount: 0,
-}));
+const API_BASE = '/admin';
 
 // ─── Shared UI helpers ────────────────────────────────────────────────────────
 
@@ -74,12 +80,48 @@ function SectionHeader({ icon, title, subtitle }: {
 
 // ─── Scope Tag Management ─────────────────────────────────────────────────────
 
+function buildScopeMap(users: UserFromApi[]): Map<string, { assignee_id: string; scope_id: number }[]> {
+  const map = new Map<string, { assignee_id: string; scope_id: number }[]>();
+  for (const user of users) {
+    if (!Array.isArray(user.scopes)) continue;
+    for (const s of user.scopes) {
+      if (!map.has(s.scope_name)) map.set(s.scope_name, []);
+      map.get(s.scope_name)!.push({ assignee_id: s.assignee_id, scope_id: s.scope_id });
+    }
+  }
+  return map;
+}
+
 function ScopesTab() {
-  const [scopes,     setScopes]     = useState<ScopeCategory[]>(INITIAL_SCOPES);
-  const [newLabel,   setNewLabel]   = useState('');
-  const [editId,     setEditId]     = useState<string | null>(null);
-  const [editLabel,  setEditLabel]  = useState('');
-  const [error,      setError]      = useState('');
+  const [scopes,   setScopes]   = useState<ScopeEntry[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [newLabel, setNewLabel] = useState('');
+  const [error,    setError]    = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  // Fetch real assignee data and build scope list
+  useEffect(() => {
+    apiFetch<UserFromApi[]>(`${API_BASE}/users`)
+      .then((users) => {
+        const scopeMap = buildScopeMap(users);
+
+        // Union of SCOPE_NAMES + any extra scopes from DB
+        const allLabels = new Set<string>([
+          ...SCOPE_NAMES,
+          ...Array.from(scopeMap.keys()),
+        ]);
+
+        const entries: ScopeEntry[] = Array.from(allLabels).map((label, i) => ({
+          label,
+          color: SCOPE_COLORS[i % SCOPE_COLORS.length],
+          assignees: scopeMap.get(label) ?? [],
+        }));
+
+        setScopes(entries);
+      })
+      .catch(() => setError('Failed to load scopes. Please refresh.'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const handleAdd = () => {
     const trimmed = newLabel.trim();
@@ -87,26 +129,49 @@ function ScopesTab() {
     if (scopes.some((s) => s.label.toLowerCase() === trimmed.toLowerCase())) {
       setError('A scope with this name already exists.'); return;
     }
-    setScopes((p) => [...p, {
-      id: `scope-${Date.now()}`,
+    setScopes((prev) => [...prev, {
       label: trimmed,
-      color: SCOPE_COLORS[p.length % SCOPE_COLORS.length],
-      assigneeCount: 0,
+      color: SCOPE_COLORS[prev.length % SCOPE_COLORS.length],
+      assignees: [],
     }]);
     setNewLabel('');
     setError('');
   };
 
-  const handleDelete = (id: string) => setScopes((p) => p.filter((s) => s.id !== id));
+  const handleDelete = async (label: string) => {
+    const entry = scopes.find((s) => s.label === label);
+    if (!entry) return;
 
-  const startEdit = (s: ScopeCategory) => { setEditId(s.id); setEditLabel(s.label); };
-
-  const saveEdit = (id: string) => {
-    const trimmed = editLabel.trim();
-    if (!trimmed) return;
-    setScopes((p) => p.map((s) => s.id === id ? { ...s, label: trimmed } : s));
-    setEditId(null);
+    setDeleting(label);
+    try {
+      // Remove scope from every assignee that currently holds it
+      await Promise.all(
+        entry.assignees.map(({ assignee_id, scope_id }) =>
+          apiFetch(`${API_BASE}/assignees/${assignee_id}/scopes/${scope_id}`, { method: 'DELETE' })
+        )
+      );
+      setScopes((prev) => prev.filter((s) => s.label !== label));
+    } catch {
+      setError(`Failed to delete scope "${label}". Please try again.`);
+    } finally {
+      setDeleting(null);
+    }
   };
+
+  if (loading) {
+    return (
+      <SectionCard>
+        <SectionHeader
+          icon={<Tag size={14} />}
+          title="Scope & Category Management"
+          subtitle="Predefined tags used for Assignee routing and AI suggestions"
+        />
+        <div className="flex items-center justify-center gap-2 py-16 text-gray-400 text-xs">
+          <Loader2 size={14} className="animate-spin" /> Loading scopes…
+        </div>
+      </SectionCard>
+    );
+  }
 
   return (
     <SectionCard>
@@ -117,7 +182,7 @@ function ScopesTab() {
       />
       <div className="p-4 sm:p-6">
 
-        {/* Add new: stacks on mobile, row on sm+ */}
+        {/* Add new */}
         <div className="flex flex-col sm:flex-row gap-2 mb-1">
           <input
             type="text"
@@ -145,67 +210,30 @@ function ScopesTab() {
         <div className="mt-4 flex flex-col gap-1.5">
           {scopes.map((s) => (
             <div
-              key={s.id}
+              key={s.label}
               className="flex items-center justify-between px-3 sm:px-4 py-2.5 rounded-xl border border-gray-100 hover:border-gray-200 bg-gray-50/50 group transition-all"
             >
               {/* Left: tag + assignee count */}
               <div className="flex items-center gap-3 min-w-0">
-                {editId === s.id ? (
-                  <input
-                    autoFocus
-                    value={editLabel}
-                    onChange={(e) => setEditLabel(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter')  saveEdit(s.id);
-                      if (e.key === 'Escape') setEditId(null);
-                    }}
-                    className="text-xs border border-gray-300 rounded-lg px-2.5 py-1 outline-none focus:border-gray-500 bg-white max-w-[140px] sm:max-w-none"
-                  />
-                ) : (
-                  <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-lg border truncate max-w-[160px] sm:max-w-none ${s.color}`}>
-                    {s.label}
-                  </span>
-                )}
+                <span className={`inline-flex items-center text-[11px] font-bold px-2.5 py-1 rounded-lg border truncate max-w-[160px] sm:max-w-none ${s.color}`}>
+                  {s.label}
+                </span>
                 <span className="text-[11px] text-gray-400 shrink-0">
-                  {s.assigneeCount} assignee{s.assigneeCount !== 1 ? 's' : ''}
+                  {s.assignees.length} assignee{s.assignees.length !== 1 ? 's' : ''}
                 </span>
               </div>
 
-              {/* Right: action buttons
-                  - Desktop: hover-reveal (opacity-0 group-hover:opacity-100)
-                  - Mobile:  always visible (sm:opacity-0 sm:group-hover:opacity-100) */}
+              {/* Right: delete button */}
               <div className="flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shrink-0">
-                {editId === s.id ? (
-                  <>
-                    <button
-                      onClick={() => saveEdit(s.id)}
-                      className="p-1.5 rounded-lg hover:bg-green-50 text-green-600 transition-colors"
-                    >
-                      <Check size={13} />
-                    </button>
-                    <button
-                      onClick={() => setEditId(null)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors"
-                    >
-                      <X size={13} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      onClick={() => startEdit(s)}
-                      className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
-                    >
-                      <Pencil size={13} />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(s.id)}
-                      className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </>
-                )}
+                <button
+                  onClick={() => handleDelete(s.label)}
+                  disabled={deleting === s.label}
+                  className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors disabled:opacity-40"
+                >
+                  {deleting === s.label
+                    ? <Loader2 size={13} className="animate-spin" />
+                    : <Trash2 size={13} />}
+                </button>
               </div>
             </div>
           ))}
