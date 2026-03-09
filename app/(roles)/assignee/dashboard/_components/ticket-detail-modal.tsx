@@ -82,7 +82,6 @@ function ResolutionModal({
     <>
       <div className="fixed inset-0 bg-black/20 z-[60]" onClick={onCancel} />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-[480px]">
-        {/* Icon */}
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isSolved ? 'bg-green-100' : 'bg-red-100'}`}>
           {isSolved
             ? <CheckCircle size={24} className="text-green-600" />
@@ -151,6 +150,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
   const [showReassign,     setShowReassign]     = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<string>('');
   const [reassigning,      setReassigning]      = useState(false);
+  const [reassignError,    setReassignError]    = useState<string | null>(null); // ← NEW
   const [showStatusMenu,   setShowStatusMenu]   = useState(false);
 
   useEffect(() => {
@@ -214,14 +214,26 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
     } catch { /* silent */ } finally { setPostingComment(false); }
   };
 
+  // ─── UPDATED: handleReassign with error handling ───────────────────────────
   const handleReassign = async () => {
     if (!ticket || !selectedAssignee) return;
     setReassigning(true);
+    setReassignError(null);
     try {
-      await apiFetch(`/tickets/id/${ticket.ticket_id}/assign`, { method: 'POST', body: JSON.stringify({ assignee_id: selectedAssignee }) });
+      await apiFetch(`/tickets/id/${ticket.ticket_id}/assign`, {
+        method: 'POST',
+        body: JSON.stringify({ assignee_id: selectedAssignee }),
+      });
       const updated = await apiFetch<ApiTicketDetail>(`/tickets/id/${ticket.ticket_id}`);
-      setTicket(updated); setShowReassign(false); setSelectedAssignee(''); onUpdate();
-    } catch { /* silent */ } finally { setReassigning(false); }
+      setTicket(updated);
+      setShowReassign(false);
+      setSelectedAssignee('');
+      onUpdate();
+    } catch (err) {
+      setReassignError(err instanceof Error ? err.message : 'Reassign failed. Please try again.');
+    } finally {
+      setReassigning(false);
+    }
   };
 
   const currentStatus = ticket?.status?.name ?? '';
@@ -346,7 +358,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                   Mark Failed
                 </button>
                 <button
-                  onClick={() => setShowReassign(!showReassign)}
+                  onClick={() => { setShowReassign(!showReassign); setReassignError(null); }}
                   className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
                 >
                   <UserRound size={12} />
@@ -354,35 +366,31 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                 </button>
               </div>
 
-              {/* Reassign panel */}
+              {/* ─── UPDATED: Reassign panel — dropdown + error display ─── */}
               {showReassign && (
                 <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
                   <p className="text-xs text-blue-700 font-medium">Select a new assignee:</p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+
+                  <select
+                    value={selectedAssignee}
+                    onChange={(e) => setSelectedAssignee(e.target.value)}
+                    className="w-full text-sm text-slate-700 bg-white border border-blue-200 rounded-lg px-3 py-2 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100 transition-all"
+                  >
+                    <option value="" disabled>— Choose assignee —</option>
                     {assigneeList
                       .filter((a) => a.user_id !== ticket.assignee?.user_id)
                       .map((a) => (
-                        <label
-                          key={a.user_id}
-                          className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300 transition-colors"
-                        >
-                          <input
-                            type="radio"
-                            name="reassign"
-                            value={a.user_id}
-                            checked={selectedAssignee === a.user_id}
-                            onChange={() => setSelectedAssignee(a.user_id)}
-                            className="accent-blue-500"
-                          />
-                          <div className="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-                            {userInitial(a)}
-                          </div>
-                          <p className="text-xs font-semibold text-slate-800 truncate">
-                            {a.full_name ?? a.user_name ?? a.email}
-                          </p>
-                        </label>
+                        <option key={a.user_id} value={a.user_id}>
+                          {a.full_name ?? a.user_name ?? a.email}
+                        </option>
                       ))}
-                  </div>
+                  </select>
+
+                  {/* Error message */}
+                  {reassignError && (
+                    <p className="text-xs text-red-500 font-medium px-1">{reassignError}</p>
+                  )}
+
                   <div className="flex gap-2">
                     <button
                       onClick={handleReassign}
@@ -392,7 +400,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                       {reassigning ? 'Reassigning…' : 'Confirm Reassign'}
                     </button>
                     <button
-                      onClick={() => { setShowReassign(false); setSelectedAssignee(''); }}
+                      onClick={() => { setShowReassign(false); setSelectedAssignee(''); setReassignError(null); }}
                       className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
                     >
                       Cancel
@@ -459,8 +467,6 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
               {/* COMMENTS TAB */}
               {activeTab === 'comments' && (
                 <div className="flex flex-col h-full">
-
-                  {/* Comment thread */}
                   <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
                     {commentCount === 0 && (
                       <div className="flex flex-col items-center justify-center py-12 text-slate-300">
@@ -491,7 +497,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                     ))}
                   </div>
 
-                  {/* Compose area — pinned to bottom */}
+                  {/* Compose area */}
                   <div className="px-5 pb-5 shrink-0 border-t border-slate-100 pt-3">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-xs text-slate-500 font-medium">Post as:</span>
