@@ -304,7 +304,7 @@ export default function AdminDashboardPage() {
                           {t.category && (
                             <span
                               className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase"
-                              style={{ background: catStyle.bg, color: catStyle.color }}
+                              style={catStyle}
                             >
                               {t.category.name}
                             </span>
