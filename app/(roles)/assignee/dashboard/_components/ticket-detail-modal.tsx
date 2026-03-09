@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X } from "lucide-react";
+import { X, RotateCcw, CheckCircle, XCircle, UserRound, Clock, ChevronDown, MessageSquare, History, Users } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import type {
   ApiUser,
@@ -19,13 +19,20 @@ export interface TicketDetailModalProps {
 
 // ─── Style helpers ────────────────────────────────────────────────────────────
 
-const STATUS_STYLES: Record<string, { bg: string; text: string }> = {
-  New:      { bg: '#dbeafe', text: '#1e40af' },
-  Assigned: { bg: '#e0e7ff', text: '#3730a3' },
-  Solving:  { bg: '#fef3c2', text: '#92400e' },
-  Solved:   { bg: '#dcfce7', text: '#166534' },
-  Failed:   { bg: '#fee2e2', text: '#991b1b' },
-  Renew:    { bg: '#f3e8ff', text: '#6b21a8' },
+const STATUS_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  New:      { bg: '#e8f0fe', text: '#1a56db', border: '#93b4fb' },
+  Assigned: { bg: '#e5edff', text: '#3730a3', border: '#a5b4fc' },
+  Solving:  { bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
+  Solved:   { bg: '#dcfce7', text: '#166534', border: '#86efac' },
+  Failed:   { bg: '#fee2e2', text: '#991b1b', border: '#fca5a5' },
+  Renew:    { bg: '#f3e8ff', text: '#6b21a8', border: '#d8b4fe' },
+};
+
+const PRIORITY_STYLES: Record<string, { bg: string; text: string; border: string }> = {
+  critical: { bg: '#fee2e2', text: '#b91c1c', border: '#fca5a5' },
+  high:     { bg: '#fef3c2', text: '#92400e', border: '#fcd34d' },
+  medium:   { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' },
+  low:      { bg: '#dcfce7', text: '#166534', border: '#86efac' },
 };
 
 const STATUS_OPTIONS = ['Assigned', 'Solving', 'Solved', 'Failed'] as const;
@@ -47,13 +54,23 @@ function timeAgo(date: string) {
   return `${Math.floor(diff / 86400)}d ago`;
 }
 
+function timeUntil(date: string | null) {
+  if (!date) return { label: 'No deadline', urgent: false };
+  const diff = new Date(date).getTime() - Date.now();
+  if (diff < 0) return { label: 'Overdue', urgent: true };
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h < 24) return { label: `${h}h ${m}m left`, urgent: h < 6 };
+  return { label: `${Math.floor(h / 24)}d ${h % 24}h left`, urgent: false };
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailModalProps) {
   const [ticket,           setTicket]           = useState<ApiTicketDetail | null>(null);
   const [assigneeList,     setAssigneeList]     = useState<ApiAssignee[]>([]);
   const [loading,          setLoading]          = useState(true);
-  const [activeTab,        setActiveTab]        = useState<'details' | 'history' | 'comments'>('details');
+  const [activeTab,        setActiveTab]        = useState<'comments' | 'history'>('comments');
 
   const [updatingStatus,   setUpdatingStatus]   = useState(false);
   const [pendingStatus,    setPendingStatus]    = useState<'Solved' | 'Failed' | null>(null);
@@ -65,6 +82,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
   const [showReassign,     setShowReassign]     = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<string>('');
   const [reassigning,      setReassigning]      = useState(false);
+  const [showStatusMenu,   setShowStatusMenu]   = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,19 +97,24 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
     return () => { cancelled = true; };
   }, [ticketId]);
 
-  const handleStatusClick = (s: typeof STATUS_OPTIONS[number]) => {
-    if (s === 'Solved' || s === 'Failed') { setPendingStatus(s); setActiveTab('comments'); }
-    else commitStatus(s);
-  };
-
   const commitStatus = async (s: string) => {
     if (!ticket) return;
     setUpdatingStatus(true);
+    setShowStatusMenu(false);
     try {
       await apiFetch(`/tickets/id/${ticket.ticket_id}/status`, { method: 'PATCH', body: JSON.stringify({ new_status: s }) });
       const updated = await apiFetch<ApiTicketDetail>(`/tickets/id/${ticket.ticket_id}`);
       setTicket(updated); setPendingStatus(null); onUpdate();
     } catch { /* keep state */ } finally { setUpdatingStatus(false); }
+  };
+
+  const handleActionClick = (s: typeof STATUS_OPTIONS[number]) => {
+    if (s === 'Solved' || s === 'Failed') {
+      setPendingStatus(s);
+      setActiveTab('comments');
+    } else {
+      commitStatus(s);
+    }
   };
 
   const handleComment = async () => {
@@ -119,118 +142,255 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
   };
 
   const currentStatus = ticket?.status?.name ?? '';
+  const priorityKey   = ticket?.priority?.toLowerCase() ?? 'medium';
+  const prStyle       = PRIORITY_STYLES[priorityKey] ?? PRIORITY_STYLES.medium;
+  const stStyle       = STATUS_STYLES[currentStatus]  ?? { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+  const timeLeft      = timeUntil(ticket?.deadline ?? null);
+  const commentCount  = ticket?.comments?.length ?? 0;
+  const historyCount  = (ticket?.status_history?.length ?? 0) + (ticket?.assignment_history?.length ?? 0);
+  const participantCount = 1 + (ticket?.followers?.length ?? 0);
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
+      className="fixed inset-0 z-50 bg-black/30 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[95vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div className="flex items-start justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-slate-200 shrink-0">
-          <div className="flex-1 min-w-0 pr-4">
-            {ticket && (
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-500">
-                  #{ticket.ticket_id}
-                </span>
-                {ticket.category && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                    {ticket.category.name}
-                  </span>
-                )}
+        {loading ? (
+          <div className="flex items-center justify-center h-48 text-slate-400 text-sm">Loading ticket…</div>
+        ) : !ticket ? (
+          <div className="flex items-center justify-center h-48 text-slate-400 text-sm">Ticket not found.</div>
+        ) : (
+          <>
+            {/* ── HEADER ── */}
+            <div className="px-5 pt-5 pb-4 border-b border-slate-100 shrink-0">
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-slate-400 font-medium mb-1">#{ticket.ticket_id}</p>
+                  <h2 className="text-lg font-bold text-slate-900 leading-snug">{ticket.title ?? '(Untitled)'}</h2>
+                </div>
+                <button onClick={onClose} className="text-slate-300 hover:text-slate-600 transition-colors shrink-0 mt-1">
+                  <X size={18} />
+                </button>
               </div>
-            )}
-            <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug">
-              {loading ? 'Loading…' : (ticket?.title ?? '(Untitled)')}
-            </h2>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition-colors shrink-0 mt-1">
-            <X size={20} />
-          </button>
-        </div>
 
-        {/* Tabs — scrollable on mobile so they never wrap */}
-        <div className="flex border-b border-slate-200 shrink-0 px-4 sm:px-6 overflow-x-auto scrollbar-none">
-          {(['details', 'history', 'comments'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`py-3 px-1 mr-4 sm:mr-6 text-sm font-semibold border-b-2 transition-all whitespace-nowrap ${
-                activeTab === tab
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {tab === 'history' ? 'Audit Log' : tab === 'comments' ? 'Communication' : 'Details & Actions'}
-            </button>
-          ))}
-        </div>
-
-        {/* Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-          {loading && (
-            <div className="flex items-center justify-center h-32 text-slate-400 text-sm">Loading ticket…</div>
-          )}
-
-          {!loading && ticket && (
-            <>
-              {/* ── DETAILS TAB ── */}
-              {activeTab === 'details' && (
-                <div className="space-y-5">
-
-                  {/* Info cards — 3 cols on sm+, single row on mobile */}
-                  <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-3 border border-slate-200">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Priority</p>
-                      <span className="text-xs sm:text-sm font-bold capitalize text-slate-800">{ticket.priority}</span>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-3 border border-slate-200">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Deadline</p>
-                      <span className="text-xs sm:text-sm font-bold text-slate-800">
-                        {ticket.deadline ? new Date(ticket.deadline).toLocaleDateString() : '—'}
-                      </span>
-                    </div>
-                    <div className="bg-slate-50 rounded-xl p-2.5 sm:p-3 border border-slate-200">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Opened</p>
-                      <span className="text-xs sm:text-sm font-semibold text-slate-700">{timeAgo(ticket.created_at)}</span>
-                    </div>
-                  </div>
-
-                  {ticket.summary && (
-                    <div className="bg-slate-50 rounded-xl p-3 sm:p-4 border border-slate-200">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Summary</p>
-                      <p className="text-sm text-slate-700">{ticket.summary}</p>
-                    </div>
-                  )}
-
-                  {/* Status controls */}
-                  <div>
-                    <p className="text-sm font-bold text-slate-700 mb-3">Update Status</p>
-                    <div className="flex flex-wrap gap-2">
+              {/* Badges row */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Status badge with dropdown */}
+                <div className="relative">
+                  <button
+                    onClick={() => setShowStatusMenu(!showStatusMenu)}
+                    disabled={updatingStatus}
+                    className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-full border transition-all hover:opacity-80"
+                    style={{ background: stStyle.bg, color: stStyle.text, borderColor: stStyle.border }}
+                  >
+                    {currentStatus.toUpperCase()}
+                    <ChevronDown size={11} />
+                  </button>
+                  {showStatusMenu && (
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1 min-w-[130px]">
                       {STATUS_OPTIONS.map((s) => {
-                        const st       = STATUS_STYLES[s] ?? { bg: '#f1f5f9', text: '#475569' };
-                        const isActive = currentStatus === s;
+                        const ss = STATUS_STYLES[s] ?? { bg: '#f1f5f9', text: '#475569' };
                         return (
                           <button
                             key={s}
-                            onClick={() => handleStatusClick(s)}
-                            disabled={updatingStatus}
-                            className={`px-3 sm:px-4 py-2 rounded-lg text-xs font-bold transition-all border-2 disabled:opacity-50 ${
-                              isActive ? 'border-current shadow-md scale-[1.02]' : 'border-transparent opacity-60 hover:opacity-90'
-                            }`}
-                            style={{ background: st.bg, color: st.text }}
+                            onClick={() => handleActionClick(s)}
+                            className="w-full text-left px-3 py-2 text-xs font-semibold hover:bg-slate-50 transition-colors flex items-center gap-2"
+                            style={{ color: ss.text }}
                           >
-                            {isActive && '✓ '}{s.toUpperCase()}
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: ss.text }} />
+                            {s}
                           </button>
                         );
                       })}
                     </div>
-                  </div>
+                  )}
+                </div>
 
+                {/* Priority badge */}
+                <span
+                  className="text-xs font-bold px-3 py-1.5 rounded-full border"
+                  style={{ background: prStyle.bg, color: prStyle.text, borderColor: prStyle.border }}
+                >
+                  {ticket.priority?.toUpperCase() ?? '—'}
+                </span>
+
+                {/* Category badge */}
+                {ticket.category && (
+                  <span className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    {ticket.category.name}
+                  </span>
+                )}
+
+                {/* Time left */}
+                <span className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border ${
+                  timeLeft.urgent
+                    ? 'bg-red-50 text-red-600 border-red-200'
+                    : 'bg-slate-50 text-slate-500 border-slate-200'
+                }`}>
+                  <Clock size={11} />
+                  {timeLeft.label}
+                </span>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 mt-3 flex-wrap">
+                <button
+                  onClick={() => handleActionClick('Solving')}
+                  disabled={updatingStatus || currentStatus === 'Solving'}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-slate-900 text-white hover:bg-slate-700 disabled:opacity-40 transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Start Solving
+                </button>
+                <button
+                  onClick={() => handleActionClick('Solved')}
+                  disabled={updatingStatus}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white text-green-600 border border-green-200 hover:bg-green-50 disabled:opacity-40 transition-colors"
+                >
+                  <CheckCircle size={12} />
+                  Mark Solved
+                </button>
+                <button
+                  onClick={() => handleActionClick('Failed')}
+                  disabled={updatingStatus}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white text-red-500 border border-red-200 hover:bg-red-50 disabled:opacity-40 transition-colors"
+                >
+                  <XCircle size={12} />
+                  Mark Failed
+                </button>
+                <button
+                  onClick={() => setShowReassign(!showReassign)}
+                  className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-white text-blue-600 border border-blue-200 hover:bg-blue-50 transition-colors"
+                >
+                  <UserRound size={12} />
+                  Reassign
+                </button>
+              </div>
+
+              {/* Reassign panel */}
+              {showReassign && (
+                <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
+                  <p className="text-xs text-blue-700 font-medium">Select a new assignee:</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-36 overflow-y-auto">
+                    {assigneeList
+                      .filter((a) => a.user_id !== ticket.assignee?.user_id)
+                      .map((a) => (
+                        <label
+                          key={a.user_id}
+                          className="flex items-center gap-2 p-2 bg-white rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300 transition-colors"
+                        >
+                          <input
+                            type="radio"
+                            name="reassign"
+                            value={a.user_id}
+                            checked={selectedAssignee === a.user_id}
+                            onChange={() => setSelectedAssignee(a.user_id)}
+                            className="accent-blue-500"
+                          />
+                          <div className="w-6 h-6 rounded-full bg-blue-400 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+                            {userInitial(a)}
+                          </div>
+                          <p className="text-xs font-semibold text-slate-800 truncate">
+                            {a.full_name ?? a.user_name ?? a.email}
+                          </p>
+                        </label>
+                      ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleReassign}
+                      disabled={!selectedAssignee || reassigning}
+                      className="flex-1 py-2 rounded-lg bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                    >
+                      {reassigning ? 'Reassigning…' : 'Confirm Reassign'}
+                    </button>
+                    <button
+                      onClick={() => { setShowReassign(false); setSelectedAssignee(''); }}
+                      className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── TABS ── */}
+            <div className="flex items-center justify-between px-5 border-b border-slate-100 shrink-0">
+              <div className="flex">
+                <button
+                  onClick={() => setActiveTab('comments')}
+                  className={`flex items-center gap-1.5 py-3 px-1 mr-5 text-sm font-semibold border-b-2 transition-all ${
+                    activeTab === 'comments'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <MessageSquare size={14} />
+                  Comments ({commentCount})
+                </button>
+                <button
+                  onClick={() => setActiveTab('history')}
+                  className={`flex items-center gap-1.5 py-3 px-1 text-sm font-semibold border-b-2 transition-all ${
+                    activeTab === 'history'
+                      ? 'border-slate-900 text-slate-900'
+                      : 'border-transparent text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  <History size={14} />
+                  History ({historyCount})
+                </button>
+              </div>
+              <div className="flex items-center gap-1 text-xs text-slate-400">
+                <Users size={12} />
+                {participantCount} participant{participantCount !== 1 ? 's' : ''}
+              </div>
+            </div>
+
+            {/* ── CREATOR / ASSIGNEE PILLS ── */}
+            <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Creator</span>
+                <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {ticket.creator ? (ticket.creator.user_name ?? ticket.creator.full_name ?? ticket.creator.email) : '—'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Assignee</span>
+                <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
+                  <div className="w-4 h-4 rounded-full bg-orange-400 flex items-center justify-center text-white text-[8px] font-bold shrink-0">
+                    {userInitial(ticket.assignee)}
+                  </div>
+                  <span className="text-xs font-semibold text-slate-700">{userName(ticket.assignee)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── BODY ── */}
+            <div className="flex-1 overflow-y-auto">
+
+              {/* COMMENTS TAB */}
+              {activeTab === 'comments' && (
+                <div className="flex flex-col h-full">
+
+                  {/* Resolution banner */}
+                  {pendingStatus && (
+                    <div className={`mx-5 mt-4 rounded-xl px-4 py-3 border flex items-start gap-3 shrink-0 ${
+                      pendingStatus === 'Solved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
+                    }`}>
+                      <span className="text-base shrink-0">{pendingStatus === 'Solved' ? '✅' : '❌'}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-xs font-bold ${pendingStatus === 'Solved' ? 'text-green-700' : 'text-red-700'}`}>
+                          Add a comment to mark as {pendingStatus.toUpperCase()}
+                        </p>
+                        <p className="text-xs text-slate-500 mt-0.5">Please describe the resolution or reason.</p>
+                      </div>
+                      <button onClick={() => setPendingStatus(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+                        <X size={13} />
                   {/* Reassign */}
                   <div>
                     <div className="flex items-center justify-between mb-2">
@@ -244,70 +404,107 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                         ↗ Reassign Ticket
                       </button>
                     </div>
+                  )}
 
-                    <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100 w-fit max-w-full">
-                      <div className="w-7 h-7 rounded-full bg-orange-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                        {userInitial(ticket.assignee)}
+                  {/* Comment thread */}
+                  <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+                    {commentCount === 0 && (
+                      <div className="flex flex-col items-center justify-center py-12 text-slate-300">
+                        <MessageSquare size={32} strokeWidth={1.5} />
+                        <p className="text-sm mt-2">No comments yet.</p>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-800 truncate">{userName(ticket.assignee)}</p>
-                        <p className="text-[10px] text-slate-400">Current assignee</p>
+                    )}
+                    {ticket.comments?.map((c) => (
+                      <div
+                        key={c.comment_id}
+                        className={`rounded-xl p-3 border ${
+                          c.visibility === 'PRIVATE' ? 'bg-amber-50 border-amber-200' : 'bg-blue-50 border-blue-100'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-slate-800">{userName(c.user)}</span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                              c.visibility === 'PRIVATE' ? 'bg-amber-200 text-amber-800' : 'bg-blue-200 text-blue-800'
+                            }`}>
+                              {c.visibility === 'PRIVATE' ? 'Internal' : 'Public'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-slate-400">{timeAgo(c.created_at)}</span>
+                        </div>
+                        <p className="text-sm text-slate-700">{c.content}</p>
                       </div>
+                    ))}
+                  </div>
+
+                  {/* Compose area — pinned to bottom */}
+                  <div className="px-5 pb-5 shrink-0 border-t border-slate-100 pt-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs text-slate-500 font-medium">Post as:</span>
+                      <button
+                        onClick={() => setCommentType('internal')}
+                        className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                          commentType === 'internal'
+                            ? 'bg-amber-100 text-amber-700 border-amber-300'
+                            : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        🔒 Internal
+                      </button>
+                      <button
+                        onClick={() => setCommentType('public')}
+                        className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${
+                          commentType === 'public'
+                            ? 'bg-blue-100 text-blue-700 border-blue-300'
+                            : 'bg-white text-slate-400 border-slate-200 hover:bg-slate-50'
+                        }`}
+                      >
+                        🌐 Public
+                      </button>
                     </div>
-
-                    {showReassign && (
-                      <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-3 sm:p-4 space-y-3">
-                        <p className="text-xs text-orange-700 font-medium">Select an assignee to redirect this ticket:</p>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                          {assigneeList
-                            .filter((a) => a.user_id !== ticket.assignee?.user_id)
-                            .map((a) => (
-                              <label
-                                key={a.user_id}
-                                className="flex items-center gap-2 p-2 bg-white rounded-lg border border-orange-100 cursor-pointer hover:border-orange-300 transition-colors"
-                              >
-                                <input
-                                  type="radio"
-                                  name="reassign"
-                                  value={a.user_id}
-                                  checked={selectedAssignee === a.user_id}
-                                  onChange={() => setSelectedAssignee(a.user_id)}
-                                  className="accent-orange-500"
-                                />
-                                <div className="w-6 h-6 rounded-full bg-orange-400 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-                                  {userInitial(a)}
-                                </div>
-                                <p className="text-xs font-semibold text-slate-800 truncate">
-                                  {a.full_name ?? a.user_name ?? a.email}
-                                </p>
-                              </label>
-                            ))}
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={handleReassign}
-                            disabled={!selectedAssignee || reassigning}
-                            className="flex-1 py-2 rounded-lg bg-orange-500 text-white text-xs font-bold hover:bg-orange-600 disabled:opacity-40 transition-colors"
-                          >
-                            {reassigning ? 'Reassigning…' : 'Confirm Reassign'}
-                          </button>
-                          <button
-                            onClick={() => { setShowReassign(false); setSelectedAssignee(''); }}
-                            className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
-                          >
-                            Cancel
-                          </button>
-                        </div>
+                    <div className="relative">
+                      <textarea
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        placeholder={
+                          pendingStatus
+                            ? `Describe the ${pendingStatus === 'Solved' ? 'resolution' : 'reason for failure'}…`
+                            : commentType === 'internal'
+                            ? 'Write an internal note…'
+                            : 'Write a public reply…'
+                        }
+                        rows={3}
+                        className="w-full px-4 py-3 pr-14 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl resize-none outline-none focus:border-slate-400 focus:bg-white transition-all"
+                      />
+                      <button
+                        onClick={handleComment}
+                        disabled={!commentText.trim() || postingComment}
+                        className={`absolute right-2.5 bottom-2.5 w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold disabled:opacity-30 transition-colors ${
+                          pendingStatus === 'Solved' ? 'bg-green-600 hover:bg-green-700'
+                          : pendingStatus === 'Failed' ? 'bg-red-600 hover:bg-red-700'
+                          : 'bg-slate-900 hover:bg-slate-700'
+                        }`}
+                        title={pendingStatus ? `Confirm & Mark ${pendingStatus}` : 'Post comment'}
+                      >
+                        ↑
+                      </button>
+                    </div>
+                    {pendingStatus && (
+                      <div className="flex items-center justify-between mt-2">
+                        <p className="text-[11px] text-slate-400">Comment required to change status</p>
+                        <button onClick={() => setPendingStatus(null)} className="text-[11px] text-slate-400 hover:text-slate-600 underline">
+                          Cancel
+                        </button>
                       </div>
                     )}
                   </div>
                 </div>
               )}
 
-              {/* ── AUDIT LOG TAB ── */}
+              {/* HISTORY TAB */}
               {activeTab === 'history' && (
-                <div className="space-y-3">
-                  <p className="text-xs text-slate-400 font-medium">Read-only audit trail of all status changes and reassignments.</p>
+                <div className="px-5 py-4 space-y-3">
+                  <p className="text-xs text-slate-400">Read-only audit trail of all changes.</p>
                   {(() => {
                     type TimelineEntry =
                       | { kind: 'status'; item: ApiStatusHistory }
@@ -324,7 +521,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
 
                     return (
                       <div className="relative">
-                        <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-200" />
+                        <div className="absolute left-4 top-0 bottom-0 w-px bg-slate-100" />
                         <div className="space-y-3 pl-10">
                           {entries.map((e, i) => {
                             if (e.kind === 'status') {
@@ -339,21 +536,23 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                       <span className="text-xs font-bold text-slate-800">Status Change</span>
                                       <span className="text-[10px] text-slate-400">{timeAgo(h.changed_at)}</span>
                                     </div>
-                                    <p className="text-xs text-slate-500">
-                                      By: <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
+                                    <p className="text-xs text-slate-500 mb-2">
+                                      By <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
                                     </p>
-                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                       {oldSt && h.old_status && (
                                         <>
-                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: oldSt.bg, color: oldSt.text }}>
-                                            {h.old_status.name.toUpperCase()}
+                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ background: oldSt.bg, color: oldSt.text, borderColor: oldSt.border }}>
+                                            {h.old_status.name}
                                           </span>
-                                          <span className="text-slate-400 text-xs">→</span>
+                                          <span className="text-slate-300 text-xs">→</span>
                                         </>
                                       )}
-                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: newSt?.bg ?? '#f1f5f9', color: newSt?.text ?? '#475569' }}>
-                                        {h.new_status?.name.toUpperCase()}
-                                      </span>
+                                      {h.new_status && (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ background: newSt?.bg ?? '#f1f5f9', color: newSt?.text ?? '#475569', borderColor: newSt?.border ?? '#e2e8f0' }}>
+                                          {h.new_status.name}
+                                        </span>
+                                      )}
                                     </div>
                                   </div>
                                 </div>
@@ -368,10 +567,10 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                       <span className="text-xs font-bold text-slate-800">Reassigned</span>
                                       <span className="text-[10px] text-slate-400">{timeAgo(h.changed_at)}</span>
                                     </div>
-                                    <p className="text-xs text-slate-500">
-                                      By: <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
+                                    <p className="text-xs text-slate-500 mb-1">
+                                      By <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
                                     </p>
-                                    <p className="text-xs text-orange-600 font-medium mt-1">
+                                    <p className="text-xs text-orange-600 font-medium">
                                       {userName(h.old_assignee)} → {userName(h.new_assignee)}
                                     </p>
                                   </div>
@@ -385,145 +584,9 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                   })()}
                 </div>
               )}
-
-              {/* ── COMMUNICATION TAB ── */}
-              {activeTab === 'comments' && (
-                // Stacks vertically on mobile, side-by-side on sm+
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1 flex flex-col gap-4 min-w-0">
-
-                    {/* Resolution banner */}
-                    {pendingStatus && (
-                      <div className={`rounded-xl px-3 sm:px-4 py-3 border flex items-start gap-3 ${
-                        pendingStatus === 'Solved' ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'
-                      }`}>
-                        <span className="text-lg shrink-0">{pendingStatus === 'Solved' ? '✅' : '❌'}</span>
-                        <div className="min-w-0">
-                          <p className={`text-xs font-bold ${pendingStatus === 'Solved' ? 'text-green-700' : 'text-red-700'}`}>
-                            Resolution comment required to mark as {pendingStatus.toUpperCase()}
-                          </p>
-                          <p className="text-xs text-slate-500 mt-0.5">Please describe the resolution or reason for failure.</p>
-                        </div>
-                        <button onClick={() => setPendingStatus(null)} className="ml-auto text-slate-400 hover:text-slate-600 shrink-0">
-                          <X size={14} />
-                        </button>
-                      </div>
-                    )}
-
-                    {/* Comment thread */}
-                    <div className="space-y-3 min-h-[80px]">
-                      {(ticket.comments?.length ?? 0) === 0 && (
-                        <p className="text-sm text-slate-400 text-center py-6">No comments yet.</p>
-                      )}
-                      {ticket.comments?.map((c) => (
-                        <div
-                          key={c.comment_id}
-                          className={`rounded-xl p-3 border ${
-                            c.visibility === 'PRIVATE' ? 'bg-yellow-50 border-yellow-200' : 'bg-blue-50 border-blue-200'
-                          }`}
-                        >
-                          <div className="flex items-start sm:items-center justify-between gap-2 mb-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs font-bold text-slate-800">{userName(c.user)}</span>
-                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                                c.visibility === 'PRIVATE' ? 'bg-yellow-200 text-yellow-800' : 'bg-blue-200 text-blue-800'
-                              }`}>
-                                {c.visibility === 'PRIVATE' ? '🔒 INTERNAL' : '🌐 PUBLIC'}
-                              </span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(c.created_at)}</span>
-                          </div>
-                          <p className="text-sm text-slate-700">{c.content}</p>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Compose */}
-                    <div className={`border rounded-xl overflow-hidden ${pendingStatus ? 'border-orange-300 ring-2 ring-orange-100' : 'border-slate-200'}`}>
-                      <div className="flex border-b border-slate-200">
-                        {(['internal', 'public'] as const).map((t) => (
-                          <button
-                            key={t}
-                            onClick={() => setCommentType(t)}
-                            className={`flex-1 py-2 text-xs font-semibold transition-all capitalize ${
-                              commentType === t
-                                ? t === 'internal' ? 'bg-yellow-50 text-yellow-700' : 'bg-blue-50 text-blue-700'
-                                : 'text-slate-400 hover:bg-slate-50'
-                            }`}
-                          >
-                            {t === 'internal' ? '🔒 Internal Note' : '🌐 Public Reply'}
-                          </button>
-                        ))}
-                      </div>
-                      <textarea
-                        value={commentText}
-                        onChange={(e) => setCommentText(e.target.value)}
-                        placeholder={pendingStatus
-                          ? `Describe the ${pendingStatus === 'Solved' ? 'resolution' : 'reason for failure'}…`
-                          : commentType === 'internal'
-                          ? 'Write an internal note visible only to the team…'
-                          : 'Write a public reply visible to the customer…'}
-                        className="w-full p-3 text-sm text-slate-700 resize-none outline-none min-h-[80px] bg-white"
-                      />
-                      <div className="flex justify-end px-3 pb-3 gap-2 flex-wrap">
-                        {pendingStatus && (
-                          <button
-                            onClick={() => setPendingStatus(null)}
-                            className="px-4 py-2 rounded-lg border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                          >
-                            Cancel
-                          </button>
-                        )}
-                        <button
-                          onClick={handleComment}
-                          disabled={!commentText.trim() || postingComment}
-                          className={`px-4 py-2 rounded-lg text-white text-xs font-bold disabled:opacity-40 transition-colors ${
-                            pendingStatus === 'Solved' ? 'bg-green-600 hover:bg-green-700'
-                            : pendingStatus === 'Failed' ? 'bg-red-600 hover:bg-red-700'
-                            : 'bg-slate-900 hover:bg-slate-700'
-                          }`}
-                        >
-                          {postingComment ? 'Posting…' : pendingStatus ? `Confirm & Mark ${pendingStatus.toUpperCase()}` : 'Post Comment'}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right sidebar — full width on mobile, fixed width on sm+ */}
-                  <div className="w-full sm:w-52 shrink-0 flex flex-row sm:flex-col gap-3 sm:gap-4">
-                    <div className="flex-1 sm:flex-none">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Assignee</p>
-                      <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-100">
-                        <div className="w-7 h-7 rounded-full bg-orange-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                          {userInitial(ticket.assignee)}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-xs font-semibold text-slate-800 truncate">{userName(ticket.assignee)}</p>
-                          <p className="text-[10px] text-slate-400 truncate">{ticket.assignee?.email ?? ''}</p>
-                        </div>
-                      </div>
-                    </div>
-                    {(ticket.followers?.length ?? 0) > 0 && (
-                      <div className="flex-1 sm:flex-none">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Followers</p>
-                        <div className="space-y-1.5">
-                          {ticket.followers?.map((f, i) => (
-                            <div key={i} className="flex items-center gap-2 p-2 bg-slate-50 rounded-lg border border-slate-200">
-                              <div className="w-7 h-7 rounded-full bg-purple-400 flex items-center justify-center text-white text-[10px] font-bold shrink-0">
-                                {userInitial(f.user)}
-                              </div>
-                              <p className="text-xs font-semibold text-slate-800 truncate">{userName(f.user)}</p>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
