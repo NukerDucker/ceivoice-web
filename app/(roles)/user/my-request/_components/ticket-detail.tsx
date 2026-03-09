@@ -138,7 +138,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
   const [activeTab, setActiveTab]         = useState<'details' | 'comments'>('details');
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Fetch public comments whenever the ticket changes
   useEffect(() => {
     if (!ticket) return;
     setLocalComments([]);
@@ -189,16 +188,28 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
     if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleSend();
   };
 
-  // ─── Shared panels ────────────────────────────────────────────────────────
+  // ─── Left panel: Original Message + People + Details ──────────────────────
 
   const DetailsPanel = () => (
     <div className="flex flex-col gap-7">
-      {/* Description */}
+
+      {/* Original Message — replaces "Description" */}
       <div>
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Description</p>
-        <p className="text-sm text-gray-600 leading-relaxed">
-          {ticket.description ?? <span className="italic text-gray-300">No description provided.</span>}
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3">
+          Original Message
         </p>
+        {/* Original request message (from ticket_requests → request.message) */}
+        {ticket.originalMessage ? (
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+            {ticket.originalMessage}
+          </p>
+        ) : ticket.description ? (
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+            {ticket.description}
+          </p>
+        ) : (
+          <p className="text-sm italic text-gray-300">No message provided.</p>
+        )}
       </div>
 
       <div className="w-full h-px bg-gray-100" />
@@ -207,7 +218,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
       <div>
         <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-4">People</p>
         <div className="flex flex-col gap-4">
-          {/* Creator */}
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-gray-400">Creator</span>
             <div className="flex items-center gap-2.5">
@@ -215,7 +225,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
               <span className="text-sm font-medium text-gray-800">{ticket.creator.name}</span>
             </div>
           </div>
-          {/* Assignee */}
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-gray-400">Assignee</span>
             {ticket.assignee.name === 'Unassigned' ? (
@@ -227,7 +236,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
               </div>
             )}
           </div>
-          {/* Followers */}
           <div className="flex flex-col gap-1.5">
             <span className="text-xs text-gray-400">Followers</span>
             {ticket.followers.length === 0 ? (
@@ -270,12 +278,38 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
     </div>
   );
 
-  const CommentsPanel = () => (
-    <>
-      {/* Thread */}
+  // ─── Right panel: AI Suggestion + divider + Comments ──────────────────────
+
+  const RightPanel = () => (
+    <div className="flex flex-col flex-1 overflow-hidden">
+
+      {/* AI Suggestion */}
+      <div className="shrink-0 px-8 pt-6 pb-5 border-b border-gray-100">
+        <div className="flex items-center gap-2 mb-3">
+          <Sparkles size={13} className="text-purple-400" />
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+            AI Suggestion
+          </p>
+        </div>
+        {ticket.suggestedSolution ? (
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+            {ticket.suggestedSolution}
+          </p>
+        ) : (
+          <p className="text-sm italic text-gray-300">No AI suggestion available.</p>
+        )}
+      </div>
+
+      {/* Comments header */}
+      <div className="shrink-0 px-8 pt-5 pb-3 flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Comments</p>
+        <span className="text-xs text-gray-400">{localComments.length}</span>
+      </div>
+
+      {/* Comment thread */}
       <div className="flex-1 overflow-y-auto px-8 pb-4">
         {localComments.length === 0 ? (
-          <div className="flex items-center justify-center h-full py-16">
+          <div className="flex items-center justify-center h-full py-10">
             <p className="text-sm text-gray-300">No comments yet.</p>
           </div>
         ) : (
@@ -310,7 +344,70 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
           </div>
         </div>
       </div>
-    </>
+    </div>
+  );
+
+  // ─── Mobile Comments panel (tab) ──────────────────────────────────────────
+
+  const MobileCommentsPanel = () => (
+    <div className="flex flex-col flex-1 overflow-hidden">
+
+      {/* AI Suggestion (mobile) */}
+      <div className="shrink-0 px-4 pt-5 pb-4 border-b border-gray-100">
+        <div className="flex items-center gap-2 mb-2">
+          <Sparkles size={13} className="text-purple-400" />
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">
+            AI Suggestion
+          </p>
+        </div>
+        {ticket.suggestedSolution ? (
+          <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+            {ticket.suggestedSolution}
+          </p>
+        ) : (
+          <p className="text-sm italic text-gray-300">No AI suggestion available.</p>
+        )}
+      </div>
+
+      {/* Comment thread */}
+      <div className="flex-1 overflow-y-auto px-4 pb-4 pt-4">
+        {localComments.length === 0 ? (
+          <div className="flex items-center justify-center h-full py-10">
+            <p className="text-sm text-gray-300">No comments yet.</p>
+          </div>
+        ) : (
+          localComments.map((c, i) => (
+            <Comment key={c.id} comment={c} isLast={i === localComments.length - 1} />
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Reply box */}
+      <div className="shrink-0 border-t border-gray-100 px-4 py-4">
+        <div className="flex gap-3 items-start">
+          <Avatar person={ticket.creator} size="sm" />
+          <div className="flex-1 relative">
+            <textarea
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={3}
+              placeholder="Reply… (⌘+Enter to send)"
+              className="w-full px-4 py-3 pr-20 text-sm bg-gray-50 border border-gray-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-orange-300/50 focus:border-orange-300 transition-all placeholder:text-gray-300"
+            />
+            <button
+              onClick={handleSend}
+              disabled={!replyText.trim() || isSending}
+              className="absolute bottom-3 right-3 flex items-center gap-1 px-3 py-1.5 bg-gray-900 hover:bg-gray-800 disabled:bg-gray-100 disabled:text-gray-300 text-white text-xs font-medium rounded-lg transition-all"
+            >
+              {isSending ? <Loader2 size={11} className="animate-spin" /> : <Send size={11} />}
+              Send
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 
   return (
@@ -328,7 +425,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
         <div className="shrink-0 px-4 md:px-8 pt-5 md:pt-7 pb-4 md:pb-5 border-b border-gray-100">
           <div className="flex items-start justify-between gap-4">
             <div className="flex-1 min-w-0">
-              {/* ID + category row */}
               <div className="flex items-center gap-2 mb-2 flex-wrap">
                 <span className="font-mono text-xs text-gray-400">{ticket.ticketId}</span>
                 {ticket.category && (
@@ -342,7 +438,6 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
                   {ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
                 </span>
               </div>
-              {/* Title */}
               <h1 className="text-lg md:text-xl font-bold text-gray-900 leading-snug">{ticket.title}</h1>
             </div>
             <div className="flex items-center gap-2 md:gap-3 shrink-0 mt-1">
@@ -356,7 +451,7 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
             </div>
           </div>
 
-          {/* ── Mobile tabs ── */}
+          {/* Mobile tabs */}
           <div className="flex md:hidden mt-4 border-b border-gray-100 -mb-4">
             {(['details', 'comments'] as const).map((tab) => (
               <button
@@ -382,30 +477,26 @@ export function TicketDetailModal({ ticket, onClose }: TicketDetailModalProps) {
         {/* ── Body ── */}
         <div className="flex-1 flex overflow-hidden min-h-0">
 
-          {/* ── MOBILE: tab content ── */}
+          {/* MOBILE: tab content */}
           <div className="flex flex-col flex-1 overflow-hidden md:hidden">
             {activeTab === 'details' ? (
               <div className="flex-1 overflow-y-auto px-4 py-6">
                 <DetailsPanel />
               </div>
             ) : (
-              <CommentsPanel />
+              <MobileCommentsPanel />
             )}
           </div>
 
-          {/* ── DESKTOP: two columns ── */}
-          {/* LEFT */}
+          {/* DESKTOP: two columns */}
+          {/* LEFT — Original Message + People + Details */}
           <div className="hidden md:block w-[45%] border-r border-gray-100 overflow-y-auto px-8 py-6">
             <DetailsPanel />
           </div>
 
-          {/* RIGHT — Comments */}
+          {/* RIGHT — AI Suggestion + Comments */}
           <div className="hidden md:flex flex-1 flex-col overflow-hidden">
-            <div className="shrink-0 px-8 pt-6 pb-3 flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-widest">Comments</p>
-              <span className="text-xs text-gray-400">{localComments.length}</span>
-            </div>
-            <CommentsPanel />
+            <RightPanel />
           </div>
 
         </div>
