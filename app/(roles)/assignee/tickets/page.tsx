@@ -514,7 +514,9 @@ function TicketDetailDrawer({
             </button>
             <button
               onClick={() => setShowReassign(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100 transition-colors whitespace-nowrap shrink-0"
+              disabled={ticket.status === 'solving' || ticket.status === 'solved'}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold hover:bg-indigo-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap shrink-0"
+              title={ticket.status === 'solving' || ticket.status === 'solved' ? 'Cannot reassign tickets in Solving or Solved status' : 'Reassign ticket to another assignee'}
             >
               <GitBranch size={12} /> Reassign
             </button>

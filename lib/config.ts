@@ -31,23 +31,6 @@ export const PRIORITY_ORDER: Record<TicketPriority, number> = {
 };
 
 
-export const CATEGORY_STYLES: Record<string, { bg: string; color: string }> = {
-  Network:        { bg: '#dbeafe', color: '#1d4ed8' },
-  Email:          { bg: '#fce7f3', color: '#be185d' },
-  Database:       { bg: '#dbeafe', color: '#1e40af' },
-  Security:       { bg: '#fce7f3', color: '#9d174d' },
-  Performance:    { bg: '#f0fdf4', color: '#166534' },
-  Authentication: { bg: '#ede9fe', color: '#5b21b6' },
-  Storage:        { bg: '#fef3c2', color: '#92400e' },
-  Mobile:         { bg: '#fdf4ff', color: '#7e22ce' },
-  Facilities:     { bg: '#fff7ed', color: '#c2410c' },
-  HR:             { bg: '#f0f9ff', color: '#0369a1' },
-  Finance:        { bg: '#fef9c3', color: '#a16207' },
-  'IT Ops':       { bg: '#e0f2fe', color: '#0369a1' },
-  Compliance:     { bg: '#ede9fe', color: '#7c3aed' },
-  Infrastructure: { bg: '#f1f5f9', color: '#475569' },
-};
-
 export const CATEGORY_COLORS: string[] = [
   '#6366f1', '#f59e0b', '#10b981', '#ef4444',
   '#3b82f6', '#ec4899', '#14b8a6', '#8b5cf6',

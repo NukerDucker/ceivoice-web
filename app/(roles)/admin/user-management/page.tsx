@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import {
   Search, ChevronDown, ChevronUp,
   Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle, Check,
 } from 'lucide-react';
 import { Header }  from '@/components/layout/UserManagementTB';
 import type { ManagedUser, UserRole } from '@/types';
-import { SCOPE_NAMES } from '@/lib/config';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiScope } from '@/types/api';
 
@@ -28,7 +27,7 @@ interface ApiUser {
 type ManagedUserEx = ManagedUser & { rawScopes: ApiScope[] };
 
 function mapApiUser(u: ApiUser): ManagedUserEx {
-  const role      = u.role.toLowerCase() as UserRole;
+  const role      = (u.role ?? 'user').toLowerCase() as UserRole;
   const rawScopes = u.scopes ?? [];
   const words     = (u.full_name ?? '').trim().split(/\s+/);
   const fallback  = (words[0]?.[0] ?? '') + (words[1]?.[0] ?? '');
@@ -47,8 +46,6 @@ function mapApiUser(u: ApiUser): ManagedUserEx {
     lastActive:    new Date(),
   };
 }
-
-const SCOPE_OPTIONS = SCOPE_NAMES;
 
 function timeAgo(date: Date): string {
   const diff  = Date.now() - date.getTime();
@@ -108,14 +105,23 @@ function ScopeTag({ label, onRemove }: { label: string; onRemove?: () => void })
 
 // ─── Expanded panel ───────────────────────────────────────────────────────────
 
-function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
+function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemove }: {
   user: ManagedUser;
+  scopeOptions:  string[];
   onRoleChange:  (id: string, role: UserRole) => void;
   onScopeAdd:    (id: string, scope: string) => void;
   onScopeRemove: (id: string, scope: string) => void;
 }) {
   const [scopeOpen,       setScopeOpen]       = useState(false);
   const [confirmAdminFor, setConfirmAdminFor] = useState<string | null>(null);
+  const scopeTriggerRef = useRef<HTMLButtonElement>(null);
+  const [dropdownRect, setDropdownRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (scopeOpen && scopeTriggerRef.current) {
+      setDropdownRect(scopeTriggerRef.current.getBoundingClientRect());
+    }
+  }, [scopeOpen]);
 
   return (
     <div className="px-4 sm:px-6 pb-5 pt-2 bg-gray-50/60 border-t border-gray-100">
@@ -186,6 +192,7 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
             <div className="relative">
               {/* Trigger button */}
               <button
+                ref={scopeTriggerRef}
                 onClick={(e) => { e.stopPropagation(); setScopeOpen((o) => !o); }}
                 className="w-full flex items-start justify-between gap-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 hover:border-blue-300 focus:outline-none focus:border-blue-400 transition-colors min-h-[36px]"
               >
@@ -217,11 +224,14 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
               </button>
 
               {/* Dropdown */}
-              {scopeOpen && (
+              {scopeOpen && dropdownRect && (
                 <>
                   <div className="fixed inset-0 z-10" onClick={() => setScopeOpen(false)} />
-                  <div className="absolute left-0 top-full mt-1 z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden w-full max-h-56 overflow-y-auto">
-                    {SCOPE_OPTIONS.map((s) => {
+                  <div
+                    className="fixed z-20 bg-white rounded-xl shadow-lg border border-gray-100 overflow-y-auto max-h-56"
+                    style={{ top: dropdownRect.bottom + 4, left: dropdownRect.left, width: dropdownRect.width }}
+                  >
+                    {scopeOptions.map((s) => {
                       const selected = user.scopes.includes(s);
                       return (
                         <button
@@ -295,8 +305,9 @@ function ExpandedRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
 
 // ─── User row ─────────────────────────────────────────────────────────────────
 
-function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
+function UserRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemove }: {
   user: ManagedUser;
+  scopeOptions:  string[];
   onRoleChange:  (id: string, role: UserRole) => void;
   onScopeAdd:    (id: string, scope: string) => void;
   onScopeRemove: (id: string, scope: string) => void;
@@ -388,6 +399,7 @@ function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
       {expanded && (
         <ExpandedRow
           user={user}
+          scopeOptions={scopeOptions}
           onRoleChange={onRoleChange}
           onScopeAdd={onScopeAdd}
           onScopeRemove={onScopeRemove}
@@ -400,17 +412,22 @@ function UserRow({ user, onRoleChange, onScopeAdd, onScopeRemove }: {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminUserManagementPage() {
-  const [users,      setUsers]      = useState<ManagedUserEx[]>([]);
-  const [search,     setSearch]     = useState('');
-  const [filterRole, setFilterRole] = useState<UserRole | 'all'>('all');
-  const [loading,    setLoading]    = useState(true);
-  const [error,      setError]      = useState<string | null>(null);
+  const [users,        setUsers]        = useState<ManagedUserEx[]>([]);
+  const [scopeOptions, setScopeOptions] = useState<string[]>([]);
+  const [search,       setSearch]       = useState('');
+  const [filterRole,   setFilterRole]   = useState<UserRole | 'all'>('all');
+  const [loading,      setLoading]      = useState(true);
+  const [error,        setError]        = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const data: ApiUser[] = await apiFetch('/admin/users');
+        const [data, scopes] = await Promise.all([
+          apiFetch<ApiUser[]>('/admin/users'),
+          apiFetch<{ scope_id: number; scope_name: string }[]>('/admin/scopes'),
+        ]);
         setUsers(data.map(mapApiUser));
+        setScopeOptions(scopes.map((s) => s.scope_name));
       } catch {
         setError('Failed to load users');
       } finally {
@@ -423,7 +440,7 @@ export default function AdminUserManagementPage() {
     if (filterRole !== 'all' && u.role !== filterRole) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      if (!u.name.toLowerCase().includes(q) && !u.email.toLowerCase().includes(q)) return false;
+      if (!(u.name ?? '').toLowerCase().includes(q) && !(u.email ?? '').toLowerCase().includes(q)) return false;
     }
     return true;
   }), [users, search, filterRole]);
@@ -551,6 +568,7 @@ export default function AdminUserManagementPage() {
                 <UserRow
                   key={user.id}
                   user={user}
+                  scopeOptions={scopeOptions}
                   onRoleChange={handleRoleChange}
                   onScopeAdd={handleScopeAdd}
                   onScopeRemove={handleScopeRemove}

@@ -5,24 +5,8 @@ import { Search, Merge, X, Bot, Sparkles, ChevronRight, Users, AlertCircle, Load
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/DraftTB';
 import { apiFetch } from '@/lib/api-client';
+import { getCatStyle } from '@/lib/utils';
 import type { ApiDraft } from '@/types/api';
-
-// ─── Category badge color map ─────────────────────────────────────────────────
-
-const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-  Network:        { bg: 'bg-blue-50',   text: 'text-blue-600',   border: 'border-blue-200'   },
-  Security:       { bg: 'bg-red-50',    text: 'text-red-600',    border: 'border-red-200'    },
-  Database:       { bg: 'bg-violet-50', text: 'text-violet-600', border: 'border-violet-200' },
-  Email:          { bg: 'bg-amber-50',  text: 'text-amber-600',  border: 'border-amber-200'  },
-  Performance:    { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200' },
-  Authentication: { bg: 'bg-teal-50',   text: 'text-teal-600',   border: 'border-teal-200'   },
-  Storage:        { bg: 'bg-green-50',  text: 'text-green-600',  border: 'border-green-200'  },
-  Mobile:         { bg: 'bg-pink-50',   text: 'text-pink-600',   border: 'border-pink-200'   },
-};
-
-function getCategoryStyle(category: string) {
-  return CATEGORY_COLORS[category] ?? { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200' };
-}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,6 +57,7 @@ interface SuggestedMerge {
   suggested_parent_id: number;
   suggested_child_id: number;
   similarity_reason: string | null;
+  is_merged: boolean;
   created_at: string;
   suggested_parent: SuggestedMergeTicket;
   suggested_child: SuggestedMergeTicket;
@@ -233,7 +218,8 @@ function SuggestMergeModal({
     setError(null);
     try {
       const data = await apiFetch<{ suggested_merges: SuggestedMerge[] }>('/admin/suggested-merges');
-      const clustered = clusterMerges(data.suggested_merges ?? []);
+      const pending = (data.suggested_merges ?? []).filter((s) => !s.is_merged);
+      const clustered = clusterMerges(pending);
       setGroups(clustered);
       setSelected(new Set(clustered.map((g) => g.parentId)));
     } catch (err: unknown) {
@@ -403,7 +389,7 @@ function DraftRow({
   const router   = useRouter();
   const request  = ticket.ticket_requests?.[0]?.request ?? null;
   const catName  = ticket.category?.name ?? 'General';
-  const catStyle = getCategoryStyle(catName);
+  const catStyle = getCatStyle(catName);
 
   const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
@@ -450,7 +436,7 @@ function DraftRow({
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
-              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border w-fit ${catStyle.bg} ${catStyle.text} ${catStyle.border}`}>
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
                 {catName}
               </span>
             </div>

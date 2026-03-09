@@ -1,15 +1,28 @@
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
-import { CATEGORY_STYLES } from "@/lib/config"
+import { CATEGORY_COLORS } from "@/lib/config"
 
 /** Merge Tailwind classes safely. */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-/** Return category badge style, falling back to neutral grey. */
-export function getCatStyle(cat: string): { bg: string; color: string } {
-  return CATEGORY_STYLES[cat] ?? { bg: '#f3f4f6', color: '#4b5563' }
+/** Stable hash: maps any string to an index in a palette. */
+function hashIndex(str: string, len: number): number {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+  return h % len;
+}
+
+/**
+ * Return category badge style derived from the name — no hardcoded lookup.
+ * Any category from the DB gets a stable, consistent color automatically.
+ * Returns valid CSS properties: `background` and `color`.
+ */
+export function getCatStyle(cat: string): { background: string; color: string } {
+  if (!cat) return { background: '#f3f4f6', color: '#4b5563' };
+  const hex = CATEGORY_COLORS[hashIndex(cat, CATEGORY_COLORS.length)];
+  return { background: hex + '22', color: hex };
 }
 
 /**

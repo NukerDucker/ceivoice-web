@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { ClipboardList, ChevronRight } from "lucide-react";
 import { Header } from "@/components/layout/Navbar";
 import { apiFetch } from "@/lib/api-client";
+import { getCatStyle } from "@/lib/utils";
 import { TicketDetailModal } from './_components/ticket-detail-modal';
 
 // ─── API types ────────────────────────────────────────────────────────────────
@@ -22,17 +23,6 @@ export interface ApiTicketSummary {
 
 // ─── Style maps ───────────────────────────────────────────────────────────────
 
-const CAT_STYLE: Record<string, { bg: string; color: string }> = {
-  Database:       { bg: '#dbeafe', color: '#1e40af' },
-  Network:        { bg: '#e0f2fe', color: '#0369a1' },
-  Security:       { bg: '#fce7f3', color: '#9d174d' },
-  Authentication: { bg: '#ede9fe', color: '#5b21b6' },
-  Storage:        { bg: '#fef3c2', color: '#92400e' },
-  Performance:    { bg: '#f0fdf4', color: '#166534' },
-  Email:          { bg: '#f0f9ff', color: '#075985' },
-  Mobile:         { bg: '#fdf4ff', color: '#7e22ce' },
-};
-const getCatStyle = (cat: string) => CAT_STYLE[cat] ?? { bg: '#f3f4f6', color: '#374151' };
 
 const PRIORITY_STYLE: Record<string, { bg: string; color: string; dot: string }> = {
   critical: { bg: '#fee2e2', color: '#b91c1c', dot: '#ef4444' },
@@ -207,7 +197,7 @@ export default function AssigneeDashboardPage() {
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
                           <div className="sm:hidden w-2 h-2 rounded-full shrink-0" style={{ background: pr.dot }} />
                           <span className="text-xs font-bold text-slate-400">#{t.ticket_id}</span>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: cs.bg, color: cs.color }}>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={cs}>
                             {t.category?.name ?? 'General'}
                           </span>
                           {t.creator?.email && (
