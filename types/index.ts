@@ -72,12 +72,14 @@ export interface ManagedUser {
 
 /** Simplified shape used to render the end-user's ticket list and detail view. */
 export interface UserTicket {
-  ticketId:    string;
-  title:       string;
-  category:    string | null;
-  date:        Date;
-  status:      TicketStatus;
-  description?: string;
+  ticketId:           string;
+  title:              string;
+  category:           string | null;
+  date:               Date;
+  status:             TicketStatus;
+  description?:       string;
+  suggestedSolution?: string | null;
+  originalMessage?:   string | null;
   assignee:    { name: string; avatar?: string; fallback: string };
   creator:     { name: string; avatar?: string; fallback: string; role?: string };
   followers:   { name: string; avatar?: string; fallback: string }[];

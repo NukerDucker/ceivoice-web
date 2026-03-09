@@ -31,16 +31,23 @@ function toStatus(raw: string | undefined): UserTicket['status'] {
 function mapApiTicket(t: ApiTicketRaw): UserTicket {
   const assigneeName = userName(t.assignee ?? null);
   const creatorName  = userName(t.creator  ?? null);
+
+  // Pull the original message from the first linked request
+  const originalMessage =
+    t.ticket_requests?.[0]?.request?.message ?? null;
+
   return {
-    ticketId:    String(t.ticket_id),
-    title:       t.title ?? '(No title)',
-    category:    t.category?.name ?? null,
-    date:        new Date(t.created_at),
-    status:      toStatus(t.status?.name),
-    description: t.summary ?? undefined,
-    assignee:    { name: assigneeName, fallback: userFallback(assigneeName) },
-    creator:     { name: creatorName,  fallback: userFallback(creatorName), role: 'Requester' },
-    followers:   [],
+    ticketId:          String(t.ticket_id),
+    title:             t.title ?? '(No title)',
+    category:          t.category?.name ?? null,
+    date:              new Date(t.created_at),
+    status:            toStatus(t.status?.name),
+    description:       t.summary ?? undefined,
+    suggestedSolution: t.suggested_solution ?? null,
+    originalMessage,
+    assignee:  { name: assigneeName, fallback: userFallback(assigneeName) },
+    creator:   { name: creatorName,  fallback: userFallback(creatorName), role: 'Requester' },
+    followers: [],
   };
 }
 
@@ -179,11 +186,11 @@ export default function MyRequestsPage() {
   const [activeStatus, setActiveStatus]     = useState<Status | 'all'>('all');
   const [isModalOpen, setIsModalOpen]       = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<UserTicket | null>(null);
-  const [tickets, setTickets]         = useState<UserTicket[]>([]);
-  const [loading, setLoading]         = useState(true);
-  const [fetchError, setFetchError]   = useState<string | null>(null);
-  const [userEmail, setUserEmail]     = useState('');
-  const [userId, setUserId]           = useState<string | undefined>(undefined);
+  const [tickets, setTickets]               = useState<UserTicket[]>([]);
+  const [loading, setLoading]               = useState(true);
+  const [fetchError, setFetchError]         = useState<string | null>(null);
+  const [userEmail, setUserEmail]           = useState('');
+  const [userId, setUserId]                 = useState<string | undefined>(undefined);
 
   useEffect(() => {
     const supabase = createClient();
@@ -231,14 +238,13 @@ export default function MyRequestsPage() {
               className="flex items-center gap-2 px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white text-sm font-medium rounded-lg transition-colors shadow-sm"
             >
               <PlusCircle size={16} />
-              {/* Hide label on mobile, show on desktop */}
               <span className="hidden sm:inline">Create New Request</span>
               <span className="sm:hidden">New</span>
             </button>
           }
         />
 
-        {/* Summary Pills — horizontal scroll on mobile */}
+        {/* Summary Pills */}
         <div className="px-4 md:px-6 pt-4 flex items-center gap-2 overflow-x-auto scrollbar-none pb-1">
           <button
             onClick={() => setActiveStatus('all')}
@@ -286,7 +292,7 @@ export default function MyRequestsPage() {
         {/* ── MOBILE: Card list ── DESKTOP: Table ── */}
         <div className="px-4 md:px-6 pt-4 pb-6 flex-1 overflow-auto">
 
-          {/* MOBILE CARDS — shown below md */}
+          {/* MOBILE CARDS */}
           <div className="flex flex-col gap-3 md:hidden">
             {loading ? (
               <div className="py-16 text-center text-gray-400 text-sm">
@@ -308,12 +314,11 @@ export default function MyRequestsPage() {
             )}
           </div>
 
-          {/* DESKTOP TABLE — hidden below md */}
+          {/* DESKTOP TABLE */}
           <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
             <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70">
-                  {/* ↓ Changed from "Request ID" to "ID" */}
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">
                     ID
                   </th>
@@ -365,11 +370,9 @@ export default function MyRequestsPage() {
                       <td className="px-5 py-4 font-mono text-xs text-gray-400 truncate">
                         {ticket.ticketId}
                       </td>
-                      {/* ↓ Added overflow-hidden so truncate works inside table-fixed */}
                       <td className="px-5 py-4 font-medium text-gray-800 truncate overflow-hidden">
                         {ticket.title}
                       </td>
-                      {/* ↓ Category badge now truncates long text */}
                       <td className="px-5 py-4 overflow-hidden">
                         {ticket.category ? (
                           <span className="block px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs truncate">
