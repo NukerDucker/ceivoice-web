@@ -5,13 +5,12 @@ import {
   Search, Check, ChevronDown, X,
   Clock, AlertTriangle, RefreshCw, MessageSquare,
   Eye, Users, BarChart2,
-  History, Loader2,
+  History, Loader2, ChevronRight,
 } from 'lucide-react';
 import { Header } from '@/components/layout/TicketTB';
 import { TicketDetailModal } from '../dashboard/_components/ticket-detail-modal';
 import { apiFetch } from '@/lib/api-client';
 import { createClient } from '@/lib/supabase/client';
-import { PRIORITY_STYLES as PRIORITY_STYLE } from '@/lib/config';
 import { getCatStyle } from '@/lib/utils';
 import type {
   AssigneeTicket,
@@ -20,6 +19,8 @@ import type {
   DashboardAssignee,
 } from '@/types';
 import type { ApiUser, ApiTicket as ApiTicketRaw } from '@/types/api';
+
+// ─── API mappers ──────────────────────────────────────────────────────────────
 
 function apiUserName(u?: ApiUser | null): string {
   return u?.full_name ?? u?.user_name ?? u?.email ?? 'Unknown';
@@ -68,18 +69,33 @@ function mapResolvedTicket(t: ApiTicketRaw): ResolvedTicket {
   };
 }
 
-const STATUS_CONFIG: Record<
-  TicketStatus,
-  { label: string; borderColor: string; badgeBorder: string; badgeText: string; bg: string }
-> = {
-  draft:    { label: 'DRAFT',    borderColor: 'border-l-gray-400',   badgeBorder: 'border-gray-400',   badgeText: 'text-gray-500',   bg: 'bg-gray-50'   },
-  new:      { label: 'NEW',      borderColor: 'border-l-blue-400',   badgeBorder: 'border-blue-500',   badgeText: 'text-blue-600',   bg: 'bg-blue-50'   },
-  assigned: { label: 'ASSIGNED', borderColor: 'border-l-indigo-400', badgeBorder: 'border-indigo-500', badgeText: 'text-indigo-600', bg: 'bg-indigo-50' },
-  solving:  { label: 'SOLVING',  borderColor: 'border-l-yellow-400', badgeBorder: 'border-yellow-500', badgeText: 'text-yellow-600', bg: 'bg-yellow-50' },
-  solved:   { label: 'SOLVED',   borderColor: 'border-l-green-500',  badgeBorder: 'border-green-600',  badgeText: 'text-green-600',  bg: 'bg-green-50'  },
-  failed:   { label: 'FAILED',   borderColor: 'border-l-red-500',    badgeBorder: 'border-red-500',    badgeText: 'text-red-500',    bg: 'bg-red-50'    },
-  renew:    { label: 'RENEW',    borderColor: 'border-l-orange-400', badgeBorder: 'border-orange-500', badgeText: 'text-orange-600', bg: 'bg-orange-50' },
+// ─── Style maps ───────────────────────────────────────────────────────────────
+
+const PRIORITY_DOT: Record<string, string> = {
+  critical: '#ef4444',
+  high:     '#f59e0b',
+  medium:   '#38bdf8',
+  low:      '#4ade80',
 };
+
+const PRIORITY_PILL: Record<string, { bg: string; color: string }> = {
+  critical: { bg: '#fee2e2', color: '#b91c1c' },
+  high:     { bg: '#fef3c2', color: '#92400e' },
+  medium:   { bg: '#e0f2fe', color: '#0369a1' },
+  low:      { bg: '#f0fdf4', color: '#166534' },
+};
+
+const STATUS_PILL: Record<string, { bg: string; text: string }> = {
+  new:      { bg: '#dbeafe', text: '#1e40af' },
+  assigned: { bg: '#e0e7ff', text: '#3730a3' },
+  solving:  { bg: '#fef3c2', text: '#92400e' },
+  solved:   { bg: '#dcfce7', text: '#166534' },
+  failed:   { bg: '#fee2e2', text: '#991b1b' },
+  renew:    { bg: '#f3e8ff', text: '#6b21a8' },
+  draft:    { bg: '#f1f5f9', text: '#475569' },
+};
+
+// ─── Status tabs ──────────────────────────────────────────────────────────────
 
 const STATUS_TABS: { label: string; value: TicketStatus | 'all' | 'resolved' }[] = [
   { label: 'All Active',  value: 'all'      },
@@ -90,155 +106,147 @@ const STATUS_TABS: { label: string; value: TicketStatus | 'all' | 'resolved' }[]
   { label: 'Resolved',    value: 'resolved' },
 ];
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
 function timeAgo(date: Date): string {
-  const diff = Date.now() - date.getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 1)  return 'just now';
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  return `${Math.floor(h / 24)}d ago`;
+  const diff = Math.floor((Date.now() - date.getTime()) / 1000);
+  if (diff < 60)    return `${diff}s ago`;
+  if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
 }
 
-function deadlineLabel(deadline: Date): { text: string; urgent: boolean } {
+function timeUntil(deadline: Date): { label: string; urgent: boolean } {
   const diff = deadline.getTime() - Date.now();
-  const h = diff / 3_600_000;
-  if (h < 0)  return { text: 'Overdue',              urgent: true  };
-  if (h < 6)  return { text: `${Math.round(h)}h left`, urgent: true  };
-  if (h < 24) return { text: `${Math.round(h)}h left`, urgent: false };
-  return { text: `${Math.floor(h / 24)}d left`,       urgent: false };
+  if (diff < 0) return { label: 'OVERDUE', urgent: true };
+  const h = Math.floor(diff / 3_600_000);
+  const m = Math.floor((diff % 3_600_000) / 60_000);
+  if (h < 24) return { label: `${h}h ${m}m`, urgent: h < 6 };
+  return { label: `${Math.floor(h / 24)}d ${h % 24}h`, urgent: false };
 }
 
-function StatusBadge({ status }: { status: TicketStatus }) {
-  const cfg = STATUS_CONFIG[status];
-  return (
-    <div className={`flex items-center rounded-full border ${cfg.badgeBorder} overflow-hidden select-none`}>
-      <span className={`text-[11px] font-bold px-3 py-1.5 ${cfg.badgeText} whitespace-nowrap`}>
-        {cfg.label}
-      </span>
-    </div>
-  );
-}
+// ─── TicketRow ────────────────────────────────────────────────────────────────
 
 function TicketRow({
   ticket,
   onOpen,
   onOpenResolved,
 }: {
-  ticket:           AssigneeTicket | ResolvedTicket;
-  onOpen?:          (t: AssigneeTicket) => void;
-  onOpenResolved?:  (t: ResolvedTicket) => void;
+  ticket:          AssigneeTicket | ResolvedTicket;
+  onOpen?:         (t: AssigneeTicket) => void;
+  onOpenResolved?: (t: ResolvedTicket) => void;
 }) {
-  const cfg      = STATUS_CONFIG[ticket.status];
   const isActive = 'deadline' in ticket;
   const active   = isActive ? (ticket as AssigneeTicket)  : null;
   const resolved = !isActive ? (ticket as ResolvedTicket) : null;
-  const dl       = active ? deadlineLabel(active.deadline) : null;
-  const formattedDate = ticket.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+
+  const dot   = PRIORITY_DOT[ticket.priority]  ?? '#94a3b8';
+  const pr    = PRIORITY_PILL[ticket.priority] ?? { bg: '#f1f5f9', color: '#475569' };
+  const st    = STATUS_PILL[ticket.status]     ?? { bg: '#f1f5f9', text: '#475569' };
+  const cs    = getCatStyle(ticket.category);
+  const tLeft = active ? timeUntil(active.deadline) : null;
+
+  const handleClick = () => {
+    if (active && onOpen)                onOpen(active);
+    else if (resolved && onOpenResolved) onOpenResolved(resolved);
+  };
 
   return (
-    <div className={`border-l-4 ${cfg.borderColor} bg-white rounded-xl shadow-sm border border-gray-100 ${
-      (active && onOpen) || (resolved && onOpenResolved)
-        ? 'hover:bg-gray-50/40 transition-colors duration-150'
-        : ''
-    }`}>
-      <div className={`flex items-center gap-3 sm:gap-6 px-3 sm:px-6 ${isActive ? 'py-4' : 'py-3'}`}>
+    <div
+      className="flex items-start sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 bg-white rounded-xl border border-gray-100 shadow-sm hover:bg-slate-50 transition-colors cursor-pointer group"
+      onClick={handleClick}
+    >
+      {/* Priority dot — desktop */}
+      <div className="hidden sm:block w-2 h-2 rounded-full shrink-0 mt-1 sm:mt-0" style={{ background: dot }} />
 
-        <div className="flex flex-col gap-0.5 w-[80px] sm:w-[120px] shrink-0">
-          <span className="text-xs font-semibold text-gray-700">#{ticket.ticketId}</span>
-          {active && (
-            <span className="text-xs text-gray-500">
-              {ticket.date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-            </span>
-          )}
-          <span className="text-xs text-gray-400">{formattedDate}</span>
-          {dl && (
-            <span className={`text-[10px] font-semibold mt-1 flex items-center gap-0.5 ${dl.urgent ? 'text-red-500' : 'text-gray-400'}`}>
-              {dl.urgent && <AlertTriangle size={9} />}
-              <Clock size={9} />
-              {dl.text}
-            </span>
-          )}
-        </div>
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
 
-        <div className="flex-1 min-w-0">
-          {active && onOpen ? (
-            <>
-              <button
-                onClick={() => onOpen(active)}
-                className="text-sm font-semibold text-gray-800 mb-2 sm:mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
-              >
-                {ticket.title}
-              </button>
-
-              <div className="hidden sm:flex items-start">
-                {([
-                  { label: 'Category', value: ticket.category,                                                                       width: 'w-[160px]' },
-                  { label: 'Priority', value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1),                    width: 'w-[100px]' },
-                  { label: 'Assignee', value: active.assignee.name,                                                                  width: 'w-[200px]' },
-                  { label: 'Comments', value: `${active.comments.length} comment${active.comments.length !== 1 ? 's' : ''}`,         width: 'w-[120px]' },
-                ] as { label: string; value: string; width: string }[]).map(({ label, value, width }) => (
-                  <div key={label} className={`flex flex-col gap-0.5 ${width} shrink-0`}>
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
-                    <span className="text-xs text-gray-600 font-medium truncate">{value}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 sm:hidden">
-                {([
-                  { label: 'Category', value: ticket.category },
-                  { label: 'Priority', value: ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) },
-                  { label: 'Assignee', value: active.assignee.name },
-                  { label: 'Comments', value: `${active.comments.length} comment${active.comments.length !== 1 ? 's' : ''}` },
-                ] as { label: string; value: string }[]).map(({ label, value }) => (
-                  <div key={label} className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</span>
-                    <span className="text-xs text-gray-600 font-medium truncate">{value}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          ) : resolved && onOpenResolved ? (
-            <button
-              onClick={() => onOpenResolved(resolved)}
-              className="text-sm font-semibold text-gray-700 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all w-full"
-            >
-              {ticket.title}
-            </button>
-          ) : (
-            <span className="text-sm font-semibold text-gray-700">{ticket.title}</span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-          <span className="hidden sm:inline-block text-[11px] font-semibold px-2.5 py-1 rounded-full" style={getCatStyle(ticket.category)}>
+        {/* Row 1: id · category · creator · date */}
+        <div className="flex items-center gap-2 mb-1 flex-wrap">
+          {/* Priority dot — mobile */}
+          <div className="sm:hidden w-2 h-2 rounded-full shrink-0" style={{ background: dot }} />
+          <span className="text-xs font-bold text-slate-400">#{ticket.ticketId}</span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={cs}>
             {ticket.category}
           </span>
-          <StatusBadge status={ticket.status} />
-
-          {resolved && (
-            <div className="flex flex-col items-end gap-1">
-              <span className="text-xs text-gray-400">
-                {resolved.resolvedDate.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
-              </span>
-              {onOpenResolved && (
-                <button
-                  onClick={() => onOpenResolved(resolved)}
-                  className="text-gray-300 hover:text-gray-700 transition-colors"
-                  title="View ticket"
-                >
-                  <Eye size={13} />
-                </button>
-              )}
-            </div>
+          {active?.creator && (
+            <span className="text-[10px] text-slate-500 font-medium">{active.creator}</span>
           )}
+          <span className="text-[10px] text-slate-400">
+            {ticket.date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+          </span>
         </div>
 
+        {/* Row 2: title · opened X ago */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+            {ticket.title}
+          </p>
+          <p className="text-xs text-slate-400 shrink-0">Opened {timeAgo(ticket.date)}</p>
+        </div>
+
+        {/* Mobile: status + deadline below title */}
+        <div className="flex items-center gap-2 mt-2 sm:hidden flex-wrap">
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full" style={{ background: st.bg, color: st.text }}>
+            {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+          </span>
+          {tLeft && (
+            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${tLeft.urgent ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
+              {tLeft.urgent && '⚠ '}{tLeft.label}
+            </span>
+          )}
+          {resolved && (
+            <span className="text-xs text-slate-400">
+              Resolved {resolved.resolvedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+            </span>
+          )}
+        </div>
       </div>
+
+      {/* Time remaining — desktop, active only */}
+      {active && (
+        <div className="hidden sm:flex shrink-0 flex-col items-center w-28">
+          <p className="text-[10px] text-slate-400 mb-1">Time remaining</p>
+          <span className={`text-xs font-bold px-3 py-1 rounded-full ${tLeft?.urgent ? 'bg-red-100 text-red-600' : 'bg-slate-100 text-slate-600'}`}>
+            {tLeft?.urgent && '⚠ '}{tLeft?.label}
+          </span>
+        </div>
+      )}
+
+      {/* Resolved date — desktop, resolved only */}
+      {resolved && (
+        <div className="hidden sm:flex shrink-0 flex-col items-center w-28">
+          <p className="text-[10px] text-slate-400 mb-1">Resolved</p>
+          <span className="text-xs font-bold px-3 py-1 rounded-full bg-slate-100 text-slate-600">
+            {resolved.resolvedDate.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+          </span>
+        </div>
+      )}
+
+      {/* Status — desktop */}
+      <div className="hidden sm:flex shrink-0 flex-col items-center w-20">
+        <p className="text-[10px] text-slate-400 mb-1">Status</p>
+        <span className="text-xs font-bold px-3 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
+          {ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+        </span>
+      </div>
+
+      {/* Priority — desktop */}
+      <div className="hidden sm:flex shrink-0 flex-col items-center w-20">
+        <p className="text-[10px] text-slate-400 mb-1">Priority</p>
+        <span className="text-xs font-bold px-3 py-1 rounded-full capitalize" style={{ background: pr.bg, color: pr.color }}>
+          {ticket.priority}
+        </span>
+      </div>
+
+      {/* Chevron */}
+      <ChevronRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors shrink-0" />
     </div>
   );
 }
+
+// ─── Performance Dashboard ────────────────────────────────────────────────────
 
 interface PerfData {
   total_solved: number;
@@ -384,6 +392,8 @@ function PerformanceDashboard({ onClose, userName }: { onClose: () => void; user
   );
 }
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function AssigneeTicketsPage() {
   const [activeTab,       setActiveTab]       = useState<TicketStatus | 'all' | 'resolved'>('all');
   const [activeTickets,   setActiveTickets]   = useState<AssigneeTicket[]>([]);
@@ -422,10 +432,10 @@ export default function AssigneeTicketsPage() {
 
   useEffect(() => { fetchTickets(); }, [fetchTickets]);
 
-  const handleOpenTicket         = useCallback((t: AssigneeTicket)  => setOpenTicketId(Number(t.ticketId)),  []);
-  const handleOpenResolvedTicket = useCallback((t: ResolvedTicket)  => setOpenTicketId(Number(t.ticketId)),  []);
+  const handleOpenTicket         = useCallback((t: AssigneeTicket) => setOpenTicketId(Number(t.ticketId)), []);
+  const handleOpenResolvedTicket = useCallback((t: ResolvedTicket) => setOpenTicketId(Number(t.ticketId)), []);
   const handleModalClose         = useCallback(() => setOpenTicketId(null), []);
-  const handleModalUpdate        = useCallback(() => fetchTickets(),         [fetchTickets]);
+  const handleModalUpdate        = useCallback(() => fetchTickets(),        [fetchTickets]);
 
   const filtered = useMemo(() => {
     if (activeTab === 'resolved') return [];
@@ -446,6 +456,7 @@ export default function AssigneeTicketsPage() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header />
 
+        {/* User bar */}
         <div className="flex items-center justify-between px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-bold text-indigo-700 shrink-0">
@@ -466,6 +477,7 @@ export default function AssigneeTicketsPage() {
           </button>
         </div>
 
+        {/* Status tabs */}
         <div className="flex items-center gap-1 px-4 sm:px-8 py-3 bg-gray-50 border-b border-gray-100 shrink-0 overflow-x-auto scrollbar-none">
           {STATUS_TABS.map((tab) => {
             const isActive = activeTab === tab.value;
@@ -489,6 +501,7 @@ export default function AssigneeTicketsPage() {
           })}
         </div>
 
+        {/* Ticket list */}
         <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4 sm:py-6">
           {ticketsLoading ? (
             <div className="flex items-center justify-center py-20 text-gray-400 gap-3">
@@ -504,11 +517,7 @@ export default function AssigneeTicketsPage() {
                 </div>
               ) : (
                 resolvedTickets.map((t) => (
-                  <TicketRow
-                    key={t.ticketId}
-                    ticket={t}
-                    onOpenResolved={handleOpenResolvedTicket}
-                  />
+                  <TicketRow key={t.ticketId} ticket={t} onOpenResolved={handleOpenResolvedTicket} />
                 ))
               )}
             </div>
