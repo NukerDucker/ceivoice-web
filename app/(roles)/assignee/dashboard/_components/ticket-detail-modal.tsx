@@ -64,6 +64,24 @@ function timeUntil(date: string | null) {
   return { label: `${Math.floor(h / 24)}d ${h % 24}h left`, urgent: false };
 }
 
+// ─── Helper: extract friendly message from apiFetch errors ───────────────────
+// apiFetch throws errors in the format: "API /path → 400: {json body}"
+// This finds the JSON portion and pulls out the "error" field.
+
+function parseApiError(err: unknown): string {
+  if (!(err instanceof Error)) return 'Something went wrong. Please try again.';
+  const jsonStart = err.message.indexOf('{');
+  if (jsonStart !== -1) {
+    try {
+      const parsed = JSON.parse(err.message.slice(jsonStart));
+      if (typeof parsed.error === 'string') return parsed.error;
+    } catch {
+      // fall through to raw message
+    }
+  }
+  return err.message;
+}
+
 // ─── Resolution Modal ─────────────────────────────────────────────────────────
 
 function ResolutionModal({
@@ -80,8 +98,8 @@ function ResolutionModal({
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/20 z-[60]" onClick={onCancel} />
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[70] bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-[480px]">
+      <div className="fixed inset-0 bg-black/20 z-60" onClick={onCancel} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-70 bg-white rounded-2xl shadow-xl border border-gray-100 p-8 w-full max-w-sm">
         <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${isSolved ? 'bg-green-100' : 'bg-red-100'}`}>
           {isSolved
             ? <CheckCircle size={24} className="text-green-600" />
@@ -105,7 +123,7 @@ function ResolutionModal({
           className="w-full h-32 text-sm text-gray-700 border border-gray-200 rounded-xl px-4 py-3 resize-none focus:outline-none focus:ring-2 focus:ring-gray-200 placeholder-gray-300"
         />
         {comment.trim().length === 0 && (
-          <p className="text-[11px] text-red-400 mt-1.5">A comment is required to continue.</p>
+          <p className="text-xs text-red-400 mt-1.5">A comment is required to continue.</p>
         )}
 
         <div className="flex gap-3 mt-4">
@@ -150,7 +168,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
   const [showReassign,     setShowReassign]     = useState(false);
   const [selectedAssignee, setSelectedAssignee] = useState<string>('');
   const [reassigning,      setReassigning]      = useState(false);
-  const [reassignError,    setReassignError]    = useState<string | null>(null); // ← NEW
+  const [reassignError,    setReassignError]    = useState<string | null>(null);
   const [showStatusMenu,   setShowStatusMenu]   = useState(false);
 
   useEffect(() => {
@@ -214,7 +232,6 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
     } catch { /* silent */ } finally { setPostingComment(false); }
   };
 
-  // ─── UPDATED: handleReassign with error handling ───────────────────────────
   const handleReassign = async () => {
     if (!ticket || !selectedAssignee) return;
     setReassigning(true);
@@ -230,19 +247,19 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
       setSelectedAssignee('');
       onUpdate();
     } catch (err) {
-      setReassignError(err instanceof Error ? err.message : 'Reassign failed. Please try again.');
+      setReassignError(parseApiError(err));
     } finally {
       setReassigning(false);
     }
   };
 
-  const currentStatus = ticket?.status?.name ?? '';
-  const priorityKey   = ticket?.priority?.toLowerCase() ?? 'medium';
-  const prStyle       = PRIORITY_STYLES[priorityKey] ?? PRIORITY_STYLES.medium;
-  const stStyle       = STATUS_STYLES[currentStatus]  ?? { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
-  const timeLeft      = timeUntil(ticket?.deadline ?? null);
-  const commentCount  = ticket?.comments?.length ?? 0;
-  const historyCount  = (ticket?.status_history?.length ?? 0) + (ticket?.assignment_history?.length ?? 0);
+  const currentStatus    = ticket?.status?.name ?? '';
+  const priorityKey      = ticket?.priority?.toLowerCase() ?? 'medium';
+  const prStyle          = PRIORITY_STYLES[priorityKey] ?? PRIORITY_STYLES.medium;
+  const stStyle          = STATUS_STYLES[currentStatus]  ?? { bg: '#f1f5f9', text: '#475569', border: '#cbd5e1' };
+  const timeLeft         = timeUntil(ticket?.deadline ?? null);
+  const commentCount     = ticket?.comments?.length ?? 0;
+  const historyCount     = (ticket?.status_history?.length ?? 0) + (ticket?.assignment_history?.length ?? 0);
   const participantCount = 1 + (ticket?.followers?.length ?? 0);
 
   return (
@@ -286,7 +303,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                     <ChevronDown size={11} />
                   </button>
                   {showStatusMenu && (
-                    <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1 min-w-[130px]">
+                    <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-10 py-1 min-w-32">
                       {STATUS_OPTIONS.map((s) => {
                         const ss = STATUS_STYLES[s] ?? { bg: '#f1f5f9', text: '#475569' };
                         return (
@@ -366,7 +383,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                 </button>
               </div>
 
-              {/* ─── UPDATED: Reassign panel — dropdown + error display ─── */}
+              {/* Reassign panel */}
               {showReassign && (
                 <div className="mt-3 bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-2">
                   <p className="text-xs text-blue-700 font-medium">Select a new assignee:</p>
@@ -386,7 +403,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                       ))}
                   </select>
 
-                  {/* Error message */}
+                  {/* Friendly error message */}
                   {reassignError && (
                     <p className="text-xs text-red-500 font-medium px-1">{reassignError}</p>
                   )}
@@ -445,15 +462,15 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
             {/* ── CREATOR / ASSIGNEE PILLS ── */}
             <div className="flex items-center gap-3 px-5 py-2.5 border-b border-slate-100 shrink-0">
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Creator</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Creator</span>
                 <span className="text-xs font-semibold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-full">
                   {ticket.creator ? (ticket.creator.user_name ?? ticket.creator.full_name ?? ticket.creator.email) : '—'}
                 </span>
               </div>
               <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Assignee</span>
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">Assignee</span>
                 <div className="flex items-center gap-1 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full">
-                  <div className="w-4 h-4 rounded-full bg-orange-400 flex items-center justify-center text-white text-[8px] font-bold shrink-0">
+                  <div className="w-4 h-4 rounded-full bg-orange-400 flex items-center justify-center text-white text-xs font-bold shrink-0">
                     {userInitial(ticket.assignee)}
                   </div>
                   <span className="text-xs font-semibold text-slate-700">{userName(ticket.assignee)}</span>
@@ -484,13 +501,13 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                         <div className="flex items-center justify-between gap-2 mb-1.5">
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-bold text-slate-800">{userName(c.user)}</span>
-                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${
                               c.visibility === 'PRIVATE' ? 'bg-amber-200 text-amber-800' : 'bg-blue-200 text-blue-800'
                             }`}>
                               {c.visibility === 'PRIVATE' ? 'Internal' : 'Public'}
                             </span>
                           </div>
-                          <span className="text-[10px] text-slate-400">{timeAgo(c.created_at)}</span>
+                          <span className="text-xs text-slate-400">{timeAgo(c.created_at)}</span>
                         </div>
                         <p className="text-sm text-slate-700">{c.content}</p>
                       </div>
@@ -586,7 +603,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
                                     <div className="flex items-center justify-between mb-1">
                                       <span className="text-xs font-bold text-slate-800">Status Change</span>
-                                      <span className="text-[10px] text-slate-400">{timeAgo(h.changed_at)}</span>
+                                      <span className="text-xs text-slate-400">{timeAgo(h.changed_at)}</span>
                                     </div>
                                     <p className="text-xs text-slate-500 mb-2">
                                       By <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
@@ -594,14 +611,14 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                     <div className="flex items-center gap-2 flex-wrap">
                                       {oldSt && h.old_status && (
                                         <>
-                                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ background: oldSt.bg, color: oldSt.text, borderColor: oldSt.border }}>
+                                          <span className="text-xs font-bold px-2 py-0.5 rounded-full border" style={{ background: oldSt.bg, color: oldSt.text, borderColor: oldSt.border }}>
                                             {h.old_status.name}
                                           </span>
                                           <span className="text-slate-300 text-xs">→</span>
                                         </>
                                       )}
                                       {h.new_status && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border" style={{ background: newSt?.bg ?? '#f1f5f9', color: newSt?.text ?? '#475569', borderColor: newSt?.border ?? '#e2e8f0' }}>
+                                        <span className="text-xs font-bold px-2 py-0.5 rounded-full border" style={{ background: newSt?.bg ?? '#f1f5f9', color: newSt?.text ?? '#475569', borderColor: newSt?.border ?? '#e2e8f0' }}>
                                           {h.new_status.name}
                                         </span>
                                       )}
@@ -617,7 +634,7 @@ export function TicketDetailModal({ ticketId, onClose, onUpdate }: TicketDetailM
                                   <div className="bg-orange-50 border border-orange-200 rounded-xl p-3">
                                     <div className="flex items-center justify-between mb-1">
                                       <span className="text-xs font-bold text-slate-800">Reassigned</span>
-                                      <span className="text-[10px] text-slate-400">{timeAgo(h.changed_at)}</span>
+                                      <span className="text-xs text-slate-400">{timeAgo(h.changed_at)}</span>
                                     </div>
                                     <p className="text-xs text-slate-500 mb-1">
                                       By <span className="font-semibold text-slate-700">{userName(h.changed_by)}</span>
