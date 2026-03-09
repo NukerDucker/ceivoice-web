@@ -310,13 +310,14 @@ export default function MyRequestsPage() {
 
           {/* DESKTOP TABLE — hidden below md */}
           <div className="hidden md:block bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/70">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-28">
-                    Request ID
+                  {/* ↓ Changed from "Request ID" to "ID" */}
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">
+                    ID
                   </th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-64">
                     Title
                   </th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">
@@ -361,15 +362,17 @@ export default function MyRequestsPage() {
                       onClick={() => setSelectedTicket(ticket)}
                       className="hover:bg-orange-50/30 transition-colors cursor-pointer group"
                     >
-                      <td className="px-5 py-4 font-mono text-xs text-gray-400">
+                      <td className="px-5 py-4 font-mono text-xs text-gray-400 truncate">
                         {ticket.ticketId}
                       </td>
-                      <td className="px-5 py-4 font-medium text-gray-800 max-w-xs truncate">
+                      {/* ↓ Added overflow-hidden so truncate works inside table-fixed */}
+                      <td className="px-5 py-4 font-medium text-gray-800 truncate overflow-hidden">
                         {ticket.title}
                       </td>
-                      <td className="px-5 py-4">
+                      {/* ↓ Category badge now truncates long text */}
+                      <td className="px-5 py-4 overflow-hidden">
                         {ticket.category ? (
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs">
+                          <span className="block px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs truncate">
                             {ticket.category}
                           </span>
                         ) : (
