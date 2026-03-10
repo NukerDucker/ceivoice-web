@@ -84,7 +84,8 @@ export default function ReportsPage() {
   const statusCounts = useMemo<Partial<Record<TicketStatus, number>>>(() => {
     const map: Partial<Record<TicketStatus, number>> = {};
     metrics?.tickets_by_status.forEach(s => {
-      const status = STATUS_ID_MAP[s.status_id] as TicketStatus | undefined;
+      const raw    = STATUS_ID_MAP[s.status_id];
+      const status = raw?.toLowerCase() as TicketStatus | undefined;
       if (status) map[status] = s.count;
     });
     return map;
