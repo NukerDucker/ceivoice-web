@@ -303,6 +303,9 @@ function DraftRow({ ticket, checked, onCheck }: { ticket: ApiDraft; checked: boo
   const catName  = ticket.category?.name ?? 'General';
   const catStyle = getCatStyle(catName);
 
+  const assignmentConf = ticket.ai_confidence?.assignment_confidence ?? 0;
+  const categoryConf   = ticket.ai_confidence?.category_confidence   ?? 0;
+
   const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
   return (
@@ -341,20 +344,27 @@ function DraftRow({ ticket, checked, onCheck }: { ticket: ApiDraft; checked: boo
             {ticket.title ?? '(Untitled)'}
           </button>
 
-          {/* Meta columns — removed SUBMITTED, removed ORIGINAL EMAIL label */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
+          {/* Meta columns — 4 cols: email | AI Category | Assignment Confidence | Category Confidence */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-xs text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
             </div>
+
             <div className="flex flex-col gap-0.5">
               <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
                 {catName}
               </span>
             </div>
+
             <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Confidence</span>
-              <ConfidencePill value={80} />
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
+              <ConfidencePill value={assignmentConf} />
+            </div>
+
+            <div className="flex flex-col gap-0.5">
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
+              <ConfidencePill value={categoryConf} />
             </div>
           </div>
         </div>
