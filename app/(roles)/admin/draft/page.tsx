@@ -354,9 +354,9 @@ function DraftRow({
             <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">Category Conf</span>
             <ConfidencePill value={categoryConf} />
           </div>
-          <div className="w-20 flex flex-col gap-0.5">
+          <div className="w-24 flex flex-col gap-0.5 min-w-0">
             <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full truncate block" style={catStyle}>
               {catName}
             </span>
           </div>
