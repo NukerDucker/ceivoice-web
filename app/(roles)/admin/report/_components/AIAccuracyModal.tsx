@@ -62,7 +62,7 @@ export function AIAccuracyModal({ open, onClose, period: externalPeriod }: Props
     const url   = param ? `/reporting/admin/ai-accuracy?period=${param}` : "/reporting/admin/ai-accuracy";
     apiFetch<{ metrics: AiMetrics }>(url)
       .then((res) => setData(res.metrics))
-      .catch(() => setError("Failed to load AI metrics"))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load AI metrics"))
       .finally(() => setLoading(false));
   }, [open, localPeriod]);
 
