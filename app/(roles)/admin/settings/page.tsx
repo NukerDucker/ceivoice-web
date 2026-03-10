@@ -812,19 +812,18 @@ function UserManagementTab() {
         </div>
       </div>
 
-      {/* ── Column headers — desktop only ── */}
-      <div className="hidden sm:flex items-center gap-5 px-6 py-2 bg-gray-50 border-b border-gray-100">
-        <div className="w-9 shrink-0" />
-        <div className="flex-1     text-[10px] font-bold text-gray-400 uppercase tracking-widest">User</div>
-        <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</div>
-        <div className="w-50   shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scopes</div>
-        <div className="w-20   shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Tickets</div>
-        <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Joined</div>
-        <div className="w-6 shrink-0" />
-      </div>
-
       {/* ── User list ── */}
       <div className="px-4 sm:px-8 pb-4">
+        {/* Column headers — desktop only */}
+        <div className="hidden sm:flex items-center gap-5 px-6 py-2 mb-2 bg-gray-50 rounded-xl border border-gray-100">
+          <div className="w-9 shrink-0" />
+          <div className="flex-1     text-[10px] font-bold text-gray-400 uppercase tracking-widest">User</div>
+          <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Role</div>
+          <div className="w-50   shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scopes</div>
+          <div className="w-20   shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-center">Tickets</div>
+          <div className="w-22.5 shrink-0 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Joined</div>
+          <div className="w-6 shrink-0" />
+        </div>
         <div className="flex flex-col gap-2">
           {loading ? (
             <div className="flex items-center justify-center py-20 text-gray-400">
