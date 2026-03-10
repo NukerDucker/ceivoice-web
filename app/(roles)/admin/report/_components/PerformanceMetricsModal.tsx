@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useMemo, useState, useEffect } from "react";
-import { X, Download, TrendingUp } from "lucide-react";
+import { X, TrendingUp } from "lucide-react";
 import { type ApiMetrics, STATUS_NAME_TO_ID } from '@/types/api';
 
 const PERIODS = ["Last 7 days", "Last 30 days", "Last 90 days", "This year"];
@@ -85,22 +85,16 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
         {/* Scrollable body */}
         <div className="overflow-y-auto flex-1 px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
 
-          {/* Period + Export — stack on mobile */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 font-medium">Period :</span>
-              <select
-                value={localPeriod}
-                onChange={(e) => setLocalPeriod(e.target.value)}
-                className="text-sm font-semibold text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none cursor-pointer"
-              >
-                {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
-              </select>
-            </div>
-            <button className="self-start sm:self-auto flex items-center gap-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg px-4 py-1.5 hover:bg-blue-50 transition-colors">
-              <Download size={14} />
-              Export Report
-            </button>
+          {/* Period */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 font-medium">Period :</span>
+            <select
+              value={localPeriod}
+              onChange={(e) => setLocalPeriod(e.target.value)}
+              className="text-sm font-semibold text-gray-800 border border-gray-200 rounded-lg px-3 py-1.5 bg-white outline-none cursor-pointer"
+            >
+              {PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
+            </select>
           </div>
 
           {!kpis ? (

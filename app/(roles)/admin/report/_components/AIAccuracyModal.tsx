@@ -42,7 +42,7 @@ interface Props {
 export function AIAccuracyModal({ open, onClose, period: externalPeriod }: Props) {
   const [localPeriod, setLocalPeriod] = useState(externalPeriod);
   const [data,        setData]        = useState<AiMetrics | null>(null);
-  const [loading,     setLoading]     = useState(false);
+  const [loading,     setLoading]     = useState(true);
   const [error,       setError]       = useState<string | null>(null);
 
   useEffect(() => { setLocalPeriod(externalPeriod); }, [externalPeriod]);
@@ -62,7 +62,7 @@ export function AIAccuracyModal({ open, onClose, period: externalPeriod }: Props
     const url   = param ? `/reporting/admin/ai-accuracy?period=${param}` : "/reporting/admin/ai-accuracy";
     apiFetch<{ metrics: AiMetrics }>(url)
       .then((res) => setData(res.metrics))
-      .catch(() => setError("Failed to load AI metrics"))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load AI metrics"))
       .finally(() => setLoading(false));
   }, [open, localPeriod]);
 
@@ -111,6 +111,8 @@ export function AIAccuracyModal({ open, onClose, period: externalPeriod }: Props
             <p className="text-sm text-gray-400 text-center py-16">Loading AI metrics…</p>
           ) : error ? (
             <p className="text-sm text-red-400 text-center py-16">{error}</p>
+          ) : !data ? (
+            <p className="text-sm text-gray-400 text-center py-16">No data available.</p>
           ) : (
             <>
               {/* KPI row */}
