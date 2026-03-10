@@ -6,19 +6,9 @@ import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/DraftTB';
 import { apiFetch } from '@/lib/api-client';
 import { getCatStyle } from '@/lib/utils';
-import type { ApiDraft } from '@/types/api';
+import type { ApiDraft, ApiAiConfidence } from '@/types/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function timeAgo(dateStr: string): string {
-  const diff  = Date.now() - new Date(dateStr).getTime();
-  const mins  = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
-  const days  = Math.floor(diff / 86400000);
-  if (mins  < 60) return `${mins}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
-}
 
 function timeAgoFull(dateStr: string): string {
   const diff  = Date.now() - new Date(dateStr).getTime();
@@ -297,14 +287,24 @@ function SuggestMergeModal({ onClose, onMergeComplete }: { onClose: () => void; 
 
 // ─── Draft Row ────────────────────────────────────────────────────────────────
 
-function DraftRow({ ticket, checked, onCheck }: { ticket: ApiDraft; checked: boolean; onCheck: (id: number, val: boolean) => void }) {
+function DraftRow({
+  ticket,
+  checked,
+  onCheck,
+  confidence,
+}: {
+  ticket: ApiDraft;
+  checked: boolean;
+  onCheck: (id: number, val: boolean) => void;
+  confidence: ApiAiConfidence | null;
+}) {
   const router   = useRouter();
   const request  = ticket.ticket_requests?.[0]?.request ?? null;
   const catName  = ticket.category?.name ?? 'General';
   const catStyle = getCatStyle(catName);
 
-  const assignmentConf = ticket.ai_confidence?.assignment_confidence ?? 0;
-  const categoryConf   = ticket.ai_confidence?.category_confidence   ?? 0;
+  const assignmentConf = confidence?.assignment_confidence ?? 0;
+  const categoryConf   = confidence?.category_confidence   ?? 0;
 
   const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
@@ -344,7 +344,7 @@ function DraftRow({ ticket, checked, onCheck }: { ticket: ApiDraft; checked: boo
             {ticket.title ?? '(Untitled)'}
           </button>
 
-          {/* Meta columns — 4 cols: email | AI Category | Assignment Confidence | Category Confidence */}
+          {/* Meta columns */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
             <div className="flex flex-col gap-0.5">
               <span className="text-xs text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
@@ -429,12 +429,32 @@ export default function AdminDraftQueuePage() {
   const [search,           setSearch]           = useState('');
   const [showSuggestMerge, setShowSuggestMerge] = useState(false);
 
+  // ── confidence map: ticket_id → ApiAiConfidence ──
+  const [confidenceMap, setConfidenceMap] = useState<Map<number, ApiAiConfidence>>(new Map());
+
   const fetchDrafts = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const data = await apiFetch<ApiDraft[]>(`/admin/drafts?t=${Date.now()}`);
       setDrafts(data);
+
+      // Fetch confidence for all drafts in parallel
+      const results = await Promise.allSettled(
+        data.map((t) =>
+          apiFetch<{ ticket_id: number; confidence: ApiAiConfidence }>(
+            `/admin/drafts/${t.ticket_id}/confidence`
+          )
+        )
+      );
+
+      const map = new Map<number, ApiAiConfidence>();
+      results.forEach((result, i) => {
+        if (result.status === 'fulfilled' && result.value?.confidence) {
+          map.set(data[i].ticket_id, result.value.confidence);
+        }
+      });
+      setConfidenceMap(map);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to load drafts');
     } finally {
@@ -544,7 +564,13 @@ export default function AdminDraftQueuePage() {
             <div className="flex flex-col gap-2">
               {filtered.length > 0 ? (
                 filtered.map((ticket) => (
-                  <DraftRow key={ticket.ticket_id} ticket={ticket} checked={selectedIds.has(ticket.ticket_id)} onCheck={handleCheck} />
+                  <DraftRow
+                    key={ticket.ticket_id}
+                    ticket={ticket}
+                    checked={selectedIds.has(ticket.ticket_id)}
+                    onCheck={handleCheck}
+                    confidence={confidenceMap.get(ticket.ticket_id) ?? null}
+                  />
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-gray-400">
