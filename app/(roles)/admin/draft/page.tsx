@@ -308,53 +308,53 @@ function DraftRow({
 
   const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
-  return (
-    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6 py-3">
-      <div className="flex items-center gap-3">
+  const priority = ticket.priority ?? null;
+  const priorityStyle: Record<string, string> = {
+    Low:      'bg-gray-100 text-gray-500 border-gray-200',
+    Medium:   'bg-blue-50 text-blue-600 border-blue-200',
+    High:     'bg-amber-50 text-amber-600 border-amber-200',
+    Critical: 'bg-red-50 text-red-600 border-red-200',
+  };
 
-        {/* Checkbox */}
+  return (
+    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6 py-3 flex flex-col gap-1">
+
+      {/* Title row: checkbox + title + right section */}
+      <div className="flex items-center gap-3">
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
           className="w-4 h-4 rounded border-gray-300 accent-gray-900 shrink-0"
         />
+        <button
+          onClick={handleReview}
+          className="flex-1 min-w-0 text-sm font-semibold text-gray-800 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all truncate"
+        >
+          {ticket.title ?? '(Untitled)'}
+        </button>
 
-        {/* Main content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap mb-0.5">
-            <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-xs text-gray-400">
-              {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-              {' '}
-              {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
-              <Bot size={10} /> AI Draft
-            </span>
-            <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
+        {/* Right: fixed-width columns with equal gap, Review pinned last */}
+        <div className="shrink-0 flex items-end gap-6">
+          <div className="w-16 flex flex-col gap-0.5">
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Priority</span>
+            {priority ? (
+              <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap w-fit ${priorityStyle[priority] ?? ''}`}>
+                {priority}
+              </span>
+            ) : (
+              <span className="text-[11px] text-gray-300">—</span>
+            )}
           </div>
-          <button
-            onClick={handleReview}
-            className="text-sm font-semibold text-gray-800 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all truncate block w-full"
-          >
-            {ticket.title ?? '(Untitled)'}
-          </button>
-          <span className="text-[11px] text-gray-500 font-medium truncate block mt-0.5">{request?.email ?? '—'}</span>
-        </div>
-
-        {/* Right: all columns bottom-aligned */}
-        <div className="shrink-0 flex items-end gap-5">
-          <div className="flex flex-col gap-0.5">
+          <div className="w-24 flex flex-col gap-0.5">
             <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">Assignment Conf</span>
             <ConfidencePill value={assignmentConf} />
           </div>
-          <div className="flex flex-col gap-0.5">
+          <div className="w-24 flex flex-col gap-0.5">
             <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">Category Conf</span>
             <ConfidencePill value={categoryConf} />
           </div>
-          <div className="flex flex-col gap-0.5">
+          <div className="w-20 flex flex-col gap-0.5">
             <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
               {catName}
@@ -367,8 +367,29 @@ function DraftRow({
             Review
           </button>
         </div>
-
       </div>
+
+      {/* Meta row: id · time · AI Draft badge · timeAgo · email */}
+      <div className="flex items-center gap-2 flex-wrap pl-7">
+        <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
+        <span className="text-gray-300">·</span>
+        <span className="text-xs text-gray-400">
+          {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+          {' '}
+          {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
+          <Bot size={10} /> AI Draft
+        </span>
+        <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
+        {request?.email && (
+          <>
+            <span className="text-gray-300">·</span>
+            <span className="text-[11px] text-gray-500 font-medium">{request.email}</span>
+          </>
+        )}
+      </div>
+
     </div>
   );
 }
@@ -585,7 +606,7 @@ export default function AdminDraftQueuePage() {
       {showMergeConfirm && (
         <>
           <div className="fixed inset-0 bg-black/20 z-50" onClick={() => setShowMergeConfirm(false)} />
-          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 w-[calc(100vw-2rem)] sm:w-[440px]">
+          <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 bg-white rounded-2xl shadow-xl border border-gray-100 p-6 sm:p-8 w-[calc(100vw-2rem)] sm:w-110">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Merge {selectedIds.size} Drafts</h2>
             <p className="text-sm text-gray-400 mb-6">This will combine the selected drafts into a single draft ticket for review. All original senders will be added as followers.</p>
             <div className="flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
