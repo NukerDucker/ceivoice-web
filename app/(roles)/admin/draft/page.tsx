@@ -341,7 +341,7 @@ function DraftRow({
         >
           {ticket.title ?? '(Untitled)'}
         </button>
-        <div className="flex flex-col gap-0.5 shrink-0 w-40">
+        <div className="flex flex-col gap-0.5 shrink-0">
           <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
           <ConfidencePill value={assignmentConf} />
         </div>
@@ -364,8 +364,7 @@ function DraftRow({
             {catName}
           </span>
         </div>
-        {/* same width as assignment confidence column above to keep them aligned */}
-        <div className="flex flex-col gap-0.5 shrink-0 w-40">
+        <div className="flex flex-col gap-0.5 shrink-0">
           <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
           <ConfidencePill value={categoryConf} />
         </div>
