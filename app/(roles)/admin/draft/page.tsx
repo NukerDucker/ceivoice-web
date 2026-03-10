@@ -370,22 +370,22 @@ function DraftRow({
       </div>
 
       {/* Meta row: id · time · AI Draft badge · timeAgo · email */}
-      <div className="flex items-center gap-2 flex-wrap pl-7">
-        <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
-        <span className="text-gray-300">·</span>
-        <span className="text-xs text-gray-400">
+      <div className="flex items-center gap-2 pl-7 overflow-hidden">
+        <span className="text-xs font-semibold text-gray-700 shrink-0">#{ticket.ticket_id}</span>
+        <span className="text-gray-300 shrink-0">·</span>
+        <span className="text-xs text-gray-400 shrink-0">
           {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
           {' '}
           {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
-        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
+        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1 shrink-0">
           <Bot size={10} /> AI Draft
         </span>
-        <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
+        <span className="text-[10px] text-gray-400 shrink-0">{timeAgoFull(ticket.created_at)}</span>
         {request?.email && (
           <>
-            <span className="text-gray-300">·</span>
-            <span className="text-[11px] text-gray-500 font-medium">{request.email}</span>
+            <span className="text-gray-300 shrink-0">·</span>
+            <span className="text-[11px] text-gray-500 font-medium truncate">{request.email}</span>
           </>
         )}
       </div>
