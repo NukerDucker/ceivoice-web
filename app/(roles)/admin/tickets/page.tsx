@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { Search, Check, Pencil, ChevronDown, User, Merge, X } from 'lucide-react';
+import { Search, ChevronDown, Merge, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/TicketTB';
 import { apiFetch } from '@/lib/api-client';
@@ -162,29 +162,6 @@ function TicketRow({
           ))}
         </div>
 
-        {/* Bottom actions */}
-        <div className="flex items-center gap-2 pt-1 border-t border-gray-100">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors">
-            <User size={13} className="text-gray-400" />
-            Client note
-          </button>
-          <div className="ml-auto flex items-center gap-3">
-            <button
-              onClick={() => handleStatusChange('solved')}
-              className="text-gray-300 hover:text-gray-900 transition-colors"
-              title="Mark as solved"
-            >
-              <Check size={14} />
-            </button>
-            <button
-              onClick={handleReview}
-              className="text-gray-300 hover:text-gray-900 transition-colors"
-              title="Review ticket"
-            >
-              <Pencil size={13} />
-            </button>
-          </div>
-        </div>
       </div>
 
       {/* ── Desktop layout (sm+) ── */}
@@ -234,30 +211,7 @@ function TicketRow({
 
         {/* Actions */}
         <div className="flex items-center gap-3 shrink-0">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors">
-            <User size={13} className="text-gray-400" />
-            Client note
-          </button>
           <StatusBadge status={status} onChange={handleStatusChange} />
-          <div className="flex flex-col gap-1">
-            <button
-              onClick={() => handleStatusChange('solved')}
-              className="text-gray-300 hover:text-gray-900 transition-colors"
-              title="Mark as solved"
-            >
-              <Check size={14} />
-            </button>
-            <button
-              onClick={handleReview}
-              className="text-gray-300 hover:text-gray-900 transition-colors"
-              title="Review ticket"
-            >
-              <Pencil size={13} />
-            </button>
-            <button className="text-gray-300 hover:text-gray-600 transition-colors">
-              <ChevronDown size={14} />
-            </button>
-          </div>
         </div>
 
       </div>
