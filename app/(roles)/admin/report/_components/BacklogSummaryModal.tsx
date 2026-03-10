@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   X,
-  Download,
   Layers,
   AlertTriangle,
   Clock,
@@ -104,11 +103,6 @@ export function BacklogSummaryModal({ open, onClose, period, metrics }: BacklogS
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0 ml-2">
-            {/* Export: icon-only on mobile, full label on sm+ */}
-            <button className="flex items-center gap-1.5 text-xs font-semibold px-2 sm:px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors">
-              <Download size={13} />
-              <span className="hidden sm:inline">Export Report</span>
-            </button>
             <button
               onClick={onClose}
               className="w-8 h-8 flex items-center justify-center rounded-full border border-gray-200 text-gray-400 hover:bg-gray-50 transition-colors shrink-0"

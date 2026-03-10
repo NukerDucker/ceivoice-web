@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
-import { X, Download, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { X, BarChart3, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiMetrics } from '@/types/api';
 
@@ -188,21 +188,6 @@ export function TicketVolumeModal({ open, onClose, period, metrics }: TicketVolu
           </div>
 
           <div className="flex items-center gap-2 shrink-0 ml-2">
-            {/* Hide label on smallest screens */}
-            <button
-              className="hidden xs:flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors sm:flex"
-              onClick={() => alert('Export coming soon!')}
-            >
-              <Download size={13} />
-              <span className="hidden sm:inline">Export Report</span>
-            </button>
-            {/* Icon-only export on very small screens */}
-            <button
-              className="flex sm:hidden items-center justify-center w-8 h-8 rounded-lg border border-blue-200 text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-              onClick={() => alert('Export coming soon!')}
-            >
-              <Download size={14} />
-            </button>
             <button
               onClick={onClose}
               className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors"
