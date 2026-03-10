@@ -310,8 +310,9 @@ function DraftRow({
 
   return (
     <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6 py-3 flex flex-col gap-2">
-      {/* Row 1: ticket meta */}
-      <div className="flex items-center gap-2 flex-wrap">
+
+      {/* Row 1: meta info — indented to align with title (past checkbox) */}
+      <div className="flex items-center gap-2 flex-wrap pl-7">
         <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
         <span className="text-gray-300">·</span>
         <span className="text-xs text-gray-400">
@@ -326,7 +327,7 @@ function DraftRow({
         <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
       </div>
 
-      {/* Row 2: checkbox + title + assignment confidence */}
+      {/* Row 2: checkbox | title ··· assignment confidence | review */}
       <div className="flex items-center gap-3">
         <input
           type="checkbox"
@@ -340,31 +341,10 @@ function DraftRow({
         >
           {ticket.title ?? '(Untitled)'}
         </button>
-        <div className="flex flex-col gap-0.5 shrink-0">
+        <div className="flex flex-col gap-0.5 shrink-0 w-40">
           <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
           <ConfidencePill value={assignmentConf} />
         </div>
-      </div>
-
-      {/* Row 3: requester + category + category confidence + review */}
-      <div className="flex items-center gap-4">
-        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Requester</span>
-          <span className="text-[11px] text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
-        </div>
-
-        <div className="flex flex-col gap-0.5 shrink-0">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
-            {catName}
-          </span>
-        </div>
-
-        <div className="flex flex-col gap-0.5 shrink-0">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
-          <ConfidencePill value={categoryConf} />
-        </div>
-
         <button
           onClick={handleReview}
           className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
@@ -372,6 +352,27 @@ function DraftRow({
           Review
         </button>
       </div>
+
+      {/* Row 3: email ··· AI category ··· category confidence (aligned under assignment) */}
+      <div className="flex items-center gap-3 pl-7">
+        <div className="flex-1 min-w-0">
+          <span className="text-[11px] text-gray-600 font-medium truncate block">{request?.email ?? '—'}</span>
+        </div>
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
+            {catName}
+          </span>
+        </div>
+        {/* same width as assignment confidence column above to keep them aligned */}
+        <div className="flex flex-col gap-0.5 shrink-0 w-40">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
+          <ConfidencePill value={categoryConf} />
+        </div>
+        {/* spacer to match Review button width */}
+        <div className="shrink-0 w-[68px]" />
+      </div>
+
     </div>
   );
 }
