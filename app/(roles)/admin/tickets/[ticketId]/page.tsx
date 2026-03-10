@@ -77,7 +77,7 @@ function Panel({
       >
         <span className="text-base">{emoji}</span>
         <span className={`text-[13.5px] font-semibold ${headerTextColor}`}>{title}</span>
-        {badge && <span className="ml-auto flex items-center gap-2">{badge}</span>}
+        {badge && <span className="flex items-center gap-2">{badge}</span>}
         <svg
           className={`w-4 h-4 ml-auto text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
@@ -265,7 +265,7 @@ function DraftReviewForm({
             </span>
           }
         >
-          <div className="p-4 flex flex-col gap-3">
+          <div className="p-4 flex flex-col gap-3 overflow-hidden">
 
             {/* Title */}
             <Field label="Title">
@@ -315,9 +315,9 @@ function DraftReviewForm({
 
             {/* Deadline */}
             <Field label="Deadline">
-              <div className="flex gap-2">
-                <input type="date" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} className={`${inputClass} flex-1`} />
-                <input type="time" value={deadlineTimeVal} onChange={(e) => setDeadlineTimeVal(e.target.value)} className={`${inputClass} w-28 shrink-0`} />
+              <div className="flex gap-2 w-full overflow-hidden">
+                <input type="date" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} className={`${inputClass} min-w-0 flex-1`} />
+                <input type="time" value={deadlineTimeVal} onChange={(e) => setDeadlineTimeVal(e.target.value)} className={`${inputClass} min-w-0 w-32 shrink-0`} />
               </div>
             </Field>
 
