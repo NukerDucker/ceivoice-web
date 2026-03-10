@@ -90,6 +90,17 @@ export interface ApiTicketRequest {
   } | null;
 }
 
+/** AI confidence scores for a ticket, from the ai_ticket_confidences table. */
+export interface ApiAiConfidence {
+  id: number;
+  ticket_id: number;
+  assignment_confidence: number | null;
+  assignment_reason: string | null;
+  category_confidence: number | null;
+  category_reason: string | null;
+  recorded_at: string;
+}
+
 /** Full ticket object returned by most list and detail endpoints. */
 export interface ApiTicket {
   ticket_id: number;
@@ -115,6 +126,7 @@ export interface ApiTicket {
   ticket_requests?: ApiTicketRequest[];
   comments?: ApiComment[];
   followers?: Array<{ user: ApiUser }>;
+  ai_confidence?: ApiAiConfidence | null;
 }
 
 /**
