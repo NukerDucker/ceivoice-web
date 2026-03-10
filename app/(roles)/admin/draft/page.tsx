@@ -345,9 +345,10 @@ function DraftRow({
           </button>
 
           {/* Meta columns */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
             <div className="flex flex-col gap-0.5">
-              <span className="text-xs text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
+              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Requester</span>
+              <span className="text-[11px] text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
             </div>
 
             <div className="flex flex-col gap-0.5">
@@ -357,14 +358,15 @@ function DraftRow({
               </span>
             </div>
 
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
-              <ConfidencePill value={assignmentConf} />
-            </div>
-
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
-              <ConfidencePill value={categoryConf} />
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
+                <ConfidencePill value={categoryConf} />
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
+                <ConfidencePill value={assignmentConf} />
+              </div>
             </div>
           </div>
         </div>
