@@ -5,7 +5,7 @@ import {
   Search, ChevronDown, ChevronUp,
   Shield, User, Briefcase, X, TicketCheck, Tag, AlertTriangle, Check,
 } from 'lucide-react';
-import { Header }  from '@/components/layout/UserManagementTB';
+import { Header } from '@/components/layout/UserManagementTB';
 import type { ManagedUser, UserRole } from '@/types';
 import { apiFetch } from '@/lib/api-client';
 import type { ApiScope } from '@/types/api';
@@ -13,37 +13,55 @@ import type { ApiScope } from '@/types/api';
 // ─── API types ────────────────────────────────────────────────────────────────
 
 interface ApiUser {
-  user_id:              string;
-  full_name:            string;
-  email:                string;
-  role:                 string;
-  created_at:           string;
-  scopes:               ApiScope[];
-  active_ticket_count:  number;
-  resolved_count:       number;
-  submitted_count:      number;
+  user_id:             string;
+  full_name:           string;
+  email:               string;
+  role:                string;
+  created_at:          string;
+  scopes:              ApiScope[];
+  active_ticket_count: number;
+  resolved_count:      number;
+  submitted_count:     number;
+  drafts_reviewed:     number;
+  drafts_submitted:    number;
 }
 
-type ManagedUserEx = ManagedUser & { rawScopes: ApiScope[] };
+type ManagedUserEx = ManagedUser & {
+  rawScopes:         ApiScope[];
+  activeTicketCount: number;
+  submittedCount:    number;
+  draftsReviewed:    number;
+  draftsSubmitted:   number;
+};
 
 function mapApiUser(u: ApiUser): ManagedUserEx {
   const role      = (u.role ?? 'user').toLowerCase() as UserRole;
   const rawScopes = u.scopes ?? [];
   const words     = (u.full_name ?? '').trim().split(/\s+/);
   const fallback  = (words[0]?.[0] ?? '') + (words[1]?.[0] ?? '');
+
+  const ticketCount =
+    role === 'assignee' ? u.active_ticket_count :
+    role === 'admin'    ? u.drafts_submitted :
+    u.submitted_count;
+
   return {
-    id:            u.user_id,
-    name:          u.full_name,
-    email:         u.email,
-    fallback:      fallback.toUpperCase() || '?',
+    id:                u.user_id,
+    name:              u.full_name,
+    email:             u.email,
+    fallback:          fallback.toUpperCase() || '?',
     role,
-    status:        'active',
-    scopes:        rawScopes.map((s) => s.scope_name),
+    status:            'active',
+    scopes:            rawScopes.map((s) => s.scope_name),
     rawScopes,
-    joinedAt:      new Date(u.created_at),
-    ticketCount:   role === 'assignee' ? u.active_ticket_count : u.submitted_count,
-    resolvedCount: u.resolved_count,
-    lastActive:    new Date(),
+    joinedAt:          new Date(u.created_at),
+    ticketCount,
+    resolvedCount:     u.resolved_count,
+    activeTicketCount: u.active_ticket_count,
+    submittedCount:    u.submitted_count,
+    draftsReviewed:    u.drafts_reviewed  ?? 0,
+    draftsSubmitted:   u.drafts_submitted ?? 0,
+    lastActive:        new Date(),
   };
 }
 
@@ -106,7 +124,7 @@ function ScopeTag({ label, onRemove }: { label: string; onRemove?: () => void })
 // ─── Expanded panel ───────────────────────────────────────────────────────────
 
 function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemove }: {
-  user: ManagedUser;
+  user: ManagedUserEx;
   scopeOptions:  string[];
   onRoleChange:  (id: string, role: UserRole) => void;
   onScopeAdd:    (id: string, scope: string) => void;
@@ -135,51 +153,52 @@ function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemo
             <span className="text-[10px] text-gray-400">
               Role <span className="text-gray-300">(EP06-ST001)</span>
             </span>
-            <div className="flex gap-1.5 flex-wrap">
-              {(['user', 'assignee'] as UserRole[]).map((r) => (
-                <button
-                  key={r}
-                  onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, r); }}
-                  className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                    user.role === r
-                      ? `${ROLE_CONFIG[r].bg} ${ROLE_CONFIG[r].text} ${ROLE_CONFIG[r].border}`
-                      : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  {ROLE_CONFIG[r].icon} {ROLE_CONFIG[r].label}
-                </button>
-              ))}
 
-              {confirmAdminFor === user.id ? (
-                <span className="flex items-center gap-1.5 text-[10px] flex-wrap">
-                  <AlertTriangle size={10} className="text-amber-500 shrink-0" />
-                  <span className="text-amber-700 font-semibold">Grant full admin?</span>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, 'admin'); setConfirmAdminFor(null); }}
-                    className="px-2 py-0.5 rounded-full bg-violet-600 text-white font-bold hover:bg-violet-700 transition-colors"
-                  >
-                    Confirm
-                  </button>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setConfirmAdminFor(null); }}
-                    className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold hover:bg-gray-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </span>
-              ) : (
+            {confirmAdminFor === user.id ? (
+              <span className="flex items-center gap-1.5 text-[10px] flex-wrap">
+                <AlertTriangle size={10} className="text-amber-500 shrink-0" />
+                <span className="text-amber-700 font-semibold">Grant full admin?</span>
                 <button
-                  onClick={(e) => { e.stopPropagation(); setConfirmAdminFor(user.id); }}
-                  className={`flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border transition-all ${
-                    user.role === 'admin'
-                      ? `${ROLE_CONFIG.admin.bg} ${ROLE_CONFIG.admin.text} ${ROLE_CONFIG.admin.border}`
-                      : 'bg-white text-gray-400 border-gray-200 hover:border-violet-300 hover:text-violet-600'
-                  }`}
+                  onClick={(e) => { e.stopPropagation(); onRoleChange(user.id, 'admin'); setConfirmAdminFor(null); }}
+                  className="px-2 py-0.5 rounded-full bg-violet-600 text-white font-bold hover:bg-violet-700 transition-colors"
                 >
-                  {ROLE_CONFIG.admin.icon} Admin
+                  Confirm
                 </button>
-              )}
-            </div>
+                <button
+                  onClick={(e) => { e.stopPropagation(); setConfirmAdminFor(null); }}
+                  className="px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-bold hover:bg-gray-200 transition-colors"
+                >
+                  Cancel
+                </button>
+              </span>
+            ) : (
+              <div className="relative">
+                <select
+                  value={user.role}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    const next = e.target.value as UserRole;
+                    if (next === 'admin') {
+                      setConfirmAdminFor(user.id);
+                    } else {
+                      onRoleChange(user.id, next);
+                    }
+                  }}
+                  className={`w-full appearance-none pl-7 pr-8 py-1.5 rounded-full border text-[11px] font-bold cursor-pointer focus:outline-none transition-all ${ROLE_CONFIG[user.role].bg} ${ROLE_CONFIG[user.role].text} ${ROLE_CONFIG[user.role].border}`}
+                >
+                  {(['user', 'assignee', 'admin'] as UserRole[]).map((r) => (
+                    <option key={r} value={r}>{ROLE_CONFIG[r].label}</option>
+                  ))}
+                </select>
+                {/* Leading icon */}
+                <span className={`pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 ${ROLE_CONFIG[user.role].text}`}>
+                  {ROLE_CONFIG[user.role].icon}
+                </span>
+                {/* Trailing chevron */}
+                <ChevronDown size={11} className={`pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 ${ROLE_CONFIG[user.role].text}`} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -268,7 +287,18 @@ function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemo
             <TicketCheck size={10} /> Ticket Activity
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {user.role === 'assignee' ? (
+            {user.role === 'admin' ? (
+              <>
+                <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">Drafts Reviewed</p>
+                  <p className="text-xl font-extrabold text-gray-900">{user.draftsReviewed}</p>
+                </div>
+                <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
+                  <p className="text-[9px] text-gray-400 uppercase tracking-wide">Submitted</p>
+                  <p className="text-xl font-extrabold text-violet-600">{user.ticketCount}</p>
+                </div>
+              </>
+            ) : user.role === 'assignee' ? (
               <>
                 <div className="bg-white rounded-xl border border-gray-100 px-3 py-2.5">
                   <p className="text-[9px] text-gray-400 uppercase tracking-wide">Assigned</p>
@@ -306,7 +336,7 @@ function ExpandedRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemo
 // ─── User row ─────────────────────────────────────────────────────────────────
 
 function UserRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemove }: {
-  user: ManagedUser;
+  user: ManagedUserEx;
   scopeOptions:  string[];
   onRoleChange:  (id: string, role: UserRole) => void;
   onScopeAdd:    (id: string, scope: string) => void;
@@ -348,7 +378,9 @@ function UserRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemove }
         {/* Ticket count + chevron */}
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span className="text-xs font-bold text-gray-700">{user.ticketCount}</span>
-          <span className="text-[9px] text-gray-400">{user.role === 'assignee' ? 'assigned' : 'submitted'}</span>
+          <span className="text-[9px] text-gray-400">
+            {user.role === 'assignee' ? 'assigned' : user.role === 'admin' ? 'submitted' : 'submitted'}
+          </span>
           <div className="text-gray-300 mt-0.5">
             {expanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </div>
@@ -384,7 +416,9 @@ function UserRow({ user, scopeOptions, onRoleChange, onScopeAdd, onScopeRemove }
         </div>
         <div className="w-20 shrink-0 text-center">
           <span className="text-xs font-bold text-gray-700">{user.ticketCount}</span>
-          <p className="text-[9px] text-gray-400">{user.role === 'assignee' ? 'assigned' : 'submitted'}</p>
+          <p className="text-[9px] text-gray-400">
+            {user.role === 'assignee' ? 'assigned' : user.role === 'admin' ? 'submitted' : 'submitted'}
+          </p>
         </div>
         <div className="w-22.5 shrink-0 text-right">
           <span className="text-[11px] text-gray-400">
@@ -460,7 +494,16 @@ export default function AdminUserManagementPage() {
       });
       setUsers((p) => p.map((u) =>
         u.id === id
-          ? { ...u, role, scopes: role === 'user' ? [] : u.scopes, rawScopes: role === 'user' ? [] : u.rawScopes }
+          ? {
+              ...u,
+              role,
+              scopes:    role === 'user' ? [] : u.scopes,
+              rawScopes: role === 'user' ? [] : u.rawScopes,
+              ticketCount:
+                role === 'assignee' ? u.activeTicketCount :
+                role === 'admin'    ? u.draftsSubmitted :
+                u.submittedCount,
+            }
           : u
       ));
     } catch { /* silently revert */ }
