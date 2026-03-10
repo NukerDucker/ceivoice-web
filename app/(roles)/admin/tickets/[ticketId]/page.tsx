@@ -44,14 +44,8 @@ function timeAgo(dateStr: string): string {
   return `${days} day${days !== 1 ? 's' : ''} ago`;
 }
 
-function assigneeName(a: ApiAssignee): string {
-  return a.full_name ?? a.user_name ?? a.email;
-}
-
-function assigneeFallback(a: ApiAssignee): string {
-  const name = assigneeName(a);
-  return name.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-}
+const inputClass    = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-900 bg-gray-50 outline-none font-sans';
+const textareaClass = `${inputClass} resize-y leading-relaxed`;
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -64,9 +58,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-const inputClass    = 'w-full px-3 py-2 border border-gray-200 rounded-lg text-[13px] text-gray-900 bg-gray-50 outline-none font-sans';
-const textareaClass = `${inputClass} resize-y leading-relaxed`;
-
 // ─── Panel ────────────────────────────────────────────────────────────────────
 
 function Panel({
@@ -78,25 +69,23 @@ function Panel({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="bg-white rounded-xl border border-gray-200 flex flex-col min-h-0">
+    <div className="bg-white rounded-xl border border-gray-200 flex flex-col">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className={`w-full px-4 py-3 ${headerBg} border-b ${headerBorder} flex items-center gap-2.5 rounded-t-xl sm:cursor-default`}
+        className={`w-full px-4 py-3 ${headerBg} border-b ${headerBorder} flex items-center gap-2.5 rounded-t-xl`}
       >
         <span className="text-base">{emoji}</span>
         <span className={`text-[13.5px] font-semibold ${headerTextColor}`}>{title}</span>
         {badge && <span className="ml-auto flex items-center gap-2">{badge}</span>}
         <svg
-          className={`w-4 h-4 ml-auto sm:hidden text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 ml-auto text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           fill="none" stroke="currentColor" viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      <div className={`flex-1 overflow-y-auto ${open ? 'block' : 'hidden'} sm:block`}>
-        {children}
-      </div>
+      {open && <div className="flex-1">{children}</div>}
     </div>
   );
 }
@@ -106,8 +95,8 @@ function Panel({
 function DraftReviewForm({
   ticketId,
   ticket: initialTicket,
-  assignees: initialAssignees,
-  categories: initialCategories,
+  assignees,
+  categories,
 }: {
   ticketId: string;
   ticket: ApiTicket;
@@ -116,48 +105,46 @@ function DraftReviewForm({
 }) {
   const router = useRouter();
 
-  const [ticket,     setTicket]     = useState<ApiTicket>(initialTicket);
-  const assignees   = initialAssignees;
-  const categories  = initialCategories;
-
+  const [ticket,          setTicket]          = useState<ApiTicket>(initialTicket);
   const [titleVal,        setTitleVal]        = useState(initialTicket.title ?? '');
   const [categoryId,      setCategoryId]      = useState<number | null>(
-    initialTicket.category?.category_id ?? (initialCategories[0]?.category_id ?? null)
+    initialTicket.category?.category_id ?? (categories[0]?.category_id ?? null)
   );
   const [summaryVal,      setSummaryVal]      = useState(initialTicket.summary ?? '');
   const [solutionVal,     setSolutionVal]     = useState(initialTicket.suggested_solution ?? '');
   const [assigneeId,      setAssigneeId]      = useState<string>(
-    initialTicket.assignee?.user_id ?? (initialAssignees[0]?.user_id ?? '')
+    initialTicket.assignee?.user_id ?? (assignees[0]?.user_id ?? '')
   );
-  const [deadlineVal,     setDeadlineVal]     = useState(() => {
-    if (!initialTicket.deadline) return '';
-    return new Date(initialTicket.deadline).toISOString().slice(0, 10);
-  });
-  const [deadlineTimeVal, setDeadlineTimeVal] = useState(() => {
-    if (!initialTicket.deadline) return '';
-    return new Date(initialTicket.deadline).toISOString().slice(11, 16);
-  });
-
-  const [saveStatus,   setSaveStatus]   = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const [submitStatus, setSubmitStatus] = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
-  const [unlinkingId,  setUnlinkingId]  = useState<number | null>(null);
+  const [deadlineVal,     setDeadlineVal]     = useState(() =>
+    initialTicket.deadline ? new Date(initialTicket.deadline).toISOString().slice(0, 10) : ''
+  );
+  const [deadlineTimeVal, setDeadlineTimeVal] = useState(() =>
+    initialTicket.deadline ? new Date(initialTicket.deadline).toISOString().slice(11, 16) : ''
+  );
+  const [saveStatus,     setSaveStatus]     = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [submitStatus,   setSubmitStatus]   = useState<'idle' | 'submitting' | 'done' | 'error'>('idle');
+  const [unlinkingId,    setUnlinkingId]    = useState<number | null>(null);
   const [selectedReqIdx, setSelectedReqIdx] = useState(0);
+
+  const linkedRequests = ticket.ticket_requests
+    .map((tr) => tr.request)
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+  const activeRequest = linkedRequests[selectedReqIdx] ?? null;
+  const canUnlink     = linkedRequests.length > 1;
 
   const handleSaveDraft = async () => {
     setSaveStatus('saving');
     try {
-      const deadline = deadlineVal
-        ? `${deadlineVal}T${deadlineTimeVal || '00:00'}:00.000Z`
-        : null;
+      const deadline = deadlineVal ? `${deadlineVal}T${deadlineTimeVal || '00:00'}:00.000Z` : null;
       await apiFetch(`/admin/drafts/${ticketId}`, {
         method: 'PUT',
         body: JSON.stringify({
           title: titleVal,
           summary: summaryVal,
           suggested_solution: solutionVal,
-          ...(categoryId ? { category_id: categoryId } : {}),
+          ...(categoryId ? { category_id: categoryId }      : {}),
           ...(assigneeId ? { assignee_user_id: assigneeId } : {}),
-          ...(deadline ? { deadline } : {}),
+          ...(deadline   ? { deadline }                     : {}),
         }),
       });
       setSaveStatus('saved');
@@ -173,9 +160,7 @@ function DraftReviewForm({
     try {
       await apiFetch(`/admin/drafts/${ticketId}/approve`, {
         method: 'POST',
-        body: JSON.stringify({
-          ...(assigneeId ? { assignee_user_id: assigneeId } : {}),
-        }),
+        body: JSON.stringify({ ...(assigneeId ? { assignee_user_id: assigneeId } : {}) }),
       });
       setSubmitStatus('done');
       router.push('/admin/tickets');
@@ -189,37 +174,29 @@ function DraftReviewForm({
     setUnlinkingId(requestId);
     try {
       await apiFetch(`/admin/tickets/${ticketId}/requests/${requestId}`, { method: 'DELETE' });
-      const t = await apiFetch<ApiTicket>(`/tickets/id/${ticketId}`);
-      setTicket(t);
+      const refreshed = await apiFetch<ApiTicket>(`/tickets/id/${ticketId}`);
+      setTicket(refreshed);
       setSelectedReqIdx(0);
     } catch {
-      // reset on error
+      // local state stays; next load will correct
     } finally {
       setUnlinkingId(null);
     }
   };
 
-  const linkedRequests = ticket.ticket_requests
-    .map((tr) => tr.request)
-    .filter((r): r is NonNullable<typeof r> => r !== null);
-  const activeRequest = linkedRequests[selectedReqIdx] ?? null;
-  const canUnlink     = linkedRequests.length > 1;
-  const subtitle      = `Draft #${ticket.ticket_id} · created ${timeAgo(ticket.created_at)}`;
-
   return (
     <>
-      <Header title="Review and Edit Draft Ticket" subtitle={subtitle} />
+      <Header
+        title="Review and Edit Draft Ticket"
+        subtitle={`Draft #${ticket.ticket_id} · created ${timeAgo(ticket.created_at)}`}
+      />
 
-      <div className="flex-1 overflow-auto p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 auto-rows-min sm:auto-rows-fr">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col gap-4">
 
-        {/* ── Original Request panel ── */}
+        {/* ── Original Request ── */}
         <Panel
-          title="Original request"
-          emoji="✉️"
-          headerBg="bg-gray-50"
-          headerBorder="border-gray-200"
-          headerTextColor="text-gray-700"
-          defaultOpen={true}
+          title="Original request" emoji="✉️"
+          headerBg="bg-gray-50" headerBorder="border-gray-200" headerTextColor="text-gray-700"
           badge={
             linkedRequests.length > 0 ? (
               <span className="text-[10.5px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">
@@ -228,6 +205,7 @@ function DraftReviewForm({
             ) : undefined
           }
         >
+          {/* Tab switcher for multiple linked requests */}
           {linkedRequests.length > 1 && (
             <div className="flex gap-1 px-4 pt-3 pb-2 flex-wrap border-b border-gray-100">
               {linkedRequests.map((r, i) => (
@@ -235,9 +213,7 @@ function DraftReviewForm({
                   key={r.request_id}
                   onClick={() => setSelectedReqIdx(i)}
                   className={`px-3 py-1 rounded-full text-[11.5px] font-semibold transition-colors ${
-                    selectedReqIdx === i
-                      ? 'bg-gray-800 text-white'
-                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                    selectedReqIdx === i ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}
                 >
                   #{r.request_id}
@@ -245,7 +221,6 @@ function DraftReviewForm({
               ))}
             </div>
           )}
-
           <div className="p-4 sm:p-5">
             {activeRequest ? (
               <>
@@ -271,125 +246,82 @@ function DraftReviewForm({
               </>
             ) : (
               <div className="flex flex-col gap-2">
-                <div className="text-[11px] text-gray-400 font-semibold uppercase tracking-wide mb-1">
-                  Ticket details
-                </div>
-                <p className="text-[13.5px] text-gray-700">
-                  <span className="font-semibold">Title:</span> {ticket.title}
-                </p>
-                <p className="text-[13.5px] text-gray-700">
-                  <span className="font-semibold">Category:</span> {ticket.category?.name ?? '—'}
-                </p>
-                <p className="text-[13.5px] text-gray-700">
-                  <span className="font-semibold">Assignee:</span> {ticket.assignee?.full_name ?? '—'}
-                </p>
-                <p className="text-[13.5px] text-gray-500 italic mt-2">
-                  No original message on record for this ticket.
-                </p>
+                <p className="text-[13.5px] text-gray-700"><span className="font-semibold">Title:</span> {ticket.title}</p>
+                <p className="text-[13.5px] text-gray-700"><span className="font-semibold">Category:</span> {ticket.category?.name ?? '—'}</p>
+                <p className="text-[13.5px] text-gray-700"><span className="font-semibold">Assignee:</span> {ticket.assignee?.full_name ?? '—'}</p>
+                <p className="text-[13.5px] text-gray-500 italic mt-2">No original message on record for this ticket.</p>
               </div>
             )}
           </div>
         </Panel>
 
-        {/* ── AI Suggestion / Edit Form panel ── */}
+        {/* ── AI Suggestion ── */}
         <Panel
-          title="AI suggestion"
-          emoji="🤖"
-          headerBg="bg-sky-50"
-          headerBorder="border-sky-200"
-          headerTextColor="text-sky-700"
-          defaultOpen={true}
+          title="AI suggestion" emoji="🤖"
+          headerBg="bg-sky-50" headerBorder="border-sky-200" headerTextColor="text-sky-700"
           badge={
             <span className="text-[10.5px] bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full font-semibold">
               Auto-generated
             </span>
           }
         >
-          <div className="p-4 sm:p-5 flex flex-col gap-3.5">
+          <div className="p-4 flex flex-col gap-3">
 
+            {/* Title */}
             <Field label="Title">
-              <input
-                value={titleVal}
-                onChange={(e) => setTitleVal(e.target.value)}
-                className={inputClass}
-              />
+              <input value={titleVal} onChange={(e) => setTitleVal(e.target.value)} className={inputClass} />
             </Field>
 
-            <Field label="Category">
-              <select
-                value={categoryId ?? ''}
-                onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
-                className={inputClass}
-              >
-                <option value="">— Select category —</option>
-                {categories.map((c) => (
-                  <option key={c.category_id} value={c.category_id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {/* Category + Assignee */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Category">
+                <select
+                  value={categoryId ?? ''}
+                  onChange={(e) => setCategoryId(e.target.value ? Number(e.target.value) : null)}
+                  className={inputClass}
+                >
+                  <option value="">— Select —</option>
+                  {categories.map((c) => (
+                    <option key={c.category_id} value={c.category_id}>{c.name}</option>
+                  ))}
+                </select>
+              </Field>
 
-            <Field label="Summary">
-              <textarea
-                value={summaryVal}
-                onChange={(e) => setSummaryVal(e.target.value)}
-                rows={3}
-                className={textareaClass}
-              />
-            </Field>
+              <Field label="Assignee">
+                <select
+                  value={assigneeId}
+                  onChange={(e) => setAssigneeId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">— Unassigned —</option>
+                  {assignees.map((a) => (
+                    <option key={a.user_id} value={a.user_id}>
+                      {a.full_name ?? a.user_name ?? a.email}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
-            <Field label="Suggested Solution">
-              <textarea
-                value={solutionVal}
-                onChange={(e) => setSolutionVal(e.target.value)}
-                rows={3}
-                className={textareaClass}
-              />
-            </Field>
+            {/* Summary + Suggested Solution */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Summary">
+                <textarea value={summaryVal} onChange={(e) => setSummaryVal(e.target.value)} rows={3} className={textareaClass} />
+              </Field>
+              <Field label="Suggested Solution">
+                <textarea value={solutionVal} onChange={(e) => setSolutionVal(e.target.value)} rows={3} className={textareaClass} />
+              </Field>
+            </div>
 
-            <Field label="Assignee">
-              <div className="flex flex-wrap gap-2 p-2.5 border border-gray-200 rounded-lg bg-gray-50">
-                {assignees.length === 0 ? (
-                  <span className="text-xs text-gray-400 italic">No assignees available</span>
-                ) : (
-                  assignees.map((a) => (
-                    <button
-                      key={a.user_id}
-                      onClick={() => setAssigneeId(a.user_id)}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11.5px] font-semibold transition-colors ${
-                        assigneeId === a.user_id
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      <span className="w-4 h-4 rounded-full bg-blue-200 text-blue-800 text-[9px] font-bold flex items-center justify-center">
-                        {assigneeFallback(a)}
-                      </span>
-                      {assigneeName(a)}
-                    </button>
-                  ))
-                )}
-              </div>
-            </Field>
-
+            {/* Deadline */}
             <Field label="Deadline">
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-2.5">
-                <input
-                  type="date"
-                  value={deadlineVal}
-                  onChange={(e) => setDeadlineVal(e.target.value)}
-                  className={`${inputClass} flex-1`}
-                />
-                <input
-                  type="time"
-                  value={deadlineTimeVal}
-                  onChange={(e) => setDeadlineTimeVal(e.target.value)}
-                  className={`${inputClass} sm:w-28 sm:shrink-0`}
-                />
+              <div className="flex gap-2">
+                <input type="date" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} className={`${inputClass} flex-1`} />
+                <input type="time" value={deadlineTimeVal} onChange={(e) => setDeadlineTimeVal(e.target.value)} className={`${inputClass} w-28 shrink-0`} />
               </div>
             </Field>
 
+            {/* Status feedback */}
             {(saveStatus === 'saved' || saveStatus === 'error' || submitStatus === 'error') && (
               <div className={`px-3 py-2 rounded-lg text-[12.5px] font-semibold border ${
                 saveStatus === 'error' || submitStatus === 'error'
@@ -402,11 +334,12 @@ function DraftReviewForm({
               </div>
             )}
 
-            <div className="flex flex-col sm:flex-row sm:justify-end gap-2 pt-1">
+            {/* Actions */}
+            <div className="flex justify-end gap-2 pt-1">
               <button
                 onClick={handleSaveDraft}
                 disabled={saveStatus === 'saving'}
-                className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-semibold border-[1.5px] border-amber-300 bg-amber-50 text-amber-600 transition-opacity ${
+                className={`px-4 py-2 rounded-full text-[12.5px] font-semibold border-[1.5px] border-amber-300 bg-amber-50 text-amber-600 transition-opacity ${
                   saveStatus === 'saving' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-amber-100 cursor-pointer'
                 }`}
               >
@@ -415,7 +348,7 @@ function DraftReviewForm({
               <button
                 onClick={handleApprove}
                 disabled={submitStatus === 'submitting'}
-                className={`w-full sm:w-auto px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
+                className={`px-4 py-2 rounded-full text-[12.5px] font-bold border-[1.5px] border-green-300 bg-green-50 text-green-700 transition-opacity ${
                   submitStatus === 'submitting' ? 'opacity-60 cursor-not-allowed' : 'hover:bg-green-100 cursor-pointer'
                 }`}
               >
@@ -431,7 +364,7 @@ function DraftReviewForm({
   );
 }
 
-// ─── Status-aware wrapper ──────────────────────────────────────────────────────
+// ─── Status-aware wrapper ─────────────────────────────────────────────────────
 
 type LoadState =
   | { phase: 'loading' }
@@ -444,7 +377,6 @@ function UnifiedTicketPage({ ticketId }: { ticketId: string }) {
 
   useEffect(() => {
     let cancelled = false;
-
     Promise.all([
       apiFetch<ApiTicket>(`/tickets/id/${ticketId}`),
       apiFetch<ApiAssignee[]>('/admin/assignees'),
@@ -458,19 +390,12 @@ function UnifiedTicketPage({ ticketId }: { ticketId: string }) {
           setState({ phase: 'other' });
         }
       })
-      .catch(() => {
-        if (!cancelled) setState({ phase: 'not-found' });
-      });
-
+      .catch(() => { if (!cancelled) setState({ phase: 'not-found' }); });
     return () => { cancelled = true; };
   }, [ticketId]);
 
   if (state.phase === 'loading') {
-    return (
-      <div className="flex h-full items-center justify-center text-gray-400 text-sm">
-        Loading…
-      </div>
-    );
+    return <div className="flex h-full items-center justify-center text-gray-400 text-sm">Loading…</div>;
   }
 
   if (state.phase === 'not-found') {
@@ -495,7 +420,6 @@ function UnifiedTicketPage({ ticketId }: { ticketId: string }) {
     );
   }
 
-  // 'other' — non-draft ticket
   return <TicketDetailPage ticketId={ticketId} />;
 }
 
@@ -508,11 +432,7 @@ export default function AdminTicketDetailPage({
 }) {
   const { ticketId } = use(params);
   return (
-    <Suspense fallback={
-      <div className="flex h-full items-center justify-center text-gray-400 text-sm">
-        Loading…
-      </div>
-    }>
+    <Suspense fallback={<div className="flex h-full items-center justify-center text-gray-400 text-sm">Loading…</div>}>
       <UnifiedTicketPage ticketId={ticketId} />
     </Suspense>
   );
