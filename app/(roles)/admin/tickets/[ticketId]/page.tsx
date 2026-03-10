@@ -193,6 +193,17 @@ function DraftReviewForm({
 
       <div className="flex-1 overflow-auto p-4 sm:p-6 flex flex-col gap-4">
 
+        {/* ── Back button ── */}
+        <button
+          onClick={() => router.back()}
+          className="flex items-center gap-1.5 text-gray-400 hover:text-gray-600 text-sm font-medium w-fit transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+          Back
+        </button>
+
         {/* ── Original Request ── */}
         <Panel
           title="Original request" emoji="✉️"
@@ -315,9 +326,9 @@ function DraftReviewForm({
 
             {/* Deadline */}
             <Field label="Deadline">
-              <div className="flex gap-2 w-full overflow-hidden">
-                <input type="date" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} className={`${inputClass} min-w-0 flex-1`} />
-                <input type="time" value={deadlineTimeVal} onChange={(e) => setDeadlineTimeVal(e.target.value)} className={`${inputClass} min-w-0 w-32 shrink-0`} />
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <input type="date" value={deadlineVal} onChange={(e) => setDeadlineVal(e.target.value)} className={inputClass} />
+                <input type="time" value={deadlineTimeVal} onChange={(e) => setDeadlineTimeVal(e.target.value)} className={`${inputClass} w-36`} />
               </div>
             </Field>
 
