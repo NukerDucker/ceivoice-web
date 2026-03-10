@@ -287,7 +287,7 @@ function DraftReviewForm({
             </Field>
 
             {/* Category + Assignee + Priority */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <Field label="Category">
                 <select
                   value={categoryId ?? ''}
@@ -332,7 +332,7 @@ function DraftReviewForm({
             </div>
 
             {/* Summary + Suggested Solution */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <Field label="Summary">
                 <textarea value={summaryVal} onChange={(e) => setSummaryVal(e.target.value)} rows={3} className={textareaClass} />
               </Field>

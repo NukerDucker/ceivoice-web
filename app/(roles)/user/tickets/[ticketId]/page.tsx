@@ -90,7 +90,7 @@ export default function UserTicketDetailPage() {
 
   if (error || !ticket) {
     return (
-      <div className="flex-1 px-10 pt-6">
+      <div className="flex-1 px-4 sm:px-10 pt-6">
         <p className="text-red-600 text-sm">{error ?? 'Ticket not found.'}</p>
         <Link href="/user/my-request" className="text-sm text-blue-600 underline mt-2 block">
           ← Back to dashboard
@@ -103,7 +103,7 @@ export default function UserTicketDetailPage() {
   const statusCfg  = STATUS_CONFIG[statusName] ?? STATUS_CONFIG.Draft;
 
   return (
-    <div className="flex-1 px-10 pt-6 pb-10 bg-gray-50 overflow-auto">
+    <div className="flex-1 px-4 sm:px-10 pt-6 pb-10 bg-gray-50 overflow-auto">
       <Link href="/user/my-request" className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
         ← My Tickets
       </Link>
