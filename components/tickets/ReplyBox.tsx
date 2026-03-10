@@ -11,7 +11,6 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Paperclip, Link2, Smile, Image as ImageIcon, Triangle, Clock, Edit3, MoreHorizontal, Trash2 } from 'lucide-react';
 import '@uiw/react-md-editor/markdown-editor.css';
 import '@uiw/react-markdown-preview/markdown.css';
 
@@ -117,28 +116,15 @@ export function CreateTicketModal({ open, onOpenChange, defaultEmail = '', defau
             />
           </div>
 
-          {/* Bottom Action Bar */}
-          <div className="border-t px-3 py-2 flex items-center justify-between flex-shrink-0 bg-white">
-            <div className="flex items-center gap-1">
-              <Button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="bg-[#2b59ff] hover:bg-blue-700 text-white h-9 px-6 text-sm font-semibold rounded-md"
-              >
-                {isSubmitting ? 'Sending...' : 'Send'}
-              </Button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Paperclip className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Link2 className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Smile className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Triangle className="w-4 h-4" /></button>
-              <button aria-label="Attach image" className="p-2 hover:bg-gray-100 rounded text-gray-500"><ImageIcon className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Clock className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Edit3 className="w-4 h-4" /></button>
-            </div>
-            <div className="flex items-center gap-1">
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><MoreHorizontal className="w-4 h-4" /></button>
-              <button className="p-2 hover:bg-gray-100 rounded text-gray-500"><Trash2 className="w-4 h-4" /></button>
-            </div>
+          {/* Bottom Action Bar — Send button only */}
+          <div className="border-t px-3 py-2 flex items-center flex-shrink-0 bg-white">
+            <Button
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              className="bg-[#2b59ff] hover:bg-blue-700 text-white h-9 px-6 text-sm font-semibold rounded-md"
+            >
+              {isSubmitting ? 'Sending...' : 'Send'}
+            </Button>
           </div>
         </div>
 
