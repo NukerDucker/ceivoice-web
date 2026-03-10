@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Search, Merge, X, Bot, Sparkles, ChevronRight, Users, AlertCircle, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Header } from '@/components/layout/DraftTB';
@@ -309,69 +309,66 @@ function DraftRow({
   const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
   return (
-    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6 py-3 flex flex-col gap-2">
-
-      {/* Row 1: meta info — indented to align with title (past checkbox) */}
-      <div className="flex items-center gap-2 flex-wrap pl-7">
-        <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
-        <span className="text-gray-300">·</span>
-        <span className="text-xs text-gray-400">
-          {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-          {' '}
-          {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-        </span>
-        <span className="text-gray-300">·</span>
-        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
-          <Bot size={10} /> AI Draft
-        </span>
-        <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
-      </div>
-
-      {/* Row 2: checkbox | title ··· assignment confidence | review */}
+    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6 py-3">
       <div className="flex items-center gap-3">
+
+        {/* Checkbox */}
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
           className="w-4 h-4 rounded border-gray-300 accent-gray-900 shrink-0"
         />
-        <button
-          onClick={handleReview}
-          className="flex-1 text-sm font-semibold text-gray-800 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all truncate"
-        >
-          {ticket.title ?? '(Untitled)'}
-        </button>
-        <div className="flex flex-col gap-0.5 shrink-0">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
-          <ConfidencePill value={assignmentConf} />
-        </div>
-        <button
-          onClick={handleReview}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
-        >
-          Review
-        </button>
-      </div>
 
-      {/* Row 3: email ··· AI category ··· category confidence (aligned under assignment) */}
-      <div className="flex items-center gap-3 pl-7">
+        {/* Main content */}
         <div className="flex-1 min-w-0">
-          <span className="text-[11px] text-gray-600 font-medium truncate block">{request?.email ?? '—'}</span>
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
+            <span className="text-gray-300">·</span>
+            <span className="text-xs text-gray-400">
+              {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+              {' '}
+              {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+            </span>
+            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
+              <Bot size={10} /> AI Draft
+            </span>
+            <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
+          </div>
+          <button
+            onClick={handleReview}
+            className="text-sm font-semibold text-gray-800 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all truncate block w-full"
+          >
+            {ticket.title ?? '(Untitled)'}
+          </button>
+          <span className="text-[11px] text-gray-500 font-medium truncate block mt-0.5">{request?.email ?? '—'}</span>
         </div>
-        <div className="flex flex-col gap-0.5 shrink-0">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
-            {catName}
-          </span>
-        </div>
-        <div className="flex flex-col gap-0.5 shrink-0">
-          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
-          <ConfidencePill value={categoryConf} />
-        </div>
-        {/* spacer to match Review button width */}
-        <div className="shrink-0 w-[68px]" />
-      </div>
 
+        {/* Right: all columns bottom-aligned */}
+        <div className="shrink-0 flex items-end gap-5">
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">Assignment Conf</span>
+            <ConfidencePill value={assignmentConf} />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide whitespace-nowrap">Category Conf</span>
+            <ConfidencePill value={categoryConf} />
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
+              {catName}
+            </span>
+          </div>
+          <button
+            onClick={handleReview}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
+          >
+            Review
+          </button>
+        </div>
+
+      </div>
     </div>
   );
 }

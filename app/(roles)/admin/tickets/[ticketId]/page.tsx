@@ -15,6 +15,7 @@ interface ApiTicket {
   title: string | null;
   summary: string | null;
   suggested_solution: string | null;
+  priority: string | null;
   deadline: string | null;
   created_at: string;
   category: { category_id: number; name: string } | null;
@@ -115,6 +116,7 @@ function DraftReviewForm({
   const [assigneeId,      setAssigneeId]      = useState<string>(
     initialTicket.assignee?.user_id ?? (assignees[0]?.user_id ?? '')
   );
+  const [priorityVal,     setPriorityVal]     = useState(initialTicket.priority ?? '');
   const [deadlineVal,     setDeadlineVal]     = useState(() =>
     initialTicket.deadline ? new Date(initialTicket.deadline).toISOString().slice(0, 10) : ''
   );
@@ -142,9 +144,10 @@ function DraftReviewForm({
           title: titleVal,
           summary: summaryVal,
           suggested_solution: solutionVal,
-          ...(categoryId ? { category_id: categoryId }      : {}),
-          ...(assigneeId ? { assignee_user_id: assigneeId } : {}),
-          ...(deadline   ? { deadline }                     : {}),
+          ...(categoryId  ? { category_id: categoryId }      : {}),
+          ...(assigneeId  ? { assignee_user_id: assigneeId } : {}),
+          ...(deadline    ? { deadline }                     : {}),
+          ...(priorityVal ? { priority: priorityVal }        : {}),
         }),
       });
       setSaveStatus('saved');
@@ -283,8 +286,8 @@ function DraftReviewForm({
               <input value={titleVal} onChange={(e) => setTitleVal(e.target.value)} className={inputClass} />
             </Field>
 
-            {/* Category + Assignee */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Category + Assignee + Priority */}
+            <div className="grid grid-cols-3 gap-3">
               <Field label="Category">
                 <select
                   value={categoryId ?? ''}
@@ -310,6 +313,20 @@ function DraftReviewForm({
                       {a.full_name ?? a.user_name ?? a.email}
                     </option>
                   ))}
+                </select>
+              </Field>
+
+              <Field label="Priority">
+                <select
+                  value={priorityVal}
+                  onChange={(e) => setPriorityVal(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">— Select —</option>
+                  <option value="Low">Low</option>
+                  <option value="Medium">Medium</option>
+                  <option value="High">High</option>
+                  <option value="Critical">Critical</option>
                 </select>
               </Field>
             </div>
