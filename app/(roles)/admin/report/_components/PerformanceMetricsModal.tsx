@@ -2,7 +2,8 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { X, TrendingUp } from "lucide-react";
-import { type ApiMetrics, STATUS_NAME_TO_ID } from '@/types/api';
+import { type ApiMetrics, STATUS_NAME_TO_ID, periodToApiParam } from '@/types/api';
+import { apiFetch } from '@/lib/api-client';
 
 const PERIODS = ["Last 7 days", "Last 30 days", "Last 90 days", "This year"];
 
@@ -17,10 +18,32 @@ interface Props {
   metrics: ApiMetrics | null;
 }
 
-export function PerformanceMetricsModal({ open, onClose, period: externalPeriod, metrics }: Props) {
+export function PerformanceMetricsModal({ open, onClose, period: externalPeriod, metrics: initialMetrics }: Props) {
   const [localPeriod, setLocalPeriod] = useState(externalPeriod);
+  const [localMetrics, setLocalMetrics] = useState<ApiMetrics | null>(initialMetrics);
+  const [fetching, setFetching] = useState(false);
 
   useEffect(() => { setLocalPeriod(externalPeriod); }, [externalPeriod]);
+  useEffect(() => { setLocalMetrics(initialMetrics); }, [initialMetrics]);
+
+  // Refetch when period changes inside the modal
+  useEffect(() => {
+    if (!open) return;
+    async function load() {
+      setFetching(true);
+      const param = periodToApiParam(localPeriod);
+      const url   = param ? `/reporting/admin/metrics?period=${param}` : '/reporting/admin/metrics';
+      try {
+        const res = await apiFetch<{ metrics: ApiMetrics }>(url);
+        setLocalMetrics(res.metrics);
+      } catch {
+        setLocalMetrics(null);
+      } finally {
+        setFetching(false);
+      }
+    }
+    void load();
+  }, [open, localPeriod]);
 
   // Lock body scroll when open
   useEffect(() => {
@@ -28,6 +51,8 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
     else document.body.style.overflow = "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
+
+  const metrics = localMetrics;
 
   const kpis = useMemo(() => {
     if (!metrics) return null;
@@ -97,7 +122,9 @@ export function PerformanceMetricsModal({ open, onClose, period: externalPeriod,
             </select>
           </div>
 
-          {!kpis ? (
+          {fetching ? (
+            <p className="text-sm text-gray-400 text-center py-8">Loading…</p>
+          ) : !kpis ? (
             <p className="text-sm text-gray-400 text-center py-8">No data available for this period.</p>
           ) : (
             <>
