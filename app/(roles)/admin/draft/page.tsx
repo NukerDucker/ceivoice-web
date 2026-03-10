@@ -309,75 +309,68 @@ function DraftRow({
   const handleReview = () => router.push(`/admin/review-ticket?id=${ticket.ticket_id}`);
 
   return (
-    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100">
-      <div className="flex items-start sm:items-center gap-3 sm:gap-5 px-4 sm:px-6 py-4">
-        <div className="shrink-0 pt-0.5 sm:pt-0">
-          <input
-            type="checkbox"
-            checked={checked}
-            onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
-            className="w-4 h-4 rounded border-gray-300 accent-gray-900"
-          />
+    <div className="border-l-4 border-l-violet-400 bg-white hover:bg-gray-50/40 transition-colors duration-150 rounded-xl shadow-sm border border-gray-100 px-4 sm:px-6 py-3 flex flex-col gap-2">
+      {/* Row 1: ticket meta */}
+      <div className="flex items-center gap-2 flex-wrap">
+        <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
+        <span className="text-gray-300">·</span>
+        <span className="text-xs text-gray-400">
+          {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
+          {' '}
+          {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </span>
+        <span className="text-gray-300">·</span>
+        <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
+          <Bot size={10} /> AI Draft
+        </span>
+        <span className="text-[10px] text-gray-400">{timeAgoFull(ticket.created_at)}</span>
+      </div>
+
+      {/* Row 2: checkbox + title + assignment confidence */}
+      <div className="flex items-center gap-3">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onCheck(ticket.ticket_id, e.target.checked)}
+          className="w-4 h-4 rounded border-gray-300 accent-gray-900 shrink-0"
+        />
+        <button
+          onClick={handleReview}
+          className="flex-1 text-sm font-semibold text-gray-800 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all truncate"
+        >
+          {ticket.title ?? '(Untitled)'}
+        </button>
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
+          <ConfidencePill value={assignmentConf} />
         </div>
-        <div className="flex-1 min-w-0">
-          {/* Top meta row */}
-          <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className="text-xs font-semibold text-gray-700">#{ticket.ticket_id}</span>
-            <span className="text-gray-300">·</span>
-            <span className="text-xs text-gray-400">
-              {new Date(ticket.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false })}
-              {' '}
-              {new Date(ticket.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-            <span className="text-gray-300 hidden sm:inline">·</span>
-            <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
-              <Bot size={10} /> AI Draft
-            </span>
-            <span className="text-[10px] text-gray-400 hidden sm:inline">{timeAgoFull(ticket.created_at)}</span>
-          </div>
+      </div>
 
-          {/* Title */}
-          <button
-            onClick={handleReview}
-            className="text-sm font-semibold text-gray-800 mb-3 text-left hover:underline cursor-pointer decoration-gray-400 underline-offset-2 transition-all"
-          >
-            {ticket.title ?? '(Untitled)'}
-          </button>
-
-          {/* Meta columns */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">Requester</span>
-              <span className="text-[11px] text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
-            </div>
-
-            <div className="flex flex-col gap-0.5">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
-              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
-                {catName}
-              </span>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
-                <ConfidencePill value={categoryConf} />
-              </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-gray-400 uppercase tracking-wide">Assignment Confidence</span>
-                <ConfidencePill value={assignmentConf} />
-              </div>
-            </div>
-          </div>
+      {/* Row 3: requester + category + category confidence + review */}
+      <div className="flex items-center gap-4">
+        <div className="flex flex-col gap-0.5 min-w-0 flex-1">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Requester</span>
+          <span className="text-[11px] text-gray-600 font-medium truncate">{request?.email ?? '—'}</span>
         </div>
-        <div className="shrink-0 self-start sm:self-auto">
-          <button
-            onClick={handleReview}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
-          >
-            Review
-          </button>
+
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wide">AI Category</span>
+          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full w-fit" style={catStyle}>
+            {catName}
+          </span>
         </div>
+
+        <div className="flex flex-col gap-0.5 shrink-0">
+          <span className="text-[10px] text-gray-400 uppercase tracking-wide">Category Confidence</span>
+          <ConfidencePill value={categoryConf} />
+        </div>
+
+        <button
+          onClick={handleReview}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors"
+        >
+          Review
+        </button>
       </div>
     </div>
   );
