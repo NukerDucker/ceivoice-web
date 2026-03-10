@@ -334,8 +334,16 @@ function DraftRow({
           {ticket.title ?? '(Untitled)'}
         </button>
 
-        {/* Right: fixed-width columns with equal gap, Review pinned last */}
-        <div className="shrink-0 flex items-end gap-6">
+        {/* Mobile: Review button only */}
+        <button
+          onClick={handleReview}
+          className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gray-900 hover:bg-gray-800 text-white text-xs font-semibold transition-colors shrink-0"
+        >
+          Review
+        </button>
+
+        {/* Desktop: fixed-width columns with equal gap, Review pinned last */}
+        <div className="hidden sm:flex items-end gap-6 shrink-0">
           <div className="w-16 flex flex-col gap-0.5">
             <span className="text-[10px] text-gray-400 uppercase tracking-wide">Priority</span>
             {priority ? (
@@ -367,6 +375,19 @@ function DraftRow({
             Review
           </button>
         </div>
+      </div>
+
+      {/* Mobile: priority + category badges row */}
+      <div className="flex sm:hidden items-center gap-2 pl-7 flex-wrap mt-0.5">
+        {priority && (
+          <span className={`text-[10.5px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap ${priorityStyle[priority] ?? ''}`}>
+            {priority}
+          </span>
+        )}
+        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={catStyle}>
+          {catName}
+        </span>
+        <ConfidencePill value={assignmentConf} />
       </div>
 
       {/* Meta row: id · time · AI Draft badge · timeAgo · email */}
