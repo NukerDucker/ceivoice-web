@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   // Output standalone for Docker (not needed for Vercel — Vercel handles this)
-  // output: 'standalone',
+  output: 'standalone',
 
   // Only allow images from known sources
   images: {
