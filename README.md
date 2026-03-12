@@ -1,5 +1,7 @@
 # CeiVoice Web — Frontend
 
+> Repository: https://github.com/NukerDucker/ceivoice-web
+
 Next.js frontend for CeiVoice, a voice-of-the-employee ticket management platform. Provides role-based dashboards for users, assignees, and admins to submit, track, and manage tickets.
 
 ---
@@ -88,7 +90,7 @@ types/                  # TypeScript type definitions
 
 - Node.js 20+
 - pnpm
-- A running instance of [ceivoice-api](https://github.com/your-org/ceivoice-api) (or the backend Docker container)
+- A running instance of [ceivoice-api](https://github.com/georgielovejuice/ceivoice-api) (or the backend Docker container)
 - A [Supabase](https://supabase.com) project
 
 ### Setup
